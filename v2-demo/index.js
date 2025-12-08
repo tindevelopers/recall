@@ -20,31 +20,46 @@ const __dirname = path.dirname(__filename);
 dotenv.config();
 consoleStamp(console);
 
-// Validate required environment variables
-const requiredEnvVars = [
-  'SECRET',
-  'RECALL_API_KEY',
-  'RECALL_API_HOST',
-  'PUBLIC_URL',
-];
+// Wrap everything in try-catch to ensure errors are logged
+try {
+  // Validate required environment variables
+  const requiredEnvVars = [
+    'SECRET',
+    'RECALL_API_KEY',
+    'RECALL_API_HOST',
+    'PUBLIC_URL',
+  ];
 
-const missingVars = requiredEnvVars.filter(varName => !process.env[varName] || process.env[varName].trim() === '');
+  const missingVars = requiredEnvVars.filter(varName => !process.env[varName] || process.env[varName].trim() === '');
 
-if (missingVars.length > 0) {
-  console.error('❌ Missing required environment variables:');
-  missingVars.forEach(varName => {
-    console.error(`   - ${varName}`);
-  });
-  console.error('\nPlease set these variables in Railway dashboard under your service settings.');
+  if (missingVars.length > 0) {
+    console.error('❌ Missing required environment variables:');
+    missingVars.forEach(varName => {
+      console.error(`   - ${varName}`);
+    });
+    console.error('\nPlease set these variables in Railway dashboard under your service settings.');
+    process.exit(1);
+  }
+
+  console.log('✅ All required environment variables are set');
+
+  // setup db & recall service
+  console.log('📦 Connecting to database...');
+  await connectDb();
+  console.log('✅ Database connected');
+  
+  console.log('🔄 Running database migrations...');
+  await migrateDb();
+  console.log('✅ Migrations complete');
+  
+  console.log('🔧 Initializing Recall service...');
+  Recall.initialize();
+  console.log('✅ Recall service initialized');
+} catch (error) {
+  console.error('❌ Startup error:', error);
+  console.error('Stack:', error.stack);
   process.exit(1);
 }
-
-console.log('✅ All required environment variables are set');
-
-// setup db & recall service
-await connectDb();
-await migrateDb();
-Recall.initialize();
 
 // setup express app
 const app = express();
@@ -89,9 +104,12 @@ app.use((err, req, res, next) => {
 });
 
 const port = process.env.PORT || 3003;
-app.listen(port, () => {
-  console.log(`Started demo app on ${port}`);
+app.listen(port, '0.0.0.0', () => {
+  console.log(`✅ Started demo app on port ${port}`);
   console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
   console.log(`Server ready at http://0.0.0.0:${port}`);
   console.log(`Deployment triggered: ${new Date().toISOString()}`);
+}).on('error', (err) => {
+  console.error('❌ Failed to start server:', err);
+  process.exit(1);
 });
