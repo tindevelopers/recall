@@ -73,9 +73,24 @@ app.use(authenticate);
 app.use(notice);
 app.use(router);
 
-// Error handling middleware
+// Error handling middleware - must be last
 app.use((err, req, res, next) => {
-  console.error('[ERROR]', err);
+  // Log the error with full details
+  console.error('[ERROR] Request failed:', {
+    path: req.path,
+    method: req.method,
+    error: err.message,
+    stack: err.stack,
+    status: err.status || 500
+  });
+  
+  // Don't send response if headers already sent
+  if (res.headersSent) {
+    return next(err);
+  }
+  
+  const status = err.status || 500;
+  res.status(status);
   
   if (process.env.NODE_ENV === "development") {
     // only use in development
@@ -84,22 +99,20 @@ app.use((err, req, res, next) => {
   }
   
   // Production error handler
-  const status = err.status || 500;
-  res.status(status);
-  
   if (req.path.startsWith('/api/')) {
-    res.json({ error: 'Internal server error' });
-  } else {
-    // For non-API routes, try to render error page, fallback to redirect
-    try {
-      res.render('error.ejs', { 
-        error: process.env.NODE_ENV === 'development' ? err.message : 'Internal server error',
-        status: status
-      });
-    } catch (renderErr) {
-      // If error template fails, redirect to home
-      res.redirect('/?error=internal_server_error');
-    }
+    return res.json({ error: 'Internal server error' });
+  }
+  
+  // For non-API routes, try to render error page, fallback to simple text
+  try {
+    return res.render('error.ejs', { 
+      error: 'Internal server error',
+      status: status
+    });
+  } catch (renderErr) {
+    console.error('[ERROR] Failed to render error page:', renderErr);
+    // Last resort: send plain text
+    return res.type('text').send(`Internal Server Error (${status})`);
   }
 });
 
