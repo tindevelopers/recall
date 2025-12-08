@@ -3,7 +3,7 @@ builder = "dockerfile"
 dockerfilePath = "v2-demo/Dockerfile"
 
 [deploy]
-startCommand = "cd v2-demo && npm start"
+startCommand = "npm start"
 healthcheckPath = "/"
 healthcheckTimeout = 100
 restartPolicyType = "on_failure"
