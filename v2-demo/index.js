@@ -46,4 +46,5 @@ const port = process.env.PORT || 3003;
 app.listen(port, () => {
   console.log(`Started demo app on ${port}`);
   console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
+  console.log(`Server ready at http://0.0.0.0:${port}`);
 });
