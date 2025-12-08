@@ -121,7 +121,7 @@ app.listen(port, '0.0.0.0', () => {
   console.log(`✅ Started demo app on port ${port}`);
   console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
   console.log(`Server ready at http://0.0.0.0:${port}`);
-  console.log(`Deployment triggered: ${new Date().toISOString()}`);
+        console.log(`Deployment triggered: ${new Date().toISOString()} - Using RECALL_API_HOST: ${process.env.RECALL_API_HOST}`);
 }).on('error', (err) => {
   console.error('❌ Failed to start server:', err);
   process.exit(1);
