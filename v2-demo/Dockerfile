@@ -1,7 +1,18 @@
 FROM node:19
 
 WORKDIR /app
-COPY ./package.json .
-COPY ./package-lock.json .
 
-RUN npm install
+# Copy package files
+COPY package.json package-lock.json ./
+
+# Install dependencies
+RUN npm install --production
+
+# Copy application files
+COPY . .
+
+# Expose port
+EXPOSE 3003
+
+# Start the application
+CMD ["npm", "start"]

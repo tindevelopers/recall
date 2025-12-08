@@ -1,5 +1,6 @@
 [build]
-builder = "nixpacks"
+builder = "dockerfile"
+dockerfilePath = "v2-demo/Dockerfile"
 
 [deploy]
 startCommand = "cd v2-demo && npm start"
