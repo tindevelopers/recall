@@ -1,0 +1,12 @@
+[phases.setup]
+nixPkgs = ["nodejs_24", "npm-9_x"]
+
+[phases.install]
+cmds = ["cd v2-demo && npm install"]
+
+[phases.build]
+cmds = []
+
+[start]
+cmd = "cd v2-demo && npm start"
+
