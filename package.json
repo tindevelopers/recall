@@ -1,0 +1,14 @@
+{
+  "name": "calendar-integration-demo",
+  "version": "1.0.0",
+  "description": "Recall Calendar Integration Demo",
+  "private": true,
+  "scripts": {
+    "build": "cd v2-demo && npm install",
+    "start": "cd v2-demo && npm start"
+  },
+  "engines": {
+    "node": ">=19.0.0"
+  }
+}
+

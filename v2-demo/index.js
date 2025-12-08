@@ -42,6 +42,7 @@ if (process.env.NODE_ENV === "development") {
   app.use(errorHandler());
 }
 
-app.listen(process.env.PORT, () => {
-  console.log(`Started demo app on ${process.env.PORT}`);
+const port = process.env.PORT || 3003;
+app.listen(port, () => {
+  console.log(`Started demo app on ${port}`);
 });
