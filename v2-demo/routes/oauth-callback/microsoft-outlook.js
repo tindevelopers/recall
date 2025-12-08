@@ -115,9 +115,20 @@ export default async (req, res) => {
 
     return res.redirect("/");
   } catch (err) {
-    console.log(
-      `INFO: Failed to handle oauth callback from Microsoft calendar due to ${err}`
+    console.error(
+      `[ERROR] Failed to handle oauth callback from Microsoft calendar:`,
+      err.message || err
     );
-    return res.sendStatus(500);
+    console.error(`[ERROR] Stack:`, err.stack);
+    res.cookie(
+      "notice",
+      JSON.stringify(
+        generateNotice(
+          "error",
+          `Failed to connect Microsoft calendar: ${err.message || 'Unknown error'}`
+        )
+      )
+    );
+    return res.redirect("/");
   }
 };

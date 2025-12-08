@@ -4,8 +4,11 @@ class RecallApi {
     this.apiHost = apiHost;
   }
 
-  buildUrl(path, queryParams) {    
-    const url = new URL(`${this.apiHost}${path}`);
+  buildUrl(path, queryParams) {
+    // Remove trailing slash from apiHost and leading slash from path to avoid double slashes
+    const cleanHost = this.apiHost.replace(/\/+$/, '');
+    const cleanPath = path.startsWith('/') ? path : `/${path}`;
+    const url = new URL(`${cleanHost}${cleanPath}`);
     url.search = new URLSearchParams(queryParams).toString();
     return url.toString();
   }
@@ -23,15 +26,26 @@ class RecallApi {
     }
 
     console.log(`Making ${method} request to ${url} with token ${this.apiKey}...`);
-    const res = await fetch(url, {
-      method,
-      headers: {
-        authorization: `Token ${this.apiKey}`,
-        "content-type": "application/json",
-        ...headers,
-      },
-      ...(data ? { body: JSON.stringify(data) } : {}),
-    });
+    let res;
+    try {
+      res = await fetch(url, {
+        method,
+        headers: {
+          authorization: `Token ${this.apiKey}`,
+          "content-type": "application/json",
+          ...headers,
+        },
+        ...(data ? { body: JSON.stringify(data) } : {}),
+      });
+    } catch (fetchError) {
+      console.error(`[ERROR] Fetch failed for ${method} ${url}:`, fetchError);
+      console.error(`[ERROR] Error details:`, {
+        message: fetchError.message,
+        cause: fetchError.cause,
+        stack: fetchError.stack
+      });
+      throw new Error(`Failed to connect to Recall API: ${fetchError.message}`);
+    }
 
     if (res.status > 299) {
       const body = await res.text();
