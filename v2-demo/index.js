@@ -20,6 +20,27 @@ const __dirname = path.dirname(__filename);
 dotenv.config();
 consoleStamp(console);
 
+// Validate required environment variables
+const requiredEnvVars = [
+  'SECRET',
+  'RECALL_API_KEY',
+  'RECALL_API_HOST',
+  'PUBLIC_URL',
+];
+
+const missingVars = requiredEnvVars.filter(varName => !process.env[varName] || process.env[varName].trim() === '');
+
+if (missingVars.length > 0) {
+  console.error('❌ Missing required environment variables:');
+  missingVars.forEach(varName => {
+    console.error(`   - ${varName}`);
+  });
+  console.error('\nPlease set these variables in Railway dashboard under your service settings.');
+  process.exit(1);
+}
+
+console.log('✅ All required environment variables are set');
+
 // setup db & recall service
 await connectDb();
 await migrateDb();
@@ -36,11 +57,36 @@ app.use(cookieParser());
 app.use(authenticate);
 app.use(notice);
 app.use(router);
-if (process.env.NODE_ENV === "development") {
-  // only use in development
-  console.log("Using errorhandler in development mode");
-  app.use(errorHandler());
-}
+
+// Error handling middleware
+app.use((err, req, res, next) => {
+  console.error('[ERROR]', err);
+  
+  if (process.env.NODE_ENV === "development") {
+    // only use in development
+    console.log("Using errorhandler in development mode");
+    return errorHandler()(err, req, res, next);
+  }
+  
+  // Production error handler
+  const status = err.status || 500;
+  res.status(status);
+  
+  if (req.path.startsWith('/api/')) {
+    res.json({ error: 'Internal server error' });
+  } else {
+    // For non-API routes, try to render error page, fallback to redirect
+    try {
+      res.render('error.ejs', { 
+        error: process.env.NODE_ENV === 'development' ? err.message : 'Internal server error',
+        status: status
+      });
+    } catch (renderErr) {
+      // If error template fails, redirect to home
+      res.redirect('/?error=internal_server_error');
+    }
+  }
+});
 
 const port = process.env.PORT || 3003;
 app.listen(port, () => {
