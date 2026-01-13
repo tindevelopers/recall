@@ -1,4 +1,4 @@
-const RECALL_API_HOST = process.env.REACT_APP_RECALL_API_HOST || "https://api.recall.ai";
+const RECALL_API_HOST = process.env.REACT_APP_RECALL_API_HOST || "https://recall-one-sigma.vercel.app";
 const RECALL_CALENDAR_API_NAMESPACE = "api/v1/calendar";
 const GOOGLE_OAUTH_PERMISSION_SCOPES = [
   "https://www.googleapis.com/auth/calendar.events.readonly",
