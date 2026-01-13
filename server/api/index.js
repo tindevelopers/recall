@@ -31,12 +31,19 @@ app.post("/", (req, res) => {
   const apiKey = process.env.RECALL_API_KEY;
   const apiHost = process.env.RECALL_API_HOST || "https://us-west-2.recall.ai";
 
+  console.log(`DEBUG: API Key exists: ${!!apiKey}`);
+  console.log(`DEBUG: API Key length: ${apiKey ? apiKey.length : 0}`);
+  console.log(`DEBUG: API Host: ${apiHost}`);
+
   if (!apiKey) {
     console.error("ERROR: RECALL_API_KEY is not set");
-    return res.status(500).json({ error: "Server configuration error" });
+    return res.status(500).json({ error: "Server configuration error: RECALL_API_KEY missing" });
   }
 
-  console.log(`INFO: Using API Host: ${apiHost}`);
+  if (typeof apiKey !== 'string' || apiKey.trim().length === 0) {
+    console.error("ERROR: RECALL_API_KEY is invalid");
+    return res.status(500).json({ error: "Server configuration error: RECALL_API_KEY invalid" });
+  }
 
   fetch(`${apiHost}/api/v1/calendar/authenticate/`, {
     method: "POST",
@@ -46,7 +53,7 @@ app.post("/", (req, res) => {
     },
     body: JSON.stringify({ user_id: req.body.userId }),
   })
-    .then((res) => res.json())
+    .then((fetchRes) => fetchRes.json())
     .then((data) => {
       console.log(
         `INFO: Received authenicate response from server ${JSON.stringify(

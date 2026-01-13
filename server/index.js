@@ -29,7 +29,7 @@ app.post("/", (req, res) => {
     },
     body: JSON.stringify({ user_id: req.body.userId }),
   })
-    .then((res) => res.json())
+    .then((fetchRes) => fetchRes.json())
     .then((data) => {
       console.log(
         `INFO: Received authenicate response from server ${JSON.stringify(
