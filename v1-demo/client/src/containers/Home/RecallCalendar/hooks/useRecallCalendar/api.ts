@@ -82,14 +82,22 @@ export function buildMSOAuthUrl({
   redirectUri,
   scopes = MS_OAUTH_PERMISSION_SCOPES,
 }: BuildMSOAuthUrlArgs) {
-  const params = new URLSearchParams({
-    client_id: clientId,
-    response_type: "code",
-    prompt: "consent",
-    redirect_uri: redirectUri,
-    response_mode: "query",
-    scope: scopes.join(" "),
-    state: JSON.stringify(state),
-  });
-  return `https://login.microsoftonline.com/common/oauth2/v2.0/authorize?${params.toString()}`;
+  // Ensure redirect_uri is a valid absolute URI and remove trailing slash if present
+  const cleanRedirectUri = redirectUri.replace(/\/$/, "");
+  if (!cleanRedirectUri.startsWith("http://") && !cleanRedirectUri.startsWith("https://")) {
+    throw new Error(`redirect_uri must be an absolute URI, got: ${redirectUri}`);
+  }
+  
+  // Manually construct query string with proper encoding
+  const params = [
+    `client_id=${encodeURIComponent(clientId)}`,
+    `response_type=code`,
+    `prompt=consent`,
+    `redirect_uri=${encodeURIComponent(cleanRedirectUri)}`,
+    `response_mode=query`,
+    `scope=${encodeURIComponent(scopes.join(" "))}`,
+    `state=${encodeURIComponent(JSON.stringify(state))}`,
+  ].join("&");
+  
+  return `https://login.microsoftonline.com/common/oauth2/v2.0/authorize?${params}`;
 }
