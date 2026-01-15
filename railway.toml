@@ -3,6 +3,8 @@ builder = "dockerfile"
 dockerfilePath = "v2-demo/Dockerfile"
 
 [deploy]
+# Start command for main service (recall-v2-demo)
+# Worker service (v2-demo-worker) should override this to: npm run start:worker
 startCommand = "npm start"
 healthcheckPath = "/"
 healthcheckTimeout = 100
