@@ -56,11 +56,17 @@ export function buildGoogleOAuthUrl({
   redirectUri,
   scopes = GOOGLE_OAUTH_PERMISSION_SCOPES,
 }: BuildGoogleOAuthUrlArgs): string {
-  return `https://accounts.google.com/o/oauth2/v2/auth?scope=${scopes.join(
-    " "
-  )}&access_type=offline&prompt=consent&include_granted_scopes=true&response_type=code&state=${JSON.stringify(
-    state
-  )}&redirect_uri=${redirectUri}&client_id=${clientId}`;
+  const params = new URLSearchParams({
+    scope: scopes.join(" "),
+    access_type: "offline",
+    prompt: "consent",
+    include_granted_scopes: "true",
+    response_type: "code",
+    state: JSON.stringify(state),
+    redirect_uri: redirectUri,
+    client_id: clientId,
+  });
+  return `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`;
 }
 
 type BuildMSOAuthUrlArgs = {
@@ -76,7 +82,14 @@ export function buildMSOAuthUrl({
   redirectUri,
   scopes = MS_OAUTH_PERMISSION_SCOPES,
 }: BuildMSOAuthUrlArgs) {
-  return `https://login.microsoftonline.com/common/oauth2/v2.0/authorize?client_id=${clientId}&response_type=code&prompt=consent&redirect_uri=${redirectUri}&response_mode=query&scope=${scopes.join(
-    " "
-  )}&state=${JSON.stringify(state)}`;
+  const params = new URLSearchParams({
+    client_id: clientId,
+    response_type: "code",
+    prompt: "consent",
+    redirect_uri: redirectUri,
+    response_mode: "query",
+    scope: scopes.join(" "),
+    state: JSON.stringify(state),
+  });
+  return `https://login.microsoftonline.com/common/oauth2/v2.0/authorize?${params.toString()}`;
 }
