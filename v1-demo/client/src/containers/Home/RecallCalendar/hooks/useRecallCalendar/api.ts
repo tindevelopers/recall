@@ -56,6 +56,10 @@ export function buildGoogleOAuthUrl({
   redirectUri,
   scopes = GOOGLE_OAUTH_PERMISSION_SCOPES,
 }: BuildGoogleOAuthUrlArgs): string {
+  // Trim whitespace and newlines from clientId and redirectUri (common issue with env vars)
+  const cleanClientId = clientId.trim();
+  const cleanRedirectUri = redirectUri.trim();
+  
   const params = new URLSearchParams({
     scope: scopes.join(" "),
     access_type: "offline",
@@ -63,8 +67,8 @@ export function buildGoogleOAuthUrl({
     include_granted_scopes: "true",
     response_type: "code",
     state: JSON.stringify(state),
-    redirect_uri: redirectUri,
-    client_id: clientId,
+    redirect_uri: cleanRedirectUri,
+    client_id: cleanClientId,
   });
   return `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`;
 }
@@ -82,15 +86,18 @@ export function buildMSOAuthUrl({
   redirectUri,
   scopes = MS_OAUTH_PERMISSION_SCOPES,
 }: BuildMSOAuthUrlArgs) {
+  // Trim whitespace and newlines from clientId (common issue with env vars)
+  const cleanClientId = clientId.trim();
+  
   // Ensure redirect_uri is a valid absolute URI and remove trailing slash if present
-  const cleanRedirectUri = redirectUri.replace(/\/$/, "");
+  const cleanRedirectUri = redirectUri.trim().replace(/\/$/, "");
   if (!cleanRedirectUri.startsWith("http://") && !cleanRedirectUri.startsWith("https://")) {
     throw new Error(`redirect_uri must be an absolute URI, got: ${redirectUri}`);
   }
   
   // Manually construct query string with proper encoding
   const params = [
-    `client_id=${encodeURIComponent(clientId)}`,
+    `client_id=${encodeURIComponent(cleanClientId)}`,
     `response_type=code`,
     `prompt=consent`,
     `redirect_uri=${encodeURIComponent(cleanRedirectUri)}`,
