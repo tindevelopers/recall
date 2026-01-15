@@ -7,6 +7,7 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "start": "NODE_ENV=production node index.js",
+    "start:worker": "NODE_ENV=production node worker/index.js",
     "dev": "NODE_ENV=development nodemon index.js",
     "dev:worker": "NODE_ENV=development nodemon worker/index.js"
   },

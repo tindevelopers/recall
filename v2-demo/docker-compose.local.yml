@@ -1,0 +1,40 @@
+version: '3.1'
+services:
+  calv2-demo-app:
+    build: 
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "3003:3003"
+    command: npm run dev
+    volumes:
+      - .:/app
+      - /app/node_modules
+    depends_on:
+      - calv2-demo-redis
+    environment:
+      - REDIS_URL=redis://calv2-demo-redis:6379
+      - NODE_ENV=development
+    env_file:
+      - .env
+  
+  calv2-demo-worker:
+    build: 
+      context: .
+      dockerfile: Dockerfile    
+    command: npm run dev:worker
+    volumes:
+      - .:/app
+      - /app/node_modules
+    depends_on:
+      - calv2-demo-redis
+    environment:
+      - REDIS_URL=redis://calv2-demo-redis:6379
+      - NODE_ENV=development
+    env_file:
+      - .env
+    
+  calv2-demo-redis:
+    image: redis:6.2    
+    ports:
+      - "6379:6379"

@@ -1,0 +1,22 @@
+# Dockerfile optimized for Railway deployment
+# Railway builds from the v2-demo directory, so paths are relative
+
+FROM node:19
+
+WORKDIR /app
+
+# Copy package files
+COPY package.json package-lock.json ./
+
+# Install dependencies
+RUN npm ci --production
+
+# Copy application files
+COPY . .
+
+# Expose port
+EXPOSE 3003
+
+# Start the application
+# Railway will override this with startCommand from railway.toml
+CMD ["npm", "start"]
