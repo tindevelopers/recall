@@ -6,8 +6,9 @@ dockerfilePath = "v2-demo/Dockerfile"
 # Start command removed - set individually per service in Railway dashboard:
 # - Main service (recall-v2-demo): npm start
 # - Worker service (v2-demo-worker): npm run start:worker
-healthcheckPath = "/"
-healthcheckTimeout = 100
+# Healthcheck removed - set individually per service:
+# - Main service: Enable healthcheck with path "/"
+# - Worker service: Disable healthcheck (workers don't serve HTTP)
 restartPolicyType = "on_failure"
 restartPolicyMaxRetries = 10
 
