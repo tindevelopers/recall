@@ -6,6 +6,7 @@ import signInGet from "./sign-in/get.js";
 import signInPost from "./sign-in/post.js";
 import signUpGet from "./sign-up/get.js";
 import signUpPost from "./sign-up/post.js";
+import signOutPost from "./sign-out/post.js";
 import calendarGet from "./calendar/get.js";
 import calendarDelete from "./calendar/delete.js";
 import calendarUpdate from "./calendar/update.js";
@@ -23,6 +24,8 @@ router.post("/sign-in", signInPost);
 
 router.get("/sign-up", signUpGet);
 router.post("/sign-up", signUpPost);
+
+router.post("/sign-out", signOutPost);
 
 router.get("/calendar/:id", calendarGet);
 router.patch("/calendar/:id", calendarUpdate);
