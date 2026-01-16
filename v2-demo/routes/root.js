@@ -10,6 +10,18 @@ import { getPageOrDatabase } from "../services/notion/api-client.js";
 export default async (req, res) => {
   if (req.authenticated) {
     const calendars = await req.authentication.user.getCalendars();
+    // Pick the most recently updated calendar per platform (we only support one connection
+    // per platform per user; reconnect should update the existing record instead of creating a new one).
+    const calendarIdByPlatform = new Map();
+    // Ensure deterministic ordering even if the association doesn't sort
+    const calendarsSorted = [...calendars].sort(
+      (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
+    );
+    for (const calendar of calendarsSorted) {
+      if (!calendarIdByPlatform.has(calendar.platform)) {
+        calendarIdByPlatform.set(calendar.platform, calendar.id);
+      }
+    }
     
     // Refresh calendar data from Recall to get latest status
     // This ensures "connecting" becomes "connected" after Recall finishes
@@ -64,9 +76,11 @@ export default async (req, res) => {
       connectUrls: {
         googleCalendar: buildGoogleCalendarOAuthUrl({
           userId: req.authentication.user.id,
+          calendarId: calendarIdByPlatform.get("google_calendar") || undefined,
         }),
         microsoftOutlook: buildMicrosoftOutlookOAuthUrl({
           userId: req.authentication.user.id,
+          calendarId: calendarIdByPlatform.get("microsoft_outlook") || undefined,
         }),
         notion: buildNotionOAuthUrl({ userId: req.authentication.user.id }),
       },

@@ -40,6 +40,10 @@
           <!-- Connect Calendar Section -->
           <div>
             <h3 class="text-lg font-semibold text-gray-900 mb-4">Connect Your Calendar</h3>
+            <% 
+              const googleCalendar = calendars.find(c => c.platform === 'google_calendar');
+              const microsoftCalendar = calendars.find(c => c.platform === 'microsoft_outlook');
+            %>
             <ul role="list" class="grid grid-cols-1 gap-6 sm:grid-cols-2">
             <li
               class="col-span-1 divide-y divide-gray-200 rounded-md bg-white shadow"
@@ -57,14 +61,42 @@
                       alt="Google Calendar Logo"
                       src="https://upload.wikimedia.org/wikipedia/commons/thumb/a/a5/Google_Calendar_icon_%282020%29.svg/2048px-Google_Calendar_icon_%282020%29.svg.png"
                     />
+                    <% if (googleCalendar) { %>
+                      <span class="ml-2">
+                        <%- include('partials/calendar-status-badge', {status: googleCalendar.status}); %>
+                      </span>
+                    <% } %>
                   </div>
                   <div class="ml-4 mt-2 flex-shrink-0">
-                    <a
-                      href="<%= connectUrls.googleCalendar %>"
-                      class="relative inline-flex items-center rounded-sm bg-indigo-600 px-3 py-1 text-xs font-medium text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
-                    >
-                      Connect
-                    </a>
+                    <% if (googleCalendar && googleCalendar.status === 'connected') { %>
+                      <span
+                        class="relative inline-flex items-center rounded-sm bg-gray-100 px-3 py-1 text-xs font-medium text-gray-600 shadow-sm ring-1 ring-inset ring-gray-200 cursor-not-allowed"
+                        title="Already connected"
+                      >
+                        Connected
+                      </span>
+                      <a
+                        href="<%= connectUrls.googleCalendar %>"
+                        class="ml-2 text-xs font-medium text-indigo-600 hover:text-indigo-500 underline"
+                        title="Re-authorize this calendar connection"
+                      >
+                        Reconnect
+                      </a>
+                    <% } else if (googleCalendar) { %>
+                      <a
+                        href="<%= connectUrls.googleCalendar %>"
+                        class="relative inline-flex items-center rounded-sm bg-indigo-600 px-3 py-1 text-xs font-medium text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
+                      >
+                        Reconnect
+                      </a>
+                    <% } else { %>
+                      <a
+                        href="<%= connectUrls.googleCalendar %>"
+                        class="relative inline-flex items-center rounded-sm bg-indigo-600 px-3 py-1 text-xs font-medium text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
+                      >
+                        Connect
+                      </a>
+                    <% } %>
                   </div>
                 </div>
               </div>              
@@ -85,14 +117,42 @@
                       alt="Microsoft Outlook Calendar Logo"
                       src="https://img.icons8.com/color/480/outlook-calendar.png"
                     />
+                    <% if (microsoftCalendar) { %>
+                      <span class="ml-2">
+                        <%- include('partials/calendar-status-badge', {status: microsoftCalendar.status}); %>
+                      </span>
+                    <% } %>
                   </div>
                   <div class="ml-4 mt-2 flex-shrink-0">
-                    <a
-                      href="<%= connectUrls.microsoftOutlook %>"
-                      class="relative inline-flex items-center rounded-sm bg-indigo-600 px-3 py-1 text-xs font-medium text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
-                    >
-                      Connect
-                    </a>
+                    <% if (microsoftCalendar && microsoftCalendar.status === 'connected') { %>
+                      <span
+                        class="relative inline-flex items-center rounded-sm bg-gray-100 px-3 py-1 text-xs font-medium text-gray-600 shadow-sm ring-1 ring-inset ring-gray-200 cursor-not-allowed"
+                        title="Already connected"
+                      >
+                        Connected
+                      </span>
+                      <a
+                        href="<%= connectUrls.microsoftOutlook %>"
+                        class="ml-2 text-xs font-medium text-indigo-600 hover:text-indigo-500 underline"
+                        title="Re-authorize this calendar connection"
+                      >
+                        Reconnect
+                      </a>
+                    <% } else if (microsoftCalendar) { %>
+                      <a
+                        href="<%= connectUrls.microsoftOutlook %>"
+                        class="relative inline-flex items-center rounded-sm bg-indigo-600 px-3 py-1 text-xs font-medium text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
+                      >
+                        Reconnect
+                      </a>
+                    <% } else { %>
+                      <a
+                        href="<%= connectUrls.microsoftOutlook %>"
+                        class="relative inline-flex items-center rounded-sm bg-indigo-600 px-3 py-1 text-xs font-medium text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
+                      >
+                        Connect
+                      </a>
+                    <% } %>
                   </div>
                 </div>
               </div>
