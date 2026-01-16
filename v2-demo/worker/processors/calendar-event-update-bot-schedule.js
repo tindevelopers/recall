@@ -1,5 +1,6 @@
 import Recall from "../../services/recall/index.js";
 import db from "../../db.js";
+import { buildBotConfig } from "../../logic/bot-config.js";
 
 const DEBUG_ENDPOINT =
   "http://127.0.0.1:7248/ingest/9df62f0f-78c1-44fb-821f-c3c7b9f764cc";
@@ -45,91 +46,27 @@ export default async (job) => {
     });
     // #endregion
 
-    // Build bot config from calendar settings
-    const botConfig = {};
-    
-    // Bot appearance
-    if (calendar) {
-      if (calendar.botName) {
-        botConfig.bot_name = calendar.botName;
-      }
-      if (calendar.botAvatarUrl) {
-        botConfig.bot_image = calendar.botAvatarUrl;
-      }
-    }
-    
-    // Recording config - Recall.ai expects recording_config object
-    botConfig.recording_config = {};
-    
-    // Recording settings
-    if (calendar) {
-      botConfig.recording_config.video = calendar.recordVideo !== false;
-      botConfig.recording_config.audio = calendar.recordAudio !== false;
-    }
-    
-    // Transcription settings - Must be nested under recording_config.transcript
-    // Only enable if calendar.enableTranscription is true
-    // Users can disable transcription from the Bot Settings page
-    // 
-    // IMPORTANT: The worker MUST be running for this config to be sent to Recall.ai
-    // If the worker isn't running when a meeting is scheduled, the bot won't have transcription enabled
-    if (calendar && calendar.enableTranscription !== false) {
-      botConfig.recording_config.transcript = {
-        provider: calendar.useRetellTranscription ? "retell" : "recallai_streaming",
-      };
-      
-      // Add mode if specified (realtime vs async)
-      // For real-time transcription, mode can be omitted (defaults to prioritize_accuracy)
-      // or set to "prioritize_low_latency" for faster delivery
-      if (calendar.transcriptionMode) {
-        if (calendar.transcriptionMode === "realtime") {
-          // Real-time mode: use prioritize_accuracy (default) for best quality
-          // Users can switch to prioritize_low_latency via settings if needed
-          botConfig.recording_config.transcript.mode = "prioritize_accuracy";
-        } else if (calendar.transcriptionMode === "async") {
-          // Async mode: transcription happens after meeting ends
-          botConfig.recording_config.transcript.mode = "async";
-        }
-      }
-      
-      // Add language if specified
-      if (calendar.transcriptionLanguage && calendar.transcriptionLanguage !== "auto") {
-        botConfig.recording_config.transcript.language = calendar.transcriptionLanguage;
-      }
-      
-      // #region agent log
-      logDebug({
-        sessionId: "debug-session",
-        runId: "post-fix",
-        hypothesisId: "H2",
-        location: "calendar-event-update-bot-schedule.js:71",
-        message: "Transcription payload included in recording_config",
-        data: {
-          provider: botConfig.recording_config.transcript.provider,
-          mode: botConfig.recording_config.transcript.mode || null,
-          language: botConfig.recording_config.transcript.language || null,
-          hasTranscript: !!botConfig.recording_config.transcript,
-        },
-        timestamp: Date.now(),
-      });
-      // #endregion
-    }
-    // If enableTranscription is false, transcript config is omitted from recording_config
-    
-    // Bot behavior settings
-    if (calendar) {
-      if (calendar.joinBeforeStartMinutes > 0) {
-        botConfig.join_at = {
-          minutes_before_start: calendar.joinBeforeStartMinutes,
-        };
-      }
-      if (calendar.autoLeaveIfAlone) {
-        botConfig.automatic_leave = {
-          waiting_room_timeout: calendar.autoLeaveAloneTimeoutSeconds || 60,
-          noone_joined_timeout: calendar.autoLeaveAloneTimeoutSeconds || 60,
-        };
-      }
-    }
+    // Build bot config from calendar settings (shared logic)
+    const botConfig = buildBotConfig({
+      calendar,
+      publicUrl: process.env.PUBLIC_URL,
+    });
+
+    // #region agent log
+    logDebug({
+      sessionId: "debug-session",
+      runId: "post-fix",
+      hypothesisId: "H2",
+      location: "calendar-event-update-bot-schedule.js:buildBotConfig",
+      message: "Bot config built (includes transcript/realtime_endpoints when enabled)",
+      data: {
+        hasRecordingConfig: !!botConfig.recording_config,
+        hasTranscript: !!botConfig.recording_config?.transcript,
+        hasRealtimeEndpoints: !!botConfig.recording_config?.realtime_endpoints,
+      },
+      timestamp: Date.now(),
+    });
+    // #endregion
     
     // Log the bot config being sent to Recall API for debugging
     console.log(`[BOT_CONFIG] Sending bot config for event ${event.id}:`, JSON.stringify(botConfig, null, 2));

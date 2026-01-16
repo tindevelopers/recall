@@ -24,6 +24,7 @@ import apiChatMeetings from "./api/chat/meetings.js";
 import apiNotionPages, { getNotionPageDetails } from "./api/notion-pages.js";
 import apiCheckBot from "./api/check-bot.js";
 import apiDebugCalendars from "./api/debug-calendars.js";
+import apiDebugBotConfig from "./api/debug-bot-config.js";
 import meetingsList from "./meetings/list.js";
 import meetingsDetail from "./meetings/detail.js";
 
@@ -61,6 +62,8 @@ router.get("/api/notion/pages/:id", getNotionPageDetails);
 router.post("/api/chat/meetings", apiChatMeetings);
 router.get("/api/check-bot", apiCheckBot);
 router.get("/api/debug-calendars", apiDebugCalendars);
+router.get("/api/debug-bot-config", apiDebugBotConfig);
+router.post("/api/debug-bot-config", apiDebugBotConfig);
 
 router.get("/meetings", meetingsList);
 router.get("/meetings/:id", meetingsDetail);

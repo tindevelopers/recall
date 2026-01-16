@@ -130,7 +130,28 @@ export default {
         throw new Error(`Event notes API not available: ${err.message}`);
       }
     }
-  }
+  },
+
+  /**
+   * Fetch transcript for a bot (fallback when streaming didn't deliver).
+   * Recall.ai exposes transcript at /api/v2/bots/{id}/transcript/
+   */
+  getBotTranscript: async (botId) => {
+    return await client.request({
+      path: `/api/v2/bots/${botId}/transcript/`,
+      method: "GET",
+    });
+  },
+
+  /**
+   * Fetch recording info for a bot.
+   */
+  getBotRecording: async (botId) => {
+    return await client.request({
+      path: `/api/v2/bots/${botId}/recording/`,
+      method: "GET",
+    });
+  },
 };
 
 // export async function createCalendar(data) {
