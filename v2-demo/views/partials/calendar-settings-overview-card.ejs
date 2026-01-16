@@ -1,0 +1,212 @@
+<div class="overflow-hidden bg-white shadow sm:rounded-lg py-4 px-0 sm:px-4">
+  <div class="px-4 sm:px-0">
+    <div class="flex items-center">
+      <h1 class="text-lg font-semibold leading-7 text-gray-900">
+        <svg class="inline-block w-5 h-5 mr-2 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+        </svg>
+        Settings Overview
+      </h1>
+    </div>
+    <p class="mt-1 text-sm text-gray-500">Complete configuration summary for this calendar connection.</p>
+  </div>
+
+  <div class="mt-6 border-t border-gray-100">
+    <dl class="divide-y divide-gray-100">
+      
+      <!-- Transcription Configuration -->
+      <div class="px-4 py-4 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-0">
+        <dt class="text-sm font-medium leading-6 text-gray-900">Transcription</dt>
+        <dd class="mt-1 text-sm leading-6 text-gray-700 sm:col-span-2 sm:mt-0">
+          <div class="space-y-1">
+            <div class="flex items-center">
+              <span class="font-medium">Status:</span>
+              <% if (calendar.enableTranscription !== false) { %>
+                <span class="ml-2 inline-flex items-center rounded-md bg-green-50 px-2 py-1 text-xs font-medium text-green-700 ring-1 ring-inset ring-green-600/20">Enabled</span>
+              <% } else { %>
+                <span class="ml-2 inline-flex items-center rounded-md bg-gray-50 px-2 py-1 text-xs font-medium text-gray-700 ring-1 ring-inset ring-gray-600/20">Disabled</span>
+              <% } %>
+            </div>
+            <% if (calendar.enableTranscription !== false) { %>
+              <div class="flex items-center mt-2">
+                <span class="font-medium">Mode:</span>
+                <span class="ml-2 text-gray-600"><%= calendar.transcriptionMode === 'async' ? 'Async (after meeting ends)' : 'Real-time (during meeting)' %></span>
+              </div>
+              <div class="flex items-center mt-2">
+                <span class="font-medium">Provider:</span>
+                <span class="ml-2 text-gray-600"><%= calendar.useRetellTranscription ? 'Retell' : 'Default (Recall.ai)' %></span>
+              </div>
+              <div class="flex items-center mt-2">
+                <span class="font-medium">Language:</span>
+                <span class="ml-2 text-gray-600"><%= calendar.transcriptionLanguage === 'auto' ? 'Auto-detect' : calendar.transcriptionLanguage || 'en' %></span>
+              </div>
+            <% } %>
+          </div>
+        </dd>
+      </div>
+
+      <!-- Recording Configuration -->
+      <div class="px-4 py-4 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-0">
+        <dt class="text-sm font-medium leading-6 text-gray-900">Recording</dt>
+        <dd class="mt-1 text-sm leading-6 text-gray-700 sm:col-span-2 sm:mt-0">
+          <div class="space-y-1">
+            <div class="flex items-center">
+              <span class="font-medium">Video:</span>
+              <% if (calendar.recordVideo !== false) { %>
+                <span class="ml-2 inline-flex items-center rounded-md bg-green-50 px-2 py-1 text-xs font-medium text-green-700 ring-1 ring-inset ring-green-600/20">Enabled</span>
+              <% } else { %>
+                <span class="ml-2 inline-flex items-center rounded-md bg-gray-50 px-2 py-1 text-xs font-medium text-gray-700 ring-1 ring-inset ring-gray-600/20">Disabled</span>
+              <% } %>
+            </div>
+            <div class="flex items-center mt-2">
+              <span class="font-medium">Audio:</span>
+              <% if (calendar.recordAudio !== false) { %>
+                <span class="ml-2 inline-flex items-center rounded-md bg-green-50 px-2 py-1 text-xs font-medium text-green-700 ring-1 ring-inset ring-green-600/20">Enabled</span>
+              <% } else { %>
+                <span class="ml-2 inline-flex items-center rounded-md bg-gray-50 px-2 py-1 text-xs font-medium text-gray-700 ring-1 ring-inset ring-gray-600/20">Disabled</span>
+              <% } %>
+            </div>
+          </div>
+        </dd>
+      </div>
+
+      <!-- AI Enrichment Configuration -->
+      <div class="px-4 py-4 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-0">
+        <dt class="text-sm font-medium leading-6 text-gray-900">AI Enrichment</dt>
+        <dd class="mt-1 text-sm leading-6 text-gray-700 sm:col-span-2 sm:mt-0">
+          <div class="space-y-1">
+            <div class="flex items-center">
+              <span class="font-medium">Summary:</span>
+              <% if (calendar.enableSummary !== false) { %>
+                <span class="ml-2 inline-flex items-center rounded-md bg-green-50 px-2 py-1 text-xs font-medium text-green-700 ring-1 ring-inset ring-green-600/20">Enabled</span>
+                <span class="ml-2 text-xs text-gray-500">(Using OpenAI GPT-4o-mini)</span>
+              <% } else { %>
+                <span class="ml-2 inline-flex items-center rounded-md bg-gray-50 px-2 py-1 text-xs font-medium text-gray-700 ring-1 ring-inset ring-gray-600/20">Disabled</span>
+              <% } %>
+            </div>
+            <div class="flex items-center mt-2">
+              <span class="font-medium">Action Items:</span>
+              <% if (calendar.enableActionItems !== false) { %>
+                <span class="ml-2 inline-flex items-center rounded-md bg-green-50 px-2 py-1 text-xs font-medium text-green-700 ring-1 ring-inset ring-green-600/20">Enabled</span>
+                <span class="ml-2 text-xs text-gray-500">(Extracted from transcriptions)</span>
+              <% } else { %>
+                <span class="ml-2 inline-flex items-center rounded-md bg-gray-50 px-2 py-1 text-xs font-medium text-gray-700 ring-1 ring-inset ring-gray-600/20">Disabled</span>
+              <% } %>
+            </div>
+            <div class="flex items-center mt-2">
+              <span class="font-medium">Follow-ups:</span>
+              <% if (calendar.enableFollowUps !== false) { %>
+                <span class="ml-2 inline-flex items-center rounded-md bg-green-50 px-2 py-1 text-xs font-medium text-green-700 ring-1 ring-inset ring-green-600/20">Enabled</span>
+              <% } else { %>
+                <span class="ml-2 inline-flex items-center rounded-md bg-gray-50 px-2 py-1 text-xs font-medium text-gray-700 ring-1 ring-inset ring-gray-600/20">Disabled</span>
+              <% } %>
+            </div>
+            <div class="mt-3 p-3 bg-blue-50 rounded-md border border-blue-200">
+              <p class="text-xs text-blue-800">
+                <strong>How it works:</strong> When transcriptions are received, the system automatically:
+                <ol class="list-decimal list-inside mt-1 space-y-1">
+                  <li>Stores transcript segments in the database</li>
+                  <li><strong>Primary:</strong> Tries Recall.ai Notepad API first for summaries and action items</li>
+                  <li><strong>Fallback:</strong> Uses OpenAI GPT-4o-mini if Notepad API is unavailable</li>
+                  <li>Extracts action items, follow-ups, and topics</li>
+                  <li>Creates embeddings for semantic search (OpenAI)</li>
+                  <% if (calendar.autoPublishToNotion) { %>
+                    <li>Auto-publishes to your Notion destination</li>
+                  <% } %>
+                </ol>
+                <p class="mt-2 text-xs italic">
+                  The system prioritizes Recall.ai's built-in Notepad API for faster, native summaries, 
+                  then falls back to OpenAI for additional processing or when Notepad API is unavailable.
+                </p>
+              </p>
+            </div>
+          </div>
+        </dd>
+      </div>
+
+      <!-- Bot Behavior Configuration -->
+      <div class="px-4 py-4 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-0">
+        <dt class="text-sm font-medium leading-6 text-gray-900">Bot Behavior</dt>
+        <dd class="mt-1 text-sm leading-6 text-gray-700 sm:col-span-2 sm:mt-0">
+          <div class="space-y-1">
+            <div class="flex items-center">
+              <span class="font-medium">Join before start:</span>
+              <span class="ml-2 text-gray-600"><%= calendar.joinBeforeStartMinutes || 1 %> minute(s)</span>
+            </div>
+            <div class="flex items-center mt-2">
+              <span class="font-medium">Stay after end:</span>
+              <span class="ml-2 text-gray-600"><%= calendar.leaveAfterEndMinutes || 0 %> minute(s)</span>
+            </div>
+            <div class="flex items-center mt-2">
+              <span class="font-medium">Auto-leave if alone:</span>
+              <% if (calendar.autoLeaveIfAlone !== false) { %>
+                <span class="ml-2 inline-flex items-center rounded-md bg-green-50 px-2 py-1 text-xs font-medium text-green-700 ring-1 ring-inset ring-green-600/20">Enabled</span>
+                <span class="ml-2 text-gray-600">(<%= calendar.autoLeaveAloneTimeoutSeconds || 60 %>s timeout)</span>
+              <% } else { %>
+                <span class="ml-2 inline-flex items-center rounded-md bg-gray-50 px-2 py-1 text-xs font-medium text-gray-700 ring-1 ring-inset ring-gray-600/20">Disabled</span>
+              <% } %>
+            </div>
+            <div class="flex items-center mt-2">
+              <span class="font-medium">Bot Name:</span>
+              <span class="ml-2 text-gray-600"><%= calendar.botName || 'Meeting Assistant' %></span>
+            </div>
+          </div>
+        </dd>
+      </div>
+
+      <!-- Publishing Configuration -->
+      <div class="px-4 py-4 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-0">
+        <dt class="text-sm font-medium leading-6 text-gray-900">Auto-Publishing</dt>
+        <dd class="mt-1 text-sm leading-6 text-gray-700 sm:col-span-2 sm:mt-0">
+          <% if (calendar.autoPublishToNotion) { %>
+            <span class="inline-flex items-center rounded-md bg-green-50 px-2 py-1 text-xs font-medium text-green-700 ring-1 ring-inset ring-green-600/20">Enabled</span>
+            <span class="ml-2 text-xs text-gray-500">Meeting summaries will be automatically published to Notion</span>
+          <% } else { %>
+            <span class="inline-flex items-center rounded-md bg-gray-50 px-2 py-1 text-xs font-medium text-gray-700 ring-1 ring-inset ring-gray-600/20">Disabled</span>
+            <span class="ml-2 text-xs text-gray-500">Meeting summaries will be stored locally only</span>
+          <% } %>
+        </dd>
+      </div>
+
+      <!-- Recording Preferences -->
+      <div class="px-4 py-4 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-0">
+        <dt class="text-sm font-medium leading-6 text-gray-900">Recording Preferences</dt>
+        <dd class="mt-1 text-sm leading-6 text-gray-700 sm:col-span-2 sm:mt-0">
+          <div class="space-y-1">
+            <div class="flex items-center">
+              <span class="font-medium">Record External Events:</span>
+              <% if (calendar.autoRecordExternalEvents) { %>
+                <span class="ml-2 inline-flex items-center rounded-md bg-green-50 px-2 py-1 text-xs font-medium text-green-700 ring-1 ring-inset ring-green-600/20">Enabled</span>
+              <% } else { %>
+                <span class="ml-2 inline-flex items-center rounded-md bg-gray-50 px-2 py-1 text-xs font-medium text-gray-700 ring-1 ring-inset ring-gray-600/20">Disabled</span>
+              <% } %>
+            </div>
+            <div class="flex items-center mt-2">
+              <span class="font-medium">Only Confirmed Events:</span>
+              <% if (calendar.autoRecordOnlyConfirmedEvents) { %>
+                <span class="ml-2 inline-flex items-center rounded-md bg-green-50 px-2 py-1 text-xs font-medium text-green-700 ring-1 ring-inset ring-green-600/20">Enabled</span>
+              <% } else { %>
+                <span class="ml-2 inline-flex items-center rounded-md bg-gray-50 px-2 py-1 text-xs font-medium text-gray-700 ring-1 ring-inset ring-gray-600/20">Disabled</span>
+              <% } %>
+            </div>
+          </div>
+        </dd>
+      </div>
+
+    </dl>
+  </div>
+
+  <div class="mt-6 border-t border-gray-100 pt-4 px-4 sm:px-0">
+    <a
+      href="/calendar/<%= calendar.id %>"
+      class="inline-flex items-center rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
+    >
+      <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+      </svg>
+      Edit Settings
+    </a>
+  </div>
+</div>

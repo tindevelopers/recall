@@ -43,6 +43,11 @@ export default (sequelize) => {
         type: DataTypes.JSON,
         allowNull: true,
       },
+      source: {
+        type: DataTypes.STRING,
+        allowNull: true,
+        comment: "Source of the summary: recall_webhook, recall_notepad_api, recall_event_api, openai, etc.",
+      },
     },
     {
       sequelize,

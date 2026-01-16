@@ -31,9 +31,9 @@ export default async (job) => {
       }
     }
     
-    // Transcription settings - ALWAYS enable transcription when bot joins
-    // This ensures transcription starts immediately when the bot joins the meeting
-    if (calendar) {
+    // Transcription settings - Only enable if calendar.enableTranscription is true
+    // Users can disable transcription from the Bot Settings page
+    if (calendar && calendar.enableTranscription !== false) {
       botConfig.transcription = {
         provider: calendar.useRetellTranscription ? "retell" : "default",
         mode: calendar.transcriptionMode || "realtime", // "realtime" or "async"
@@ -41,13 +41,8 @@ export default async (job) => {
       if (calendar.transcriptionLanguage && calendar.transcriptionLanguage !== "auto") {
         botConfig.transcription.language = calendar.transcriptionLanguage;
       }
-    } else {
-      // Default transcription config if calendar not found (shouldn't happen, but safety)
-      botConfig.transcription = {
-        provider: "default",
-        mode: "realtime",
-      };
     }
+    // If enableTranscription is false, transcription config is omitted from botConfig
     
     // Recording settings
     if (calendar) {

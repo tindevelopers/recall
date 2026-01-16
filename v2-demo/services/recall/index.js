@@ -74,6 +74,62 @@ export default {
       path: `/api/v2/calendar-events/${id}/bot/`,
       method: "DELETE",
     });
+  },
+  
+  // Bot and Notepad API methods
+  getBot: async (botId) => {
+    return await client.request({
+      path: `/api/v2/bots/${botId}/`,
+      method: "GET",
+    });
+  },
+  
+  getBotNotes: async (botId) => {
+    // Try to get notes/summaries from Recall.ai Notepad API
+    // This endpoint may vary - checking common patterns
+    try {
+      return await client.request({
+        path: `/api/v2/bots/${botId}/notes/`,
+        method: "GET",
+      });
+    } catch (err) {
+      // If notes endpoint doesn't exist, try alternative endpoints
+      try {
+        return await client.request({
+          path: `/api/v2/bots/${botId}/summary/`,
+          method: "GET",
+        });
+      } catch (err2) {
+        // Try meeting notes endpoint if bot has event_id
+        try {
+          return await client.request({
+            path: `/api/v2/bots/${botId}/notepad/`,
+            method: "GET",
+          });
+        } catch (err3) {
+          throw new Error(`Notepad API not available: ${err.message}`);
+        }
+      }
+    }
+  },
+  
+  getCalendarEventNotes: async (eventId) => {
+    // Try to get notes from calendar event
+    try {
+      return await client.request({
+        path: `/api/v2/calendar-events/${eventId}/notes/`,
+        method: "GET",
+      });
+    } catch (err) {
+      try {
+        return await client.request({
+          path: `/api/v2/calendar-events/${eventId}/summary/`,
+          method: "GET",
+        });
+      } catch (err2) {
+        throw new Error(`Event notes API not available: ${err.message}`);
+      }
+    }
   }
 };
 
