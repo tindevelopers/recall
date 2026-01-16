@@ -70,14 +70,26 @@ export default async (job) => {
     // Transcription settings - Must be nested under recording_config.transcript
     // Only enable if calendar.enableTranscription is true
     // Users can disable transcription from the Bot Settings page
+    // 
+    // IMPORTANT: The worker MUST be running for this config to be sent to Recall.ai
+    // If the worker isn't running when a meeting is scheduled, the bot won't have transcription enabled
     if (calendar && calendar.enableTranscription !== false) {
       botConfig.recording_config.transcript = {
-        provider: calendar.useRetellTranscription ? "retell" : "default",
+        provider: calendar.useRetellTranscription ? "retell" : "recallai_streaming",
       };
       
       // Add mode if specified (realtime vs async)
+      // For real-time transcription, mode can be omitted (defaults to prioritize_accuracy)
+      // or set to "prioritize_low_latency" for faster delivery
       if (calendar.transcriptionMode) {
-        botConfig.recording_config.transcript.mode = calendar.transcriptionMode;
+        if (calendar.transcriptionMode === "realtime") {
+          // Real-time mode: use prioritize_accuracy (default) for best quality
+          // Users can switch to prioritize_low_latency via settings if needed
+          botConfig.recording_config.transcript.mode = "prioritize_accuracy";
+        } else if (calendar.transcriptionMode === "async") {
+          // Async mode: transcription happens after meeting ends
+          botConfig.recording_config.transcript.mode = "async";
+        }
       }
       
       // Add language if specified
