@@ -8,6 +8,9 @@ export default async (req, res) => {
 
   const userId = req.authentication.user.id;
 
+  // Check if user has any connected calendars
+  const calendars = await req.authentication.user.getCalendars();
+
   // Get all meeting artifacts for this user with their summaries
   const artifacts = await db.MeetingArtifact.findAll({
     where: { userId },
@@ -103,6 +106,7 @@ export default async (req, res) => {
     notice: req.notice,
     user: req.authentication.user,
     meetings,
+    hasCalendars: calendars.length > 0,
   });
 };
 
