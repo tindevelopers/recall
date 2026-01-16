@@ -45,12 +45,19 @@ The worker needs to run separately. You have two options:
 
 1. In Railway, duplicate the main application service
 2. Rename it to "v2-demo-worker"
-3. Change the **Start Command** to: `npm run dev:worker`
+3. Change the **Start Command** to: `npm run start:worker` (or `npm run dev:worker` for dev)
 4. Use the same environment variables as the main service
+5. **⚠️ IMPORTANT: Disable Serverless/Sleep Mode**
+   - Go to worker service **Settings** → **Compute**
+   - Disable **"Sleep"** or set to **"Always On"**
+   - This ensures the worker is always ready to process jobs
+   - See `RAILWAY-SERVERLESS-CONFIG.md` for details
 
 #### Option B: Use Railway Scripts
 
 Create a Procfile or use Railway's start command override.
+
+**Note:** The worker service **MUST** be always-on (not serverless) for transcription to work reliably. Serverless mode causes cold start delays that can prevent bot scheduling and transcription.
 
 ### Step 5: Configure Environment Variables
 
