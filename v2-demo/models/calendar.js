@@ -82,6 +82,12 @@ export default (sequelize) => {
         defaultValue: "en",
         field: "transcription_language",
       },
+      transcriptionMode: {
+        type: DataTypes.ENUM("realtime", "async"),
+        allowNull: false,
+        defaultValue: "realtime",
+        field: "transcription_mode",
+      },
 
       // AI enrichment settings
       enableSummary: {

@@ -31,6 +31,7 @@ export default async (req, res) => {
     // Transcription
     enableTranscription = "off",
     transcriptionLanguage = "en",
+    transcriptionMode = "realtime",
     // AI enrichment
     enableSummary = "off",
     enableActionItems = "off",
@@ -55,6 +56,7 @@ export default async (req, res) => {
   // Update transcription settings
   calendar.enableTranscription = enableTranscription === "on";
   calendar.transcriptionLanguage = transcriptionLanguage;
+  calendar.transcriptionMode = transcriptionMode === "async" ? "async" : "realtime";
 
   // Update AI enrichment settings
   calendar.enableSummary = enableSummary === "on";
