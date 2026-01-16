@@ -44,7 +44,7 @@ railway variables set SECRET=$(openssl rand -hex 32)
 
 # Set Recall API credentials (replace with your actual values)
 railway variables set RECALL_API_KEY=your-recall-api-key-here
-railway variables set RECALL_API_HOST=https://api.recall.ai/api/v1
+railway variables set RECALL_API_HOST=https://api.recall.ai
 
 # Set PUBLIC_URL (update after deployment with your actual Railway URL)
 railway variables set PUBLIC_URL=https://your-app-name.up.railway.app

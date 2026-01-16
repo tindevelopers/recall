@@ -16,8 +16,14 @@ Railway is configured via `railway.toml` in the root directory. V2-demo requires
 2. Create a new project
 3. Connect your GitHub repository
 
-### Step 2: Add Redis Service
+### Step 2: Add Database Services
 
+**Add PostgreSQL:**
+1. In Railway dashboard, click **"+ New"** → **"Database"** → **"Add PostgreSQL"**
+2. Railway will automatically create a `DATABASE_URL` environment variable
+3. The app will automatically use PostgreSQL when `DATABASE_URL` is present
+
+**Add Redis:**
 1. In Railway dashboard, click **"+ New"** → **"Database"** → **"Add Redis"**
 2. Railway will automatically create a `REDIS_URL` environment variable
 3. Note the Redis service name (e.g., `redis`)
@@ -54,8 +60,9 @@ Set these environment variables for **both** main app and worker services:
 ```
 SECRET=<generate-a-random-secret-key>
 RECALL_API_KEY=<your-recall-api-key>
-RECALL_API_HOST=https://api.recall.ai/api/v1
+RECALL_API_HOST=https://api.recall.ai
 PUBLIC_URL=https://your-app-name.up.railway.app
+DATABASE_URL=<automatically-set-by-railway-postgresql>
 REDIS_URL=<automatically-set-by-railway-redis-service>
 PORT=3003
 NODE_ENV=production
@@ -72,8 +79,10 @@ MICROSOFT_OUTLOOK_OAUTH_CLIENT_SECRET=<your-microsoft-client-secret>
 **Important Notes:**
 - `SECRET`: Generate with `openssl rand -hex 32`
 - `PUBLIC_URL`: Use Railway's generated domain or your custom domain
+- `DATABASE_URL`: Railway automatically provides this when you add PostgreSQL service
 - `REDIS_URL`: Railway automatically provides this when you add Redis service
 - For OAuth: Update redirect URIs in Google/Microsoft consoles to match `PUBLIC_URL`
+- **Database:** The app automatically uses PostgreSQL when `DATABASE_URL` is present, or SQLite for local development
 
 ### Step 6: Connect Services
 
@@ -104,11 +113,14 @@ Make sure to set environment variables in `.env` file or via `docker compose` en
 |----------|----------|-------------|---------|
 | `SECRET` | Yes | JWT signing secret | `openssl rand -hex 32` |
 | `RECALL_API_KEY` | Yes | Your Recall API key | `token_...` |
-| `RECALL_API_HOST` | Yes | Recall API base URL | `https://api.recall.ai/api/v1` |
+| `RECALL_API_HOST` | Yes | Recall API base URL (without `/api/v1` or `/api/v2`). Use region-specific endpoint if your API key is region-specific: `https://us-east-1.recall.ai`, `https://us-west-2.recall.ai`, `https://eu-central-1.recall.ai`, or `https://ap-northeast-1.recall.ai` | `https://api.recall.ai` (or region-specific) |
 | `PUBLIC_URL` | Yes | Public URL for OAuth | `https://your-app.up.railway.app` |
+| `DATABASE_URL` | Yes* | PostgreSQL connection string | `postgresql://...` (auto-set by Railway PostgreSQL) |
 | `REDIS_URL` | Yes | Redis connection string | `redis://...` (auto-set by Railway) |
 | `PORT` | No | Server port | `3003` |
 | `NODE_ENV` | No | Environment | `production` |
+
+\* Required for production. If not set, app uses SQLite (for local development only)
 | `GOOGLE_CALENDAR_OAUTH_CLIENT_ID` | Optional | Google OAuth client ID | - |
 | `GOOGLE_CALENDAR_OAUTH_CLIENT_SECRET` | Optional | Google OAuth secret | - |
 | `MICROSOFT_OUTLOOK_OAUTH_CLIENT_ID` | Optional | Microsoft OAuth client ID | - |
@@ -127,13 +139,72 @@ Make sure to set environment variables in `.env` file or via `docker compose` en
 - Verify services are in the same Railway project
 
 ### Database Issues
-- SQLite database is created automatically
-- For persistent storage, consider using Railway's volume or PostgreSQL
+
+**Problem: Database Resets on Redeploy**
+
+By default, the app uses SQLite stored as a file (`db.sqlite`) in the container filesystem. On Railway, containers are rebuilt on each deploy, so the database file is lost.
+
+**Solution: Use PostgreSQL (Recommended)**
+
+PostgreSQL is now the default for production. The app automatically detects and uses PostgreSQL when `DATABASE_URL` is present:
+
+1. In Railway dashboard, click **"+ New"** → **"Database"** → **"Add PostgreSQL"**
+2. Railway automatically creates `DATABASE_URL` environment variable
+3. The app will automatically use PostgreSQL - no code changes needed
+4. Migrations run automatically on startup
+5. Redeploy your service
+
+**Why PostgreSQL is Better:**
+- ✅ Managed service (automatic backups, scaling)
+- ✅ Better for concurrent access
+- ✅ Production-ready
+- ✅ Persistent across redeploys automatically
+- ✅ No volume management needed
+
+**For Local Development:**
+- The app automatically uses SQLite when `DATABASE_URL` is not set
+- No PostgreSQL needed locally - just use `npm run dev`
 
 ### Port Issues
 - Railway automatically assigns ports
 - Use `PORT` environment variable if needed
 - Check Railway service settings
+
+### Recall API 404 Errors
+
+**Error: `POST request failed with status 404`**
+- **Problem:** The `RECALL_API_HOST` is incorrectly configured
+- **Solution:**
+  1. Check your `RECALL_API_HOST` environment variable in Railway
+  2. It should be set to: `https://api.recall.ai` (base URL only)
+  3. **Do NOT** include `/api/v1` or `/api/v2` in the host
+  4. The code will append the correct API path (`/api/v2/calendars/`) automatically
+  5. After updating, redeploy your service
+
+**Common Mistakes:**
+- ❌ `RECALL_API_HOST=https://api.recall.ai/api/v1` (wrong - includes version)
+- ✅ `RECALL_API_HOST=https://api.recall.ai` (correct - base URL only)
+
+### OAuth Redirect URI Errors
+
+**Error: `AADSTS50011` (Azure AD)**
+- **Problem:** The redirect URI doesn't match what's configured in Azure AD
+- **Solution:**
+  1. Go to [Azure Portal](https://portal.azure.com/) → Azure Active Directory → App registrations
+  2. Find your application (Application ID: `c4ab4004-1aa3-4b65-bb4a-2d7c6ac39176`)
+  3. Click "Authentication" → "Add a platform" → "Web"
+  4. Add redirect URI: `https://your-app.up.railway.app/oauth-callback/microsoft-outlook`
+  5. Ensure it matches exactly (no trailing slash, correct protocol)
+  6. Wait a few minutes for changes to propagate
+
+**Error: `redirect_uri_mismatch` (Google)**
+- **Problem:** The redirect URI doesn't match what's configured in Google Cloud Console
+- **Solution:**
+  1. Go to [Google Cloud Console](https://console.cloud.google.com/)
+  2. Navigate to APIs & Services → Credentials
+  3. Click on your OAuth 2.0 Client ID
+  4. Add redirect URI: `https://your-app.up.railway.app/oauth-callback/google-calendar`
+  5. Save changes
 
 ## Railway CLI (Optional)
 

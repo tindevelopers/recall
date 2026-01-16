@@ -18,7 +18,7 @@ cat > .env << 'EOF'
 # Required Environment Variables
 SECRET=change-this-secret-key-in-production
 RECALL_API_KEY=your-recall-api-key-here
-RECALL_API_HOST=https://api.recall.ai/api/v1
+RECALL_API_HOST=https://api.recall.ai
 PUBLIC_URL=http://localhost:3003
 
 # Redis Configuration (for Bull queue)
@@ -44,7 +44,7 @@ echo ""
 echo "📝 Please edit .env and update:"
 echo "   1. SECRET - Generate a random secret (e.g., run: openssl rand -hex 32)"
 echo "   2. RECALL_API_KEY - Your Recall API key"
-echo "   3. RECALL_API_HOST - Usually https://api.recall.ai/api/v1"
+echo "   3. RECALL_API_HOST - Usually https://api.recall.ai (base URL only, without /api/v1 or /api/v2)"
 echo "   4. PUBLIC_URL - http://localhost:3003 for local dev"
 echo "   5. REDIS_URL - redis://localhost:6379 (if Redis is local)"
 echo ""

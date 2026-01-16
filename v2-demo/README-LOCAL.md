@@ -44,7 +44,7 @@ Run the setup script or manually create `.env`:
 Or manually create `.env` with:
 - `SECRET`: A random string for JWT signing (e.g., generate with `openssl rand -hex 32`)
 - `RECALL_API_KEY`: Your Recall API key
-- `RECALL_API_HOST`: Usually `https://api.recall.ai/api/v1` (default)
+- `RECALL_API_HOST`: Usually `https://api.recall.ai` (base URL only, without `/api/v1` or `/api/v2`)
 - `PUBLIC_URL`: `http://localhost:3003` for local development
 - `REDIS_URL`: `redis://localhost:6379` if Redis is running locally
 
@@ -105,7 +105,7 @@ Open your browser and navigate to:
 |----------|----------|-------------|---------|
 | `SECRET` | Yes | Secret key for JWT signing | - |
 | `RECALL_API_KEY` | Yes | Your Recall API key | - |
-| `RECALL_API_HOST` | Yes | Recall API base URL | `https://api.recall.ai/api/v1` |
+| `RECALL_API_HOST` | Yes | Recall API base URL (without `/api/v1` or `/api/v2`) | `https://api.recall.ai` |
 | `PUBLIC_URL` | Yes | Public URL for OAuth callbacks | `http://localhost:3003` |
 | `REDIS_URL` | Yes | Redis connection URL | `redis://localhost:6379` |
 | `PORT` | No | Server port | `3003` |
@@ -124,11 +124,14 @@ If you see Redis connection errors:
 3. For Docker Redis: `docker ps` to verify container is running
 
 ### Database Issues
-The app uses SQLite, which creates a `db.sqlite` file automatically. If you need to reset:
-```bash
-rm db.sqlite
-npm run dev  # Migrations will run automatically
-```
+**Local Development:**
+- The app uses SQLite locally (creates `db.sqlite` file automatically)
+- If you need to reset: `rm db.sqlite && npm run dev` (migrations run automatically)
+
+**Production (Railway):**
+- The app automatically uses PostgreSQL when `DATABASE_URL` is set
+- PostgreSQL is recommended for production (better performance, persistence)
+- No configuration needed - just add PostgreSQL service in Railway
 
 ### Port Already in Use
 If port 3003 is already in use:

@@ -1,0 +1,18 @@
+# Railway configuration for v2-demo worker service
+# This file should be used when deploying the worker service
+# Set Root Directory to: v2-demo (or use this file path)
+
+[build]
+builder = "dockerfile"
+dockerfilePath = "Dockerfile"
+
+[deploy]
+startCommand = "npm run start:worker"
+# No healthcheck for worker (it doesn't serve HTTP)
+restartPolicyType = "on_failure"
+restartPolicyMaxRetries = 10
+
+[env]
+NODE_ENV = "production"
+PORT = "3003"
+
