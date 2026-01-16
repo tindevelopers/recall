@@ -5,6 +5,7 @@ import {
 } from "../logic/oauth.js";
 import { buildNotionOAuthUrl } from "../logic/notion-oauth.js";
 import Recall from "../services/recall/index.js";
+import { getPageOrDatabase } from "../services/notion/api-client.js";
 
 export default async (req, res) => {
   if (req.authenticated) {
@@ -34,6 +35,20 @@ export default async (req, res) => {
       where: { type: "notion" },
       limit: 1,
     });
+    
+    // Fetch details about the current Notion target if one exists
+    let notionTargetDetails = null;
+    if (notionIntegration?.[0] && notionTarget?.[0]?.config?.destinationId) {
+      try {
+        notionTargetDetails = await getPageOrDatabase({
+          accessToken: notionIntegration[0].accessToken,
+          id: notionTarget[0].config.destinationId,
+        });
+      } catch (err) {
+        console.error("Failed to fetch Notion target details:", err.message);
+      }
+    }
+    
     return res.render("index.ejs", {
       notice: req.notice,
       user: req.authentication.user,
@@ -41,6 +56,7 @@ export default async (req, res) => {
       notion: {
         integration: notionIntegration?.[0] || null,
         target: notionTarget?.[0] || null,
+        targetDetails: notionTargetDetails,
       },
       connectUrls: {
         googleCalendar: buildGoogleCalendarOAuthUrl({
