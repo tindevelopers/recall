@@ -15,7 +15,32 @@
     <main>
       <div class="mx-auto max-w-7xl sm:px-6 lg:px-8">
         <div class="flex flex-col space-y-6">
-          <ul role="list" class="mt-6 grid grid-cols-1 gap-6 sm:grid-cols-2">
+          
+          <!-- Quick Actions Banner -->
+          <div class="mt-6 bg-gradient-to-r from-indigo-600 to-purple-600 rounded-lg shadow-lg overflow-hidden">
+            <div class="px-6 py-8 sm:px-10 sm:py-10">
+              <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between">
+                <div class="mb-4 sm:mb-0">
+                  <h2 class="text-2xl font-bold text-white">Meeting Notes & Recordings</h2>
+                  <p class="mt-1 text-indigo-100">View transcripts, AI summaries, action items, and download recordings from your completed meetings.</p>
+                </div>
+                <a
+                  href="/meetings"
+                  class="inline-flex items-center justify-center rounded-md bg-white px-6 py-3 text-base font-semibold text-indigo-600 shadow-sm hover:bg-indigo-50 transition-colors"
+                >
+                  <svg class="mr-2 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
+                  </svg>
+                  View Meetings
+                </a>
+              </div>
+            </div>
+          </div>
+
+          <!-- Connect Calendar Section -->
+          <div>
+            <h3 class="text-lg font-semibold text-gray-900 mb-4">Connect Your Calendar</h3>
+            <ul role="list" class="grid grid-cols-1 gap-6 sm:grid-cols-2">
             <li
               class="col-span-1 divide-y divide-gray-200 rounded-md bg-white shadow"
             >              
@@ -73,15 +98,23 @@
               </div>
             </li>
           </ul>
-          <ul role="list" class="grid grid-cols-1 gap-6 sm:grid-cols-2">
-            <li class="col-span-1 divide-y divide-gray-200 rounded-md bg-white shadow">
-              <div class="bg-white px-4 py-5 sm:px-6 rounded-md">
-                <div class="-ml-4 -mt-2 flex flex-wrap items-center justify-between sm:flex-nowrap">
-                  <div class="flex items-center ml-4 mt-2">
-                    <h3 class="text-base font-semibold leading-6 text-gray-900">
-                      Notion
-                    </h3>
-                  </div>
+          </div>
+
+          <!-- Integrations & Tools Section -->
+          <div>
+            <h3 class="text-lg font-semibold text-gray-900 mb-4">Integrations & Tools</h3>
+            <ul role="list" class="grid grid-cols-1 gap-6 sm:grid-cols-2">
+              <li class="col-span-1 divide-y divide-gray-200 rounded-md bg-white shadow">
+                <div class="bg-white px-4 py-5 sm:px-6 rounded-md">
+                  <div class="-ml-4 -mt-2 flex flex-wrap items-center justify-between sm:flex-nowrap">
+                    <div class="flex items-center ml-4 mt-2">
+                      <svg class="h-5 w-5 text-gray-600 mr-2" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M4.459 4.208c.746.606 1.026.56 2.428.466l13.215-.793c.28 0 .047-.28-.046-.326L17.86 1.968c-.42-.326-.98-.7-2.055-.607L3.01 2.295c-.466.046-.56.28-.374.466zm.793 3.08v13.904c0 .747.373 1.027 1.214.98l14.523-.84c.841-.046.935-.56.935-1.167V6.354c0-.606-.233-.933-.748-.886l-15.177.887c-.56.047-.747.327-.747.933zm14.337.745c.093.42 0 .84-.42.888l-.7.14v10.264c-.608.327-1.168.514-1.635.514-.748 0-.935-.234-1.495-.933l-4.577-7.186v6.952l1.448.327s0 .84-1.168.84l-3.22.186c-.094-.186 0-.653.327-.746l.84-.233V9.854L7.822 9.76c-.094-.42.14-1.026.793-1.073l3.456-.233 4.764 7.279v-6.44l-1.215-.14c-.093-.514.28-.886.747-.933zM1.936 1.035l13.31-.98c1.634-.14 2.055-.047 3.082.7l4.249 2.986c.7.513.934.653.934 1.213v16.378c0 1.026-.373 1.634-1.68 1.726l-15.458.934c-.98.047-1.448-.093-1.962-.747l-3.129-4.06c-.56-.747-.793-1.306-.793-1.96V2.667c0-.839.374-1.54 1.447-1.632z"/>
+                      </svg>
+                      <h3 class="text-base font-semibold leading-6 text-gray-900">
+                        Notion
+                      </h3>
+                    </div>
                   <div class="ml-4 mt-2 flex-shrink-0 space-x-2">
                     <% if (notion.integration) { %>
                       <span class="inline-flex items-center rounded-md bg-green-50 px-2 py-1 text-xs font-medium text-green-700 ring-1 ring-inset ring-green-600/20">Connected</span>
@@ -137,11 +170,15 @@
               <div class="bg-white px-4 py-5 sm:px-6 rounded-md">
                 <div class="-ml-4 -mt-2 flex flex-wrap items-center justify-between sm:flex-nowrap">
                   <div class="flex items-center ml-4 mt-2">
+                    <svg class="h-5 w-5 text-purple-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"></path>
+                    </svg>
                     <h3 class="text-base font-semibold leading-6 text-gray-900">
                       Ask My Meetings
                     </h3>
                   </div>
                 </div>
+                <p class="mt-2 text-sm text-gray-500">Use AI to search and query across all your meeting transcripts and notes.</p>
                 <div class="mt-4">
                   <form method="POST" action="/api/chat/meetings" class="space-y-2">
                     <div>
@@ -165,6 +202,7 @@
               </div>
             </li>
           </ul>
+          </div>
           <% if (calendars.length > 0) { %>
             <ul role="list" class="grid grid-cols-1 gap-6">
               <li
