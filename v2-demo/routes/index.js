@@ -22,6 +22,7 @@ import webhooksRecallNotes from "./webhooks/recall-notes.js";
 import notionTarget from "./integrations/notion-target.js";
 import apiChatMeetings from "./api/chat/meetings.js";
 import apiNotionPages, { getNotionPageDetails } from "./api/notion-pages.js";
+import apiCheckBot from "./api/check-bot.js";
 import meetingsList from "./meetings/list.js";
 import meetingsDetail from "./meetings/detail.js";
 
@@ -57,6 +58,7 @@ router.post("/integrations/notion-target", notionTarget);
 router.get("/api/notion/pages", apiNotionPages);
 router.get("/api/notion/pages/:id", getNotionPageDetails);
 router.post("/api/chat/meetings", apiChatMeetings);
+router.get("/api/check-bot", apiCheckBot);
 
 router.get("/meetings", meetingsList);
 router.get("/meetings/:id", meetingsDetail);
