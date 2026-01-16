@@ -14,11 +14,23 @@ export default async (job) => {
     event.meetingUrl
   ) {
     console.log(`INFO: Schedule bot for event ${event.id}`);
+    
+    // Get calendar to check transcription settings
+    const calendar = await db.Calendar.findByPk(event.calendarId);
+    
+    // Build bot config with Retell transcription if enabled
+    const botConfig = {};
+    if (calendar && calendar.useRetellTranscription) {
+      botConfig.transcription = {
+        provider: "retell",
+      };
+    }
+    
     // add a bot to record the event. Recall will handle the case where the bot already exists.
     updatedEventFromRecall = await Recall.addBotToCalendarEvent({
       id: event.recallId,
       deduplicationKey: `${event.startTime.toISOString()}-${event.meetingUrl}`,
-      botConfig: {},
+      botConfig,
     });
   } else {
     console.log(`INFO: Delete bot for event ${event.id}`);

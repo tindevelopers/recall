@@ -35,8 +35,11 @@
       </div>
       <div class="border-t border-gray-100 px-4 py-4 sm:col-span-1 sm:px-0">
         <dt class="text-sm font-medium leading-6 text-gray-900">Status</dt>
-        <dd class="flex mt-1 text-sm leading-6 text-gray-700 sm:mt-2">
+        <dd class="flex items-center gap-2 mt-1 text-sm leading-6 text-gray-700 sm:mt-2">
           <%- include('calendar-status-badge', {status: calendar.status}); %>
+          <form method="POST" action="/calendar/<%= calendar.id %>/refresh" class="inline">
+            <button type="submit" class="text-xs text-indigo-600 hover:text-indigo-500 underline" title="Refresh calendar status">Refresh</button>
+          </form>
         </dd>
       </div>
       <div class="border-t border-gray-100 px-4 py-4 sm:col-span-1 sm:px-0">

@@ -28,6 +28,15 @@
             <input id="autoRecordOnlyConfirmedEvents" <%= calendar.autoRecordOnlyConfirmedEvents ? "checked" : "" %> aria-describedby="autoRecordOnlyConfirmedEvents-description" name="autoRecordOnlyConfirmedEvents" type="checkbox" class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-600">
           </div>
         </div>
+        <div class="relative flex items-start pb-4 pt-3.5 border-t border-gray-100">
+          <div class="min-w-0 flex-1 text-sm leading-6">
+            <label for="useRetellTranscription" class="font-medium text-gray-900">Use Retell Transcription</label>
+            <p id="useRetellTranscription-description" class="text-gray-500">Automatically transcribe recordings using Retell transcription service.</p>
+          </div>
+          <div class="ml-3 flex h-6 items-center">
+            <input id="useRetellTranscription" <%= calendar.useRetellTranscription ? "checked" : "" %> aria-describedby="useRetellTranscription-description" name="useRetellTranscription" type="checkbox" class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-600">
+          </div>
+        </div>
         <div class="relative flex items-start justify-end pt-3.5 border-t border-gray-100">
           <button class="relative inline-flex items-center rounded-sm bg-indigo-600 px-3 py-1 text-xs font-medium text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600" type="submit">Save</button>
         </div>

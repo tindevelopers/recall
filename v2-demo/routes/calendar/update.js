@@ -13,10 +13,12 @@ export default async (req, res) => {
       const {
         autoRecordExternalEvents = "off",
         autoRecordOnlyConfirmedEvents = "off",
+        useRetellTranscription = "off",
       } = req.body || {};
 
       calendar.autoRecordExternalEvents = autoRecordExternalEvents === "on" ? true : false;
       calendar.autoRecordOnlyConfirmedEvents = autoRecordOnlyConfirmedEvents === "on" ? true : false;
+      calendar.useRetellTranscription = useRetellTranscription === "on" ? true : false;
       await calendar.save();
       
       res.cookie(
