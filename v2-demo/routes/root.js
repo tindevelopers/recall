@@ -4,10 +4,28 @@ import {
   buildMicrosoftOutlookOAuthUrl,
 } from "../logic/oauth.js";
 import { buildNotionOAuthUrl } from "../logic/notion-oauth.js";
+import Recall from "../services/recall/index.js";
 
 export default async (req, res) => {
   if (req.authenticated) {
-    const calendars = await req.authentication.user.getCalendars();    
+    const calendars = await req.authentication.user.getCalendars();
+    
+    // Refresh calendar data from Recall to get latest status
+    // This ensures "connecting" becomes "connected" after Recall finishes
+    for (const calendar of calendars) {
+      if (calendar.status === "connecting") {
+        try {
+          const recallCalendar = await Recall.getCalendar(calendar.recallId);
+          if (recallCalendar && recallCalendar.status !== calendar.status) {
+            calendar.recallData = recallCalendar;
+            await calendar.save();
+          }
+        } catch (err) {
+          console.error(`Failed to refresh calendar ${calendar.id}:`, err.message);
+        }
+      }
+    }
+    
     const notionIntegration = await req.authentication.user.getIntegrations({
       where: { provider: "notion" },
       limit: 1,

@@ -103,12 +103,15 @@ export default async (req, res) => {
       );
     }
 
+    // The calendar might still be "connecting" at this point - Recall will send a webhook
+    // when it's fully connected with the email. For now, show a generic success message.
+    const emailDisplay = localCalendar.email || "your account";
     res.cookie(
       "notice",
       JSON.stringify(
         generateNotice(
           "success",
-          `Successfully connected microsoft calendar for ${localCalendar.email}`
+          `Successfully connected Microsoft Outlook for ${emailDisplay}`
         )
       )
     );
