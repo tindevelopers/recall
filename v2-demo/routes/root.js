@@ -13,11 +13,14 @@ export default async (req, res) => {
     
     // Refresh calendar data from Recall to get latest status
     // This ensures "connecting" becomes "connected" after Recall finishes
+    // Also refresh calendars that don't have a status set yet
     for (const calendar of calendars) {
-      if (calendar.status === "connecting") {
+      const currentStatus = calendar.status || calendar.recallData?.status;
+      if (currentStatus === "connecting" || !currentStatus) {
         try {
           const recallCalendar = await Recall.getCalendar(calendar.recallId);
-          if (recallCalendar && recallCalendar.status !== calendar.status) {
+          if (recallCalendar) {
+            // Update recallData with latest from Recall API
             calendar.recallData = recallCalendar;
             await calendar.save();
           }

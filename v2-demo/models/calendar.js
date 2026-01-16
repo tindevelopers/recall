@@ -140,7 +140,7 @@ export default (sequelize) => {
       email: {
         type: DataTypes.VIRTUAL,
         get() {
-          return this.recallData["platform_email"];
+          return this.recallData?.["platform_email"] || this.recallData?.platform_email || this.recallData?.email || "Unknown";
         },
         set(value) {
           throw new Error("NOT_ALLOWED");
@@ -149,7 +149,7 @@ export default (sequelize) => {
       status: {
         type: DataTypes.VIRTUAL,
         get() {
-          return this.recallData["status"];
+          return this.recallData?.["status"] || this.recallData?.status || "connected";
         },
         set(value) {
           throw new Error("NOT_ALLOWED");
