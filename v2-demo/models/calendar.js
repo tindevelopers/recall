@@ -42,6 +42,101 @@ export default (sequelize) => {
         defaultValue: false,
       },
 
+      // Bot appearance settings
+      botName: {
+        type: DataTypes.STRING,
+        allowNull: true,
+        defaultValue: "Meeting Assistant",
+        field: "bot_name",
+      },
+      botAvatarUrl: {
+        type: DataTypes.STRING,
+        allowNull: true,
+        field: "bot_avatar_url",
+      },
+
+      // Recording settings
+      recordVideo: {
+        type: DataTypes.BOOLEAN,
+        allowNull: false,
+        defaultValue: true,
+        field: "record_video",
+      },
+      recordAudio: {
+        type: DataTypes.BOOLEAN,
+        allowNull: false,
+        defaultValue: true,
+        field: "record_audio",
+      },
+
+      // Transcription settings
+      enableTranscription: {
+        type: DataTypes.BOOLEAN,
+        allowNull: false,
+        defaultValue: true,
+        field: "enable_transcription",
+      },
+      transcriptionLanguage: {
+        type: DataTypes.STRING,
+        allowNull: true,
+        defaultValue: "en",
+        field: "transcription_language",
+      },
+
+      // AI enrichment settings
+      enableSummary: {
+        type: DataTypes.BOOLEAN,
+        allowNull: false,
+        defaultValue: true,
+        field: "enable_summary",
+      },
+      enableActionItems: {
+        type: DataTypes.BOOLEAN,
+        allowNull: false,
+        defaultValue: true,
+        field: "enable_action_items",
+      },
+      enableFollowUps: {
+        type: DataTypes.BOOLEAN,
+        allowNull: false,
+        defaultValue: true,
+        field: "enable_follow_ups",
+      },
+
+      // Publishing settings
+      autoPublishToNotion: {
+        type: DataTypes.BOOLEAN,
+        allowNull: false,
+        defaultValue: false,
+        field: "auto_publish_to_notion",
+      },
+
+      // Bot behavior settings
+      joinBeforeStartMinutes: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+        defaultValue: 1,
+        field: "join_before_start_minutes",
+      },
+      leaveAfterEndMinutes: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+        defaultValue: 0,
+        field: "leave_after_end_minutes",
+      },
+      autoLeaveIfAlone: {
+        type: DataTypes.BOOLEAN,
+        allowNull: false,
+        defaultValue: true,
+        field: "auto_leave_if_alone",
+      },
+      autoLeaveAloneTimeoutSeconds: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+        defaultValue: 60,
+        field: "auto_leave_alone_timeout_seconds",
+      },
+
       email: {
         type: DataTypes.VIRTUAL,
         get() {

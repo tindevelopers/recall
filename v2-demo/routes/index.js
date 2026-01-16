@@ -10,6 +10,7 @@ import signOutPost from "./sign-out/post.js";
 import calendarGet from "./calendar/get.js";
 import calendarDelete from "./calendar/delete.js";
 import calendarUpdate from "./calendar/update.js";
+import calendarUpdateBotSettings from "./calendar/update-bot-settings.js";
 import calendarRefresh from "./calendar/refresh.js";
 import calendarEventSetManualRecord from "./calendar-event/set-manual-record.js";
 import oauthCallbackGoogleCalendar from "./oauth-callback/google-calendar.js";
@@ -35,6 +36,7 @@ router.post("/sign-out", signOutPost);
 
 router.get("/calendar/:id", calendarGet);
 router.patch("/calendar/:id", calendarUpdate);
+router.patch("/calendar/:id/bot-settings", calendarUpdateBotSettings);
 router.delete("/calendar/:id", calendarDelete);
 router.post("/calendar/:id/refresh", calendarRefresh);
 

@@ -15,15 +15,53 @@ export default async (job) => {
   ) {
     console.log(`INFO: Schedule bot for event ${event.id}`);
     
-    // Get calendar to check transcription settings
+    // Get calendar to check bot settings
     const calendar = await db.Calendar.findByPk(event.calendarId);
     
-    // Build bot config with Retell transcription if enabled
+    // Build bot config from calendar settings
     const botConfig = {};
-    if (calendar && calendar.useRetellTranscription) {
+    
+    // Bot appearance
+    if (calendar) {
+      if (calendar.botName) {
+        botConfig.bot_name = calendar.botName;
+      }
+      if (calendar.botAvatarUrl) {
+        botConfig.bot_image = calendar.botAvatarUrl;
+      }
+    }
+    
+    // Transcription settings
+    if (calendar && calendar.enableTranscription) {
       botConfig.transcription = {
-        provider: "retell",
+        provider: calendar.useRetellTranscription ? "retell" : "default",
       };
+      if (calendar.transcriptionLanguage && calendar.transcriptionLanguage !== "auto") {
+        botConfig.transcription.language = calendar.transcriptionLanguage;
+      }
+    }
+    
+    // Recording settings
+    if (calendar) {
+      botConfig.recording = {
+        video: calendar.recordVideo !== false,
+        audio: calendar.recordAudio !== false,
+      };
+    }
+    
+    // Bot behavior settings
+    if (calendar) {
+      if (calendar.joinBeforeStartMinutes > 0) {
+        botConfig.join_at = {
+          minutes_before_start: calendar.joinBeforeStartMinutes,
+        };
+      }
+      if (calendar.autoLeaveIfAlone) {
+        botConfig.automatic_leave = {
+          waiting_room_timeout: calendar.autoLeaveAloneTimeoutSeconds || 60,
+          noone_joined_timeout: calendar.autoLeaveAloneTimeoutSeconds || 60,
+        };
+      }
     }
     
     // add a bot to record the event. Recall will handle the case where the bot already exists.

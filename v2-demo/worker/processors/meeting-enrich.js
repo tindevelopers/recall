@@ -2,15 +2,33 @@ import db from "../../db.js";
 import { chatCompletion, embed } from "../../services/openai/index.js";
 import { v4 as uuidv4 } from "uuid";
 
-function buildPrompt(transcriptText, metadata = {}) {
+function buildPrompt(transcriptText, metadata = {}, settings = {}) {
   const title = metadata?.title || "Meeting";
   const participants = metadata?.participants || [];
   const when = metadata?.startTime || "";
+  
+  // Build the request based on what enrichment features are enabled
+  const requestedOutputs = [];
+  if (settings.enableSummary !== false) {
+    requestedOutputs.push("summary: A concise summary of the key discussion points");
+  }
+  if (settings.enableActionItems !== false) {
+    requestedOutputs.push("action_items: Array of specific tasks/assignments mentioned, each with 'task', 'assignee' (if mentioned), and 'due_date' (if mentioned)");
+  }
+  if (settings.enableFollowUps !== false) {
+    requestedOutputs.push("follow_ups: Array of suggested follow-up items and next steps");
+  }
+  requestedOutputs.push("topics: Array of main topics/themes discussed");
+  
+  const systemPrompt = `You are an expert meeting summarizer. Analyze the meeting transcript and produce the following outputs:
+${requestedOutputs.map((o, i) => `${i + 1}. ${o}`).join("\n")}
+
+Return valid JSON with these fields. Be concise but thorough.`;
+
   return [
     {
       role: "system",
-      content:
-        "You are an expert meeting summarizer. Produce concise outputs with clear action items and follow-ups. Return valid JSON.",
+      content: systemPrompt,
     },
     {
       role: "user",
@@ -68,7 +86,16 @@ export default async (job) => {
   }
 
   const calendarEvent = artifact.CalendarEvent;
-  const userId = artifact.userId || calendarEvent?.Calendar?.userId || null;
+  const calendar = calendarEvent?.Calendar;
+  const userId = artifact.userId || calendar?.userId || null;
+
+  // Get calendar settings for AI enrichment
+  const enrichmentSettings = {
+    enableSummary: calendar?.enableSummary !== false,
+    enableActionItems: calendar?.enableActionItems !== false,
+    enableFollowUps: calendar?.enableFollowUps !== false,
+    autoPublishToNotion: calendar?.autoPublishToNotion === true,
+  };
 
   const chunks = await db.MeetingTranscriptChunk.findAll({
     where: { meetingArtifactId: artifact.id },
@@ -89,7 +116,7 @@ export default async (job) => {
       [],
   };
 
-  const prompt = buildPrompt(transcriptText, metadata);
+  const prompt = buildPrompt(transcriptText, metadata, enrichmentSettings);
 
   const response = await chatCompletion(prompt, {
     responseFormat: "json_object",
@@ -103,9 +130,9 @@ export default async (job) => {
     calendarEventId: calendarEvent?.id || null,
     userId,
     status: "completed",
-    summary: parsed.summary || parsed.overview || "",
-    actionItems: parsed.action_items || parsed.actions || [],
-    followUps: parsed.follow_ups || parsed.followups || [],
+    summary: enrichmentSettings.enableSummary ? (parsed.summary || parsed.overview || "") : "",
+    actionItems: enrichmentSettings.enableActionItems ? (parsed.action_items || parsed.actions || []) : [],
+    followUps: enrichmentSettings.enableFollowUps ? (parsed.follow_ups || parsed.followups || []) : [],
     topics: parsed.topics || parsed.key_points || [],
   };
 
@@ -118,10 +145,14 @@ export default async (job) => {
   // mark artifact status
   await artifact.update({ status: "enriched" });
 
-  // enqueue publishing
-  job.queue.add("publishing.dispatch", {
-    meetingSummaryId: meetingSummary.id || meetingSummary?.dataValues?.id,
-  });
+  // enqueue publishing only if auto-publish is enabled
+  if (enrichmentSettings.autoPublishToNotion) {
+    job.queue.add("publishing.dispatch", {
+      meetingSummaryId: meetingSummary.id || meetingSummary?.dataValues?.id,
+    });
+  } else {
+    console.log(`INFO: Auto-publish disabled for calendar, skipping publishing dispatch`);
+  }
 };
 
 
