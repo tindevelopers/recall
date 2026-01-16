@@ -1,0 +1,71 @@
+import fetch from "node-fetch";
+
+const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
+const CHAT_MODEL = process.env.OPENAI_MODEL_SUMMARY || "gpt-4o-mini";
+const EMBEDDING_MODEL =
+  process.env.OPENAI_MODEL_EMBEDDINGS || "text-embedding-3-small";
+
+if (!OPENAI_API_KEY) {
+  console.warn(
+    "⚠️  OPENAI_API_KEY is not set. OpenAI-dependent features will fail."
+  );
+}
+
+async function chatCompletion(messages, { responseFormat = "json_object" } = {}) {
+  const body = {
+    model: CHAT_MODEL,
+    messages,
+    response_format:
+      responseFormat === "json_object"
+        ? { type: "json_object" }
+        : undefined,
+  };
+
+  const res = await fetch("https://api.openai.com/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${OPENAI_API_KEY}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(body),
+  });
+
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(
+      `OpenAI chatCompletion failed (${res.status}): ${text || "unknown"}`
+    );
+  }
+
+  const json = await res.json();
+  return json.choices?.[0]?.message?.content;
+}
+
+async function embed(texts = []) {
+  if (!texts.length) return [];
+  const res = await fetch("https://api.openai.com/v1/embeddings", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${OPENAI_API_KEY}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model: EMBEDDING_MODEL,
+      input: texts,
+    }),
+  });
+
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(
+      `OpenAI embeddings failed (${res.status}): ${text || "unknown"}`
+    );
+  }
+
+  const json = await res.json();
+  return json.data?.map((d) => d.embedding) || [];
+}
+
+export { chatCompletion, embed };
+
+

@@ -14,7 +14,12 @@ import calendarRefresh from "./calendar/refresh.js";
 import calendarEventSetManualRecord from "./calendar-event/set-manual-record.js";
 import oauthCallbackGoogleCalendar from "./oauth-callback/google-calendar.js";
 import oauthCallbackMicrosoftOutlook from "./oauth-callback/microsoft-outlook.js";
+import notionConnect from "./oauth/notion-connect.js";
+import oauthCallbackNotion from "./oauth-callback/notion.js";
 import webhooksRecallCalendarUpdates from "./webhooks/recall-calendar-updates.js";
+import webhooksRecallNotes from "./webhooks/recall-notes.js";
+import notionTarget from "./integrations/notion-target.js";
+import apiChatMeetings from "./api/chat/meetings.js";
 
 const router = Router();
 
@@ -37,8 +42,14 @@ router.patch("/calendar-event/:id/set-manual-record", calendarEventSetManualReco
 
 router.get("/oauth-callback/google-calendar", oauthCallbackGoogleCalendar);
 router.get("/oauth-callback/microsoft-outlook", oauthCallbackMicrosoftOutlook);
+router.get("/oauth/notion", notionConnect);
+router.get("/oauth-callback/notion", oauthCallbackNotion);
 
 router.post("/webhooks/recall-calendar-updates", webhooksRecallCalendarUpdates);
+router.post("/webhooks/recall-notes", webhooksRecallNotes);
+
+router.post("/integrations/notion-target", notionTarget);
+router.post("/api/chat/meetings", apiChatMeetings);
 
 router.get("*", catchAll);
 

@@ -7,6 +7,12 @@ import initUserModel from "./models/user.js";
 import initCalendarModel from "./models/calendar.js";
 import initCalendarEventModel from "./models/calendar-event.js";
 import initCalendarWebhookModel from "./models/calendar-webhook.js";
+import initMeetingArtifactModel from "./models/meeting-artifact.js";
+import initMeetingTranscriptChunkModel from "./models/meeting-transcript-chunk.js";
+import initMeetingSummaryModel from "./models/meeting-summary.js";
+import initIntegrationModel from "./models/integration.js";
+import initPublishTargetModel from "./models/publish-target.js";
+import initPublishDeliveryModel from "./models/publish-delivery.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -94,6 +100,12 @@ db.User = initUserModel(sequelize);
 db.Calendar = initCalendarModel(sequelize);
 db.CalendarEvent = initCalendarEventModel(sequelize);
 db.CalendarWebhook = initCalendarWebhookModel(sequelize);
+db.MeetingArtifact = initMeetingArtifactModel(sequelize);
+db.MeetingTranscriptChunk = initMeetingTranscriptChunkModel(sequelize);
+db.MeetingSummary = initMeetingSummaryModel(sequelize);
+db.Integration = initIntegrationModel(sequelize);
+db.PublishTarget = initPublishTargetModel(sequelize);
+db.PublishDelivery = initPublishDeliveryModel(sequelize);
 
 db.User.hasMany(db.Calendar, { foreignKey: "userId" });
 db.Calendar.belongsTo(db.User, { foreignKey: "userId" });
@@ -102,5 +114,48 @@ db.Calendar.hasMany(db.CalendarEvent, { foreignKey: "calendarId" });
 db.Calendar.hasMany(db.CalendarWebhook, { foreignKey: "calendarId" });
 db.CalendarEvent.belongsTo(db.Calendar, { foreignKey: "calendarId" });
 db.CalendarWebhook.belongsTo(db.Calendar, { foreignKey: "calendarId" });
+
+db.CalendarEvent.hasMany(db.MeetingArtifact, { foreignKey: "calendarEventId" });
+db.MeetingArtifact.belongsTo(db.CalendarEvent, { foreignKey: "calendarEventId" });
+db.MeetingArtifact.belongsTo(db.User, { foreignKey: "userId" });
+
+db.MeetingArtifact.hasMany(db.MeetingTranscriptChunk, {
+  foreignKey: "meetingArtifactId",
+});
+db.MeetingTranscriptChunk.belongsTo(db.MeetingArtifact, {
+  foreignKey: "meetingArtifactId",
+});
+
+db.MeetingArtifact.hasMany(db.MeetingSummary, {
+  foreignKey: "meetingArtifactId",
+});
+db.MeetingSummary.belongsTo(db.MeetingArtifact, {
+  foreignKey: "meetingArtifactId",
+});
+db.MeetingSummary.belongsTo(db.CalendarEvent, {
+  foreignKey: "calendarEventId",
+});
+db.MeetingSummary.belongsTo(db.User, {
+  foreignKey: "userId",
+});
+
+db.User.hasMany(db.Integration, { foreignKey: "userId" });
+db.Integration.belongsTo(db.User, { foreignKey: "userId" });
+
+db.User.hasMany(db.PublishTarget, { foreignKey: "userId" });
+db.PublishTarget.belongsTo(db.User, { foreignKey: "userId" });
+
+db.MeetingSummary.hasMany(db.PublishDelivery, {
+  foreignKey: "meetingSummaryId",
+});
+db.PublishDelivery.belongsTo(db.MeetingSummary, {
+  foreignKey: "meetingSummaryId",
+});
+db.PublishTarget.hasMany(db.PublishDelivery, {
+  foreignKey: "publishTargetId",
+});
+db.PublishDelivery.belongsTo(db.PublishTarget, {
+  foreignKey: "publishTargetId",
+});
 
 export default db;

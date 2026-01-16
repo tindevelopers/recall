@@ -10,6 +10,8 @@ import calendarEventUpdateBotSchedule from "./processors/calendar-event-update-b
 import calendarEventDeleteBot from './processors/calendar-event-delete-bot.js';
 import recallCalendarUpdate from "./processors/recall-calendar-update.js";
 import recallCalendarSyncEvents from "./processors/recall-calendar-sync-events.js";
+import meetingEnrich from "./processors/meeting-enrich.js";
+import publishingDispatch from "./processors/publishing-dispatch.js";
 
 dotenv.config();
 consoleStamp(console);
@@ -37,6 +39,8 @@ backgroundQueue.process(
   2,
   recallCalendarSyncEvents
 );
+backgroundQueue.process("meeting.enrich", 2, meetingEnrich);
+backgroundQueue.process("publishing.dispatch", 2, publishingDispatch);
 
 backgroundQueue.on("active", async (job) => {
   console.log(`INFO: Started job ${job.id}`);
