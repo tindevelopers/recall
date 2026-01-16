@@ -7,7 +7,12 @@ export default async (req, res) => {
   if (!req.authenticated) {
     return res.redirect("/");
   } else {
-    const calendar = await db.Calendar.findByPk(req.params.id);
+    const calendar = await db.Calendar.findOne({
+      where: {
+        id: req.params.id,
+        userId: req.authentication.user.id,
+      },
+    });
     if (calendar) {
       // html form payload does not include unchecked checkboxes, so we default to "off".
       const {

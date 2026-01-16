@@ -6,7 +6,12 @@ export default async (req, res) => {
   if (!req.authenticated) {
     return res.redirect("/");
   } else {
-    const calendar = await db.Calendar.findByPk(req.params.id);
+    const calendar = await db.Calendar.findOne({
+      where: {
+        id: req.params.id,
+        userId: req.authentication.user.id,
+      },
+    });
     if (calendar) {
       try {
         // Fetch the latest calendar data from Recall synchronously

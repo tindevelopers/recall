@@ -9,6 +9,13 @@ export default async (req, res) => {
   } else {
     const event = await db.CalendarEvent.findByPk(req.params.id);
     if (event) {
+      const calendar = await event.getCalendar();
+      if (!calendar || calendar.userId !== req.authentication.user.id) {
+        return res.render("404.ejs", {
+          notice: req.notice,
+        });
+      }
+
       const { manualRecord = null } = req.body || {};
       console.log(
         `INFO: Will set manual record to ${manualRecord} for event(ID: ${event.id}).`
@@ -27,7 +34,6 @@ export default async (req, res) => {
         )
       );
 
-      const calendar = await event.getCalendar();
       await updateAutoRecordStatusForCalendarEvents({
         calendar,
         events: [event],
