@@ -47,6 +47,18 @@ export default async (req, res) => {
   const rawPayload = req.body || {};
   const { recallEventId, recallBotId } = extractRecallIdentifiers(rawPayload);
 
+  console.log(`[INFO] Received Recall notes webhook: event=${event}, recallEventId=${recallEventId}, recallBotId=${recallBotId}`);
+  console.log(`[INFO] Payload keys: ${Object.keys(rawPayload).join(', ')}`);
+  
+  // Log transcript presence
+  const hasTranscript = !!(
+    rawPayload?.data?.transcript?.segments ||
+    rawPayload?.data?.transcript_segments ||
+    rawPayload?.data?.segments ||
+    rawPayload?.transcript?.segments
+  );
+  console.log(`[INFO] Has transcript: ${hasTranscript}`);
+
   try {
     let calendarEvent = null;
     if (recallEventId) {
@@ -64,7 +76,7 @@ export default async (req, res) => {
       userId: calendarEvent?.Calendar?.userId || calendarEvent?.userId || null,
       eventType: event || rawPayload?.type || null,
       status: "received",
-      rawPayload,
+      rawPayload, // Store entire payload to preserve all metadata
     };
 
     let artifact = null;
@@ -75,9 +87,24 @@ export default async (req, res) => {
     }
 
     if (artifact) {
-      await artifact.update(artifactDefaults);
+      // Merge payloads to preserve all data
+      const mergedPayload = {
+        ...artifact.rawPayload,
+        ...rawPayload,
+        // Preserve nested data structures
+        data: {
+          ...artifact.rawPayload?.data,
+          ...rawPayload?.data,
+        },
+      };
+      await artifact.update({
+        ...artifactDefaults,
+        rawPayload: mergedPayload,
+      });
+      console.log(`[INFO] Updated existing artifact ${artifact.id}`);
     } else {
       artifact = await db.MeetingArtifact.create(artifactDefaults);
+      console.log(`[INFO] Created new artifact ${artifact.id}`);
     }
 
     // Normalize transcript segments for downstream RAG and enrichment
