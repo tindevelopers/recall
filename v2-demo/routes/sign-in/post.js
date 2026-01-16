@@ -11,7 +11,12 @@ export default async (req, res) => {
   });
 
   if (user) {
-    res.cookie("authToken", getAuthTokenForUser(user));
+    res.cookie("authToken", getAuthTokenForUser(user), {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
+    });
     res.redirect("/");
   } else {
     res.clearCookie("notice");

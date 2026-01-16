@@ -9,7 +9,12 @@ export default async (req, res) => {
       password: req.body.password,
       name: req.body.name,
     });
-    res.cookie("authToken", getAuthTokenForUser(user));
+    res.cookie("authToken", getAuthTokenForUser(user), {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
+    });
     res.cookie(
       "notice",
       JSON.stringify(

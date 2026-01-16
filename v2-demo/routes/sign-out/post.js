@@ -2,7 +2,11 @@ import { generateNotice } from "../utils.js";
 
 export default async (req, res) => {
   // Clear the auth token cookie
-  res.clearCookie("authToken");
+  res.clearCookie("authToken", {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+  });
   
   // Set a success notice
   res.cookie(
