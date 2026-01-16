@@ -21,6 +21,8 @@ import webhooksRecallCalendarUpdates from "./webhooks/recall-calendar-updates.js
 import webhooksRecallNotes from "./webhooks/recall-notes.js";
 import notionTarget from "./integrations/notion-target.js";
 import apiChatMeetings from "./api/chat/meetings.js";
+import meetingsList from "./meetings/list.js";
+import meetingsDetail from "./meetings/detail.js";
 
 const router = Router();
 
@@ -52,6 +54,9 @@ router.post("/webhooks/recall-notes", webhooksRecallNotes);
 
 router.post("/integrations/notion-target", notionTarget);
 router.post("/api/chat/meetings", apiChatMeetings);
+
+router.get("/meetings", meetingsList);
+router.get("/meetings/:id", meetingsDetail);
 
 router.get("*", catchAll);
 
