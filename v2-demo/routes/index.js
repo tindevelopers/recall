@@ -31,6 +31,8 @@ import apiCheckMeetingPayload from "./api/check-meeting-payload.js";
 import apiUpdateWebhookUrl from "./api/update-webhook-url.js";
 import meetingsList from "./meetings/list.js";
 import meetingsDetail from "./meetings/detail.js";
+import meetingsUpdateTranscriptionMode from "./meetings/update-transcription-mode.js";
+import { getTranscript, getSummary, getActionItems } from "./api/meeting-details.js";
 import settingsGet from "./settings/get.js";
 
 const router = Router();
@@ -76,6 +78,12 @@ router.post("/api/update-webhook-url", apiUpdateWebhookUrl);
 
 router.get("/meetings", meetingsList);
 router.get("/meetings/:id", meetingsDetail);
+router.post("/meetings/:eventId/transcription-mode", meetingsUpdateTranscriptionMode);
+
+// Meeting details API for lazy-loading modals
+router.get("/api/meetings/:meetingId/transcript", getTranscript);
+router.get("/api/meetings/:meetingId/summary", getSummary);
+router.get("/api/meetings/:meetingId/actions", getActionItems);
 
 router.get("/settings", settingsGet);
 

@@ -32,6 +32,12 @@ export default (sequelize) => {
         allowNull: true,
         defaultValue: null,
       },
+      transcriptionMode: {
+        type: DataTypes.STRING,
+        allowNull: true,
+        defaultValue: null,
+        comment: "Per-event transcription mode override: 'realtime', 'async', or null (use calendar default)",
+      },
 
       startTime: {
         type: DataTypes.VIRTUAL,

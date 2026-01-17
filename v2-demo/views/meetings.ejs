@@ -128,6 +128,23 @@
                               <% if (event.calendarEmail) { %>
                                 <p class="mt-1 text-xs text-gray-400"><%= event.calendarEmail %></p>
                               <% } %>
+                              
+                              <!-- Transcription Mode Selector -->
+                              <div class="mt-2 flex items-center space-x-2">
+                                <label class="text-xs text-gray-500">Transcription:</label>
+                                <select 
+                                  class="transcription-mode-select text-xs rounded-md border-gray-300 py-1 pl-2 pr-7 focus:border-indigo-500 focus:ring-indigo-500 bg-white"
+                                  data-event-id="<%= event.id %>"
+                                  onchange="updateTranscriptionMode(this)"
+                                >
+                                  <option value="default" <%= !event.transcriptionMode ? 'selected' : '' %>>
+                                    Default (<%= event.calendarTranscriptionMode === 'async' ? 'Async' : 'Real-time' %>)
+                                  </option>
+                                  <option value="realtime" <%= event.transcriptionMode === 'realtime' ? 'selected' : '' %>>Real-time</option>
+                                  <option value="async" <%= event.transcriptionMode === 'async' ? 'selected' : '' %>>Async</option>
+                                </select>
+                                <span class="transcription-status text-xs text-gray-400 hidden"></span>
+                              </div>
                             </div>
                           </div>
                           <div class="flex items-center space-x-3">
@@ -245,34 +262,64 @@
                               </div>
                             </div>
                             
-                            <!-- Action Buttons -->
-                            <div class="flex items-center space-x-2">
-                              <% if (meeting.hasRecording && (meeting.recordingUrl || meeting.audioUrl)) { %>
-                                <% if (meeting.recordingUrl) { %>
-                                  <a href="<%= meeting.recordingUrl %>" target="_blank" class="inline-flex items-center rounded-lg bg-green-50 px-3 py-2 text-xs font-medium text-green-700 hover:bg-green-100 transition-colors">
-                                    <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"></path>
-                                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                                    </svg>
-                                    Video
-                                  </a>
-                                <% } %>
-                                <% if (meeting.audioUrl) { %>
-                                  <a href="<%= meeting.audioUrl %>" target="_blank" class="inline-flex items-center rounded-lg bg-blue-50 px-3 py-2 text-xs font-medium text-blue-700 hover:bg-blue-100 transition-colors">
-                                    <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"></path>
-                                    </svg>
-                                    Audio
-                                  </a>
-                                <% } %>
-                              <% } %>
-                              <a href="/meetings/<%= meeting.id %>" class="inline-flex items-center rounded-lg bg-indigo-50 px-3 py-2 text-xs font-medium text-indigo-700 hover:bg-indigo-100 transition-colors">
-                                View Details
-                                <svg class="w-4 h-4 ml-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
-                          </svg>
+                            <!-- Quick Action Icons -->
+                            <div class="flex items-center space-x-1">
+                              <!-- Play Recording Button -->
+                              <button 
+                                onclick="openPlayerModal('<%= meeting.id %>', '<%= meeting.recordingUrl || '' %>', '<%= meeting.audioUrl || '' %>', '<%= (meeting.title || 'Meeting').replace(/'/g, "\\'") %>')"
+                                class="<%= meeting.hasRecording ? 'text-green-600 hover:bg-green-50' : 'text-gray-300 cursor-not-allowed' %> p-2 rounded-lg transition-colors"
+                                title="<%= meeting.hasRecording ? 'Play Recording' : 'No recording available' %>"
+                                <%= meeting.hasRecording ? '' : 'disabled' %>
+                              >
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"></path>
+                                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                </svg>
+                              </button>
+                              
+                              <!-- Transcript Button -->
+                              <button 
+                                onclick="openTranscriptModal('<%= meeting.id %>', '<%= (meeting.title || 'Meeting').replace(/'/g, "\\'") %>')"
+                                class="<%= meeting.hasTranscript ? 'text-blue-600 hover:bg-blue-50' : 'text-gray-300 cursor-not-allowed' %> p-2 rounded-lg transition-colors"
+                                title="<%= meeting.hasTranscript ? 'View Transcript' : 'No transcript available' %>"
+                                <%= meeting.hasTranscript ? '' : 'disabled' %>
+                              >
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                                </svg>
+                              </button>
+                              
+                              <!-- AI Summary Button -->
+                              <button 
+                                onclick="openSummaryModal('<%= meeting.id %>', '<%= meeting.summaryId || '' %>', '<%= (meeting.title || 'Meeting').replace(/'/g, "\\'") %>')"
+                                class="<%= meeting.hasSummary ? 'text-purple-600 hover:bg-purple-50' : 'text-gray-300 cursor-not-allowed' %> p-2 rounded-lg transition-colors"
+                                title="<%= meeting.hasSummary ? 'View AI Summary' : 'No summary available' %>"
+                                <%= meeting.hasSummary ? '' : 'disabled' %>
+                              >
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path>
+                                </svg>
+                              </button>
+                              
+                              <!-- Action Items Button -->
+                              <button 
+                                onclick="openActionsModal('<%= meeting.id %>', '<%= meeting.summaryId || '' %>', '<%= (meeting.title || 'Meeting').replace(/'/g, "\\'") %>')"
+                                class="<%= meeting.hasSummary ? 'text-amber-600 hover:bg-amber-50' : 'text-gray-300 cursor-not-allowed' %> p-2 rounded-lg transition-colors"
+                                title="<%= meeting.hasSummary ? 'View Action Items' : 'No action items available' %>"
+                                <%= meeting.hasSummary ? '' : 'disabled' %>
+                              >
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"></path>
+                                </svg>
+                              </button>
+                              
+                              <!-- View Details Link -->
+                              <a href="/meetings/<%= meeting.id %>" class="text-indigo-600 hover:bg-indigo-50 p-2 rounded-lg transition-colors" title="View Full Details">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6"></path>
+                                </svg>
                               </a>
-                      </div>
+                            </div>
                           </div>
                         </div>
                       </div>
@@ -345,6 +392,287 @@ document.addEventListener('DOMContentLoaded', function() {
     switchMeetingsTab(hash);
   }
 });
+
+// Update transcription mode for an event
+async function updateTranscriptionMode(selectElement) {
+  const eventId = selectElement.dataset.eventId;
+  const mode = selectElement.value;
+  const statusEl = selectElement.parentElement.querySelector('.transcription-status');
+  
+  selectElement.disabled = true;
+  statusEl.textContent = 'Saving...';
+  statusEl.classList.remove('hidden', 'text-green-600', 'text-red-600');
+  statusEl.classList.add('text-gray-400');
+  
+  try {
+    const response = await fetch(`/meetings/${eventId}/transcription-mode`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ transcriptionMode: mode })
+    });
+    
+    if (response.ok) {
+      const data = await response.json();
+      statusEl.textContent = 'Saved!';
+      statusEl.classList.remove('text-gray-400');
+      statusEl.classList.add('text-green-600');
+      setTimeout(() => statusEl.classList.add('hidden'), 2000);
+    } else {
+      throw new Error('Failed to update');
+    }
+  } catch (error) {
+    statusEl.textContent = 'Error!';
+    statusEl.classList.remove('text-gray-400');
+    statusEl.classList.add('text-red-600');
+    setTimeout(() => statusEl.classList.add('hidden'), 3000);
+  } finally {
+    selectElement.disabled = false;
+  }
+}
+
+// Modal functions
+function openPlayerModal(meetingId, videoUrl, audioUrl, title) {
+  const modal = document.getElementById('player-modal');
+  const titleEl = document.getElementById('player-modal-title');
+  const content = document.getElementById('player-modal-content');
+  
+  titleEl.textContent = title;
+  
+  if (videoUrl) {
+    content.innerHTML = `
+      <video controls class="w-full rounded-lg" autoplay>
+        <source src="${videoUrl}" type="video/mp4">
+        Your browser does not support the video tag.
+      </video>
+      ${audioUrl ? `<p class="mt-3 text-sm text-gray-500"><a href="${audioUrl}" target="_blank" class="text-indigo-600 hover:underline">Download audio only</a></p>` : ''}
+    `;
+  } else if (audioUrl) {
+    content.innerHTML = `
+      <audio controls class="w-full" autoplay>
+        <source src="${audioUrl}" type="audio/mpeg">
+        Your browser does not support the audio element.
+      </audio>
+    `;
+  } else {
+    content.innerHTML = '<p class="text-gray-500">No recording available</p>';
+  }
+  
+  modal.classList.remove('hidden');
+}
+
+async function openTranscriptModal(meetingId, title) {
+  const modal = document.getElementById('transcript-modal');
+  const titleEl = document.getElementById('transcript-modal-title');
+  const content = document.getElementById('transcript-modal-content');
+  
+  titleEl.textContent = title;
+  content.innerHTML = '<div class="flex items-center justify-center py-8"><div class="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div><span class="ml-3 text-gray-500">Loading transcript...</span></div>';
+  modal.classList.remove('hidden');
+  
+  try {
+    const response = await fetch(`/api/meetings/${meetingId}/transcript`);
+    if (response.ok) {
+      const data = await response.json();
+      if (data.transcript && data.transcript.length > 0) {
+        content.innerHTML = `
+          <div class="space-y-3 max-h-96 overflow-y-auto">
+            ${data.transcript.map(chunk => `
+              <div class="flex space-x-3">
+                <div class="flex-shrink-0">
+                  <span class="inline-flex items-center justify-center h-8 w-8 rounded-full bg-indigo-100 text-indigo-600 text-xs font-medium">
+                    ${(chunk.speaker || 'S').charAt(0).toUpperCase()}
+                  </span>
+                </div>
+                <div class="flex-1 min-w-0">
+                  <p class="text-sm font-medium text-gray-900">${chunk.speaker || 'Speaker'}</p>
+                  <p class="text-sm text-gray-600">${chunk.text}</p>
+                  ${chunk.timestamp ? `<p class="text-xs text-gray-400 mt-1">${formatTimestamp(chunk.timestamp)}</p>` : ''}
+                </div>
+              </div>
+            `).join('')}
+          </div>
+        `;
+      } else {
+        content.innerHTML = '<p class="text-gray-500 text-center py-8">No transcript available yet</p>';
+      }
+    } else {
+      throw new Error('Failed to load transcript');
+    }
+  } catch (error) {
+    content.innerHTML = '<p class="text-red-500 text-center py-8">Failed to load transcript</p>';
+  }
+}
+
+async function openSummaryModal(meetingId, summaryId, title) {
+  const modal = document.getElementById('summary-modal');
+  const titleEl = document.getElementById('summary-modal-title');
+  const content = document.getElementById('summary-modal-content');
+  
+  titleEl.textContent = title;
+  content.innerHTML = '<div class="flex items-center justify-center py-8"><div class="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div><span class="ml-3 text-gray-500">Loading summary...</span></div>';
+  modal.classList.remove('hidden');
+  
+  try {
+    const response = await fetch(`/api/meetings/${meetingId}/summary`);
+    if (response.ok) {
+      const data = await response.json();
+      if (data.summary) {
+        content.innerHTML = `
+          <div class="prose prose-sm max-w-none max-h-96 overflow-y-auto">
+            <div class="whitespace-pre-wrap text-gray-700">${data.summary.content || data.summary.text || 'No summary content available'}</div>
+            ${data.summary.keyTopics ? `
+              <div class="mt-4 pt-4 border-t border-gray-200">
+                <h4 class="font-medium text-gray-900">Key Topics</h4>
+                <ul class="mt-2 space-y-1">
+                  ${data.summary.keyTopics.map(topic => `<li class="text-sm text-gray-600">• ${topic}</li>`).join('')}
+                </ul>
+              </div>
+            ` : ''}
+          </div>
+        `;
+      } else {
+        content.innerHTML = '<p class="text-gray-500 text-center py-8">No summary available yet</p>';
+      }
+    } else {
+      throw new Error('Failed to load summary');
+    }
+  } catch (error) {
+    content.innerHTML = '<p class="text-red-500 text-center py-8">Failed to load summary</p>';
+  }
+}
+
+async function openActionsModal(meetingId, summaryId, title) {
+  const modal = document.getElementById('actions-modal');
+  const titleEl = document.getElementById('actions-modal-title');
+  const content = document.getElementById('actions-modal-content');
+  
+  titleEl.textContent = title + ' - Action Items';
+  content.innerHTML = '<div class="flex items-center justify-center py-8"><div class="animate-spin rounded-full h-8 w-8 border-b-2 border-amber-600"></div><span class="ml-3 text-gray-500">Loading action items...</span></div>';
+  modal.classList.remove('hidden');
+  
+  try {
+    const response = await fetch(`/api/meetings/${meetingId}/actions`);
+    if (response.ok) {
+      const data = await response.json();
+      if (data.actionItems && data.actionItems.length > 0) {
+        content.innerHTML = `
+          <ul class="space-y-3 max-h-96 overflow-y-auto">
+            ${data.actionItems.map((item, index) => `
+              <li class="flex items-start space-x-3 p-3 bg-amber-50 rounded-lg">
+                <span class="flex-shrink-0 w-6 h-6 flex items-center justify-center bg-amber-200 text-amber-800 rounded-full text-xs font-medium">${index + 1}</span>
+                <div class="flex-1 min-w-0">
+                  <p class="text-sm text-gray-900">${item.text || item.description || item}</p>
+                  ${item.assignee ? `<p class="text-xs text-gray-500 mt-1">Assigned to: ${item.assignee}</p>` : ''}
+                  ${item.dueDate ? `<p class="text-xs text-gray-500">Due: ${item.dueDate}</p>` : ''}
+                </div>
+              </li>
+            `).join('')}
+          </ul>
+        `;
+      } else {
+        content.innerHTML = '<p class="text-gray-500 text-center py-8">No action items found</p>';
+      }
+    } else {
+      throw new Error('Failed to load action items');
+    }
+  } catch (error) {
+    content.innerHTML = '<p class="text-red-500 text-center py-8">Failed to load action items</p>';
+  }
+}
+
+function closeModal(modalId) {
+  const modal = document.getElementById(modalId);
+  modal.classList.add('hidden');
+  // Stop any playing media
+  const video = modal.querySelector('video');
+  const audio = modal.querySelector('audio');
+  if (video) video.pause();
+  if (audio) audio.pause();
+}
+
+function formatTimestamp(seconds) {
+  if (typeof seconds !== 'number') return '';
+  const mins = Math.floor(seconds / 60);
+  const secs = Math.floor(seconds % 60);
+  return `${mins}:${secs.toString().padStart(2, '0')}`;
+}
+
+// Close modals on escape key
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Escape') {
+    ['player-modal', 'transcript-modal', 'summary-modal', 'actions-modal'].forEach(id => {
+      const modal = document.getElementById(id);
+      if (modal && !modal.classList.contains('hidden')) {
+        closeModal(id);
+      }
+    });
+  }
+});
 </script>
+
+<!-- Modal Templates -->
+<!-- Player Modal -->
+<div id="player-modal" class="hidden fixed inset-0 z-50 overflow-y-auto" aria-modal="true">
+  <div class="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:p-0">
+    <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" onclick="closeModal('player-modal')"></div>
+    <div class="relative bg-white rounded-2xl shadow-xl transform transition-all sm:max-w-2xl sm:w-full">
+      <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+        <h3 id="player-modal-title" class="text-lg font-semibold text-gray-900">Recording</h3>
+        <button onclick="closeModal('player-modal')" class="text-gray-400 hover:text-gray-500">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+        </button>
+      </div>
+      <div id="player-modal-content" class="px-6 py-4"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Transcript Modal -->
+<div id="transcript-modal" class="hidden fixed inset-0 z-50 overflow-y-auto" aria-modal="true">
+  <div class="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:p-0">
+    <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" onclick="closeModal('transcript-modal')"></div>
+    <div class="relative bg-white rounded-2xl shadow-xl transform transition-all sm:max-w-2xl sm:w-full">
+      <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+        <h3 id="transcript-modal-title" class="text-lg font-semibold text-gray-900">Transcript</h3>
+        <button onclick="closeModal('transcript-modal')" class="text-gray-400 hover:text-gray-500">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+        </button>
+      </div>
+      <div id="transcript-modal-content" class="px-6 py-4"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Summary Modal -->
+<div id="summary-modal" class="hidden fixed inset-0 z-50 overflow-y-auto" aria-modal="true">
+  <div class="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:p-0">
+    <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" onclick="closeModal('summary-modal')"></div>
+    <div class="relative bg-white rounded-2xl shadow-xl transform transition-all sm:max-w-2xl sm:w-full">
+      <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+        <h3 id="summary-modal-title" class="text-lg font-semibold text-gray-900">AI Summary</h3>
+        <button onclick="closeModal('summary-modal')" class="text-gray-400 hover:text-gray-500">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+        </button>
+      </div>
+      <div id="summary-modal-content" class="px-6 py-4"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Actions Modal -->
+<div id="actions-modal" class="hidden fixed inset-0 z-50 overflow-y-auto" aria-modal="true">
+  <div class="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:p-0">
+    <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" onclick="closeModal('actions-modal')"></div>
+    <div class="relative bg-white rounded-2xl shadow-xl transform transition-all sm:max-w-2xl sm:w-full">
+      <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+        <h3 id="actions-modal-title" class="text-lg font-semibold text-gray-900">Action Items</h3>
+        <button onclick="closeModal('actions-modal')" class="text-gray-400 hover:text-gray-500">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+        </button>
+      </div>
+      <div id="actions-modal-content" class="px-6 py-4"></div>
+    </div>
+  </div>
+</div>
 
 <%- include('partials/footer') -%>

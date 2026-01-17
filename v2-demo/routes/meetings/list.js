@@ -47,14 +47,17 @@ async function syncCalendarEvents(calendar) {
       });
       await updateAutoRecordStatusForCalendarEvents({ calendar, events: dbEvents });
       // Queue bot scheduling for events that should be recorded
-      for (const event of dbEvents) {
-        if (event.shouldRecordAutomatic || event.shouldRecordManual) {
-          await backgroundQueue.add("calendarevent.update_bot_schedule", {
+      // Use Promise.allSettled to avoid blocking if Redis is unavailable
+      const queuePromises = dbEvents
+        .filter(event => event.shouldRecordAutomatic || event.shouldRecordManual)
+        .map(event => 
+          backgroundQueue.add("calendarevent.update_bot_schedule", {
             calendarId: calendar.id,
             recallEventId: event.recallId,
-          });
-        }
-      }
+          }).catch(err => console.warn(`[MEETINGS] Queue add failed (Redis unavailable?):`, err.message))
+        );
+      // Don't await - let these run in background
+      Promise.allSettled(queuePromises).catch(() => {});
     }
 
     return events.length;
@@ -147,6 +150,10 @@ export default async (req, res) => {
     const limitedEvents = futureEvents.slice(0, 50);
 
     for (const event of limitedEvents) {
+      // Determine effective transcription mode (event override > calendar default > 'realtime')
+      const calendarTranscriptionMode = event.Calendar?.transcriptionMode || "realtime";
+      const effectiveTranscriptionMode = event.transcriptionMode || calendarTranscriptionMode;
+      
       upcomingEvents.push({
         id: event.id,
         title: event.title || "Untitled Meeting",
@@ -157,6 +164,9 @@ export default async (req, res) => {
         calendarEmail: event.Calendar?.email || null,
         recordStatus: event.recordStatus,
         recallEventId: event.recallId,
+        transcriptionMode: event.transcriptionMode,  // Per-event override (null = use calendar default)
+        effectiveTranscriptionMode,  // Resolved value for display
+        calendarTranscriptionMode,  // Calendar default for "Default" option label
       });
     }
   }

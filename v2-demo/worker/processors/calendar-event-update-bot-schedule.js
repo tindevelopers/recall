@@ -28,12 +28,16 @@ export default async (job) => {
       publicUrl = process.env.RAILWAY_STATIC_URL;
     }
     
+    // Determine effective transcription mode (event override takes precedence)
+    const effectiveTranscriptionMode = event.transcriptionMode || calendar?.transcriptionMode || "realtime";
     console.log(`[BOT_CONFIG] Calendar settings: enableTranscription=${calendar?.enableTranscription}, transcriptionMode=${calendar?.transcriptionMode}`);
+    console.log(`[BOT_CONFIG] Event override: transcriptionMode=${event.transcriptionMode}, effective=${effectiveTranscriptionMode}`);
     console.log(`[BOT_CONFIG] Public URL for webhooks: ${publicUrl || 'NOT SET - realtime_endpoints will be empty!'}`);
 
-    // Build bot config from calendar settings (shared logic)
+    // Build bot config from calendar settings + event overrides (shared logic)
     const botConfig = buildBotConfig({
       calendar,
+      event,  // Pass event for per-meeting transcription override
       publicUrl,
     });
     
