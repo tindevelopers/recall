@@ -1,17 +1,12 @@
-# Railway configuration for v2-demo
-# This file should be used when deploying v2-demo as a separate service
+# Railway configuration for worker service
 
 [build]
 builder = "dockerfile"
-dockerfilePath = "Dockerfile.railway"
+dockerfilePath = "Dockerfile.worker"
 
 [deploy]
-startCommand = "npm start & npm run start:worker & wait"
-healthcheckPath = "/"
-healthcheckTimeout = 100
 restartPolicyType = "on_failure"
 restartPolicyMaxRetries = 10
 
 [env]
 NODE_ENV = "production"
-PORT = "3003"

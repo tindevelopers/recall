@@ -9,7 +9,10 @@
     "start": "NODE_ENV=production node index.js",
     "start:worker": "NODE_ENV=production node worker/index.js",
     "dev": "NODE_ENV=development nodemon index.js",
-    "dev:worker": "NODE_ENV=development nodemon worker/index.js"
+    "dev:worker": "NODE_ENV=development nodemon worker/index.js",
+    "disconnect-v1-bot": "node disconnect-v1-bot.js",
+    "stop-v1-scheduler": "node stop-v1-scheduler.js",
+    "check-v2-bot-scheduling": "node check-v2-bot-scheduling.js"
   },
   "author": "Dhruv Parmar",
   "license": "ISC",
@@ -28,8 +31,6 @@
     "pg": "^8.11.3",
     "pg-hstore": "^2.3.4",
     "sequelize": "^6.31.1",
-    "sqlite": "^4.1.2",
-    "sqlite3": "^5.1.6",
     "umzug": "^3.2.1",
     "uuid": "^9.0.0"
   },

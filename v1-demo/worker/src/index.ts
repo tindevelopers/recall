@@ -43,9 +43,8 @@ async function handleAuthenticate(
   request: Request,
   env: Env
 ): Promise<Response> {
-  const { RECALL_API_HOST, RECALL_API_KEY } = env;
+  // DISCONNECTED FROM RECALL: Returning mock token instead of calling Recall API
   const { headers } = request;
-  const url = new URL(request.url);
   const contentType = headers.get("content-type") || "";
 
   let requestBody: { userId?: string } = {};
@@ -53,23 +52,10 @@ async function handleAuthenticate(
     requestBody = await request.json();
   }
 
-  let responseBody: {} = {};
-  if (requestBody.userId) {
-    const init = {
-      body: JSON.stringify({ user_id: requestBody.userId }),
-      method: "POST",
-      headers: {
-        "content-type": "application/json;charset=UTF-8",
-        authorization: `Token ${RECALL_API_KEY}`,
-      },
-    };
-    const tokenResponse = await fetch(
-      `${RECALL_API_HOST}/calendar/authenticate/`,
-      init
-    );
-    console.log(`${RECALL_API_HOST}/calendar/authenticate/`, tokenResponse, 'token response!')
-    responseBody = await tokenResponse.json();
-  }
+  // Return mock token response (disconnected from Recall)
+  const responseBody = {
+    token: `mock-token-${requestBody.userId || 'default'}-${Date.now()}`
+  };
 
   const response = new Response(JSON.stringify(responseBody), {
     headers: {

@@ -168,6 +168,14 @@
 
 <script>
 function switchTab(tabName) {
+  // Check if tabs exist (only when calendar is connected)
+  const tabContent = document.getElementById('content-' + tabName);
+  const activeTab = document.getElementById('tab-' + tabName);
+  
+  if (!tabContent || !activeTab) {
+    return; // Tabs don't exist, likely no calendar connected
+  }
+  
   // Hide all content
   document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
   
@@ -175,19 +183,24 @@ function switchTab(tabName) {
   document.querySelectorAll('.tab-button').forEach(el => {
     el.classList.remove('border-indigo-500', 'text-indigo-600');
     el.classList.add('border-transparent', 'text-gray-500', 'hover:text-gray-700', 'hover:border-gray-300');
-    el.querySelector('svg').classList.remove('text-indigo-500');
-    el.querySelector('svg').classList.add('text-gray-400', 'group-hover:text-gray-500');
+    const svg = el.querySelector('svg');
+    if (svg) {
+      svg.classList.remove('text-indigo-500');
+      svg.classList.add('text-gray-400', 'group-hover:text-gray-500');
+    }
   });
   
   // Show selected content
-  document.getElementById('content-' + tabName).classList.remove('hidden');
+  tabContent.classList.remove('hidden');
   
   // Activate selected tab
-  const activeTab = document.getElementById('tab-' + tabName);
   activeTab.classList.remove('border-transparent', 'text-gray-500', 'hover:text-gray-700', 'hover:border-gray-300');
   activeTab.classList.add('border-indigo-500', 'text-indigo-600');
-  activeTab.querySelector('svg').classList.remove('text-gray-400', 'group-hover:text-gray-500');
-  activeTab.querySelector('svg').classList.add('text-indigo-500');
+  const svg = activeTab.querySelector('svg');
+  if (svg) {
+    svg.classList.remove('text-gray-400', 'group-hover:text-gray-500');
+    svg.classList.add('text-indigo-500');
+  }
   
   // Update URL hash
   history.replaceState(null, null, '#' + tabName);

@@ -43,14 +43,13 @@ export function buildBotConfig({ calendar, publicUrl }) {
         ? "prioritize_low_latency"
         : "prioritize_accuracy";
 
-    const provider = calendar.useRetellTranscription
-      ? { retell: {} }
-      : {
-          recallai_streaming: {
-            mode: providerMode,
-            ...(languageCode ? { language_code: languageCode } : {}),
-          },
-        };
+    // Use recallai_streaming as the provider (retell might not be available in all regions)
+    const provider = {
+      recallai_streaming: {
+        mode: providerMode,
+        ...(languageCode ? { language_code: languageCode } : {}),
+      },
+    };
 
     botConfig.recording_config.transcript = {
       provider,
@@ -66,10 +65,6 @@ export function buildBotConfig({ calendar, publicUrl }) {
           events: [
             "transcript.partial_data",
             "transcript.data",
-            "transcript.done",
-            "transcript.failed",
-            "recording.done",
-            "bot.status_change",
           ],
         },
       ];
@@ -78,11 +73,9 @@ export function buildBotConfig({ calendar, publicUrl }) {
 
   // Bot behavior settings
   if (calendar) {
-    if (calendar.joinBeforeStartMinutes > 0) {
-      botConfig.join_at = {
-        minutes_before_start: calendar.joinBeforeStartMinutes,
-      };
-    }
+    // Note: join_at should be calculated based on event start time, not set here
+    // The join_at is calculated when scheduling the bot, not in the bot config
+    // We'll handle this in the bot scheduling processor
     if (calendar.autoLeaveIfAlone) {
       botConfig.automatic_leave = {
         waiting_room_timeout: calendar.autoLeaveAloneTimeoutSeconds || 60,

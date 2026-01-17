@@ -36,10 +36,13 @@ export default async (req, res) => {
     limit: 50,
   });
 
-  // Get Notion destination if connected
-  const notionDestination = await db.NotionDestination.findOne({
-    where: { userId },
-  });
+  // Get Notion destination if connected (if model exists)
+  let notionDestination = null;
+  if (db.NotionDestination) {
+    notionDestination = await db.NotionDestination.findOne({
+      where: { userId },
+    });
+  }
 
   return res.render("settings.ejs", {
     notice: req.notice,

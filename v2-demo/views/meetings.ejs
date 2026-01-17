@@ -290,6 +290,14 @@
 
 <script>
 function switchMeetingsTab(tabName) {
+  // Check if tabs exist (only when calendar is connected)
+  const tabContent = document.getElementById('content-' + tabName);
+  const activeTab = document.getElementById('tab-' + tabName);
+  
+  if (!tabContent || !activeTab) {
+    return; // Tabs don't exist, likely no calendar connected
+  }
+  
   // Hide all content
   document.querySelectorAll('.meetings-tab-content').forEach(el => el.classList.add('hidden'));
   
@@ -310,10 +318,9 @@ function switchMeetingsTab(tabName) {
   });
   
   // Show selected content
-  document.getElementById('content-' + tabName).classList.remove('hidden');
+  tabContent.classList.remove('hidden');
   
   // Activate selected tab
-  const activeTab = document.getElementById('tab-' + tabName);
   activeTab.classList.remove('border-transparent', 'text-gray-500', 'hover:text-gray-700', 'hover:border-gray-300');
   activeTab.classList.add('border-indigo-500', 'text-indigo-600');
   const svg = activeTab.querySelector('svg');

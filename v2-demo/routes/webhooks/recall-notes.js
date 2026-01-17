@@ -88,6 +88,22 @@ export default async (req, res) => {
     `[RECALL-NOTES] Received webhook: event=${event}, recallEventId=${recallEventId}, recallBotId=${recallBotId}`
   );
   console.log(`[RECALL-NOTES] Payload keys: ${Object.keys(rawPayload).join(", ")}`);
+  
+  // Log recording and transcription data presence for debugging
+  const data = rawPayload?.data || rawPayload;
+  const hasRecording = !!(data?.video_url || data?.recording_url || data?.videoUrl || data?.recordingUrl);
+  const hasTranscript = !!(data?.transcript?.segments || data?.transcript_segments || data?.segments || data?.words);
+  console.log(`[RECALL-NOTES] Recording data present: ${hasRecording}, Transcript data present: ${hasTranscript}`);
+  
+  if (hasRecording) {
+    console.log(`[RECALL-NOTES] Recording URLs: video=${data?.video_url || data?.videoUrl || 'N/A'}, audio=${data?.audio_url || data?.audioUrl || 'N/A'}`);
+  }
+  
+  if (hasTranscript) {
+    const segmentCount = (data?.transcript?.segments || data?.transcript_segments || data?.segments || []).length;
+    const wordCount = (data?.words || []).length;
+    console.log(`[RECALL-NOTES] Transcript: ${segmentCount} segments, ${wordCount} words`);
+  }
 
   try {
     // Find associated calendar event (if any)

@@ -25,15 +25,74 @@ export async function makeRequest<T>({
   method,
   data,
 }: MakeRequestArgument): Promise<T> {
-  const res = await fetch(url, {
-    method,
-    headers: {
-      "Content-Type": "application/json",
-      ...(token ? { "X-RecallCalendarAuthToken": token } : {}),
-    },
-    ...(data ? { body: JSON.stringify(data) } : {}),
-  });
-  return await res.json();
+  // DISCONNECTED FROM RECALL: Returning mock data instead of calling Recall API
+  console.log(`[MOCK] makeRequest called: ${method} ${url}`, { token, data });
+  
+  // Simulate network delay
+  await new Promise(resolve => setTimeout(resolve, 300));
+  
+  // Return mock data based on URL pattern
+  if (url.includes('/user/')) {
+    if (method === 'GET') {
+      return {
+        id: 'mock-user-id',
+        external_id: 'mock-external-id',
+        connections: [],
+        preferences: {
+          record_non_host: false,
+          record_recurring: false,
+          record_external: false,
+          record_internal: false,
+          record_confirmed: false,
+          record_only_host: false,
+          bot_name: 'Mock Bot',
+        },
+      } as T;
+    } else if (method === 'PUT') {
+      // Return updated user with preferences from data
+      return {
+        id: 'mock-user-id',
+        external_id: 'mock-external-id',
+        connections: [],
+        preferences: (data as any)?.preferences || {
+          record_non_host: false,
+          record_recurring: false,
+          record_external: false,
+          record_internal: false,
+          record_confirmed: false,
+          record_only_host: false,
+          bot_name: 'Mock Bot',
+        },
+      } as T;
+    } else if (method === 'DELETE') {
+      return {} as T;
+    }
+  } else if (url.includes('/meetings/')) {
+    if (method === 'GET') {
+      return [] as T; // Empty meetings array
+    } else if (method === 'POST' && url.includes('/refresh')) {
+      return [] as T; // Empty meetings array after refresh
+    } else if (method === 'PUT') {
+      // Return updated meeting
+      const meetingId = url.split('/meetings/')[1]?.split('/')[0];
+      return {
+        id: meetingId || 'mock-meeting-id',
+        override_should_record: (data as any)?.override_should_record || false,
+        title: 'Mock Meeting',
+        platform: 'zoom',
+        meeting_platform: 'zoom',
+        calendar_platform: 'google',
+        start_time: new Date().toISOString(),
+        end_time: new Date(Date.now() + 3600000).toISOString(),
+        will_record: false,
+        will_record_reason: 'Mock meeting',
+        bot_id: null,
+      } as T;
+    }
+  }
+  
+  // Default mock response
+  return {} as T;
 }
 
 export function buildUrl(

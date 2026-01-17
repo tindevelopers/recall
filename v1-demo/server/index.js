@@ -21,29 +21,16 @@ app.post("/", (req, res) => {
     `INFO: Received authenticate request with body: ${JSON.stringify(req.body)}`
   );
 
-  fetch(`${process.env.RECALL_API_HOST}/api/v1/calendar/authenticate/`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: "Token " + process.env.RECALL_API_KEY,
-    },
-    body: JSON.stringify({ user_id: req.body.userId }),
-  })
-    .then((res) => res.json())
-    .then((data) => {
-      console.log(
-        `INFO: Received authenicate response from server ${JSON.stringify(
-          data
-        )}`
-      );
-      return res.json(data);
-    })
-    .catch((error) => {
-      console.log(
-        `ERROR: Failed to authenticate calendar v1 request due to ${error}`
-      );
-      return res.status(500).json({ error: "Failed to authenticate" });
-    });
+  // DISCONNECTED FROM RECALL: Returning mock token instead of calling Recall API
+  const mockToken = `mock-token-${req.body.userId || 'default'}-${Date.now()}`;
+  const mockResponse = {
+    token: mockToken
+  };
+
+  console.log(
+    `INFO: Returning mock token response (disconnected from Recall): ${JSON.stringify(mockResponse)}`
+  );
+  return res.json(mockResponse);
 });
 
 app.listen(process.env.PORT, () => {
