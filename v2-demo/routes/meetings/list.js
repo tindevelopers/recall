@@ -34,9 +34,10 @@ async function syncCalendarEvents(calendar) {
       }
     }
 
-    if (newEventsCount > 0) {
-      console.log(`[MEETINGS] On-demand sync found ${newEventsCount} new event(s) for calendar ${calendar.id}`);
-      // Queue auto-record update and bot scheduling
+    // Always run auto-record update for all synced events (not just new ones)
+    // This ensures events that were synced before but never had auto-record run get processed
+    if (events.length > 0) {
+      console.log(`[MEETINGS] On-demand sync processing ${events.length} event(s) for calendar ${calendar.id} (${newEventsCount} new)`);
       const { updateAutoRecordStatusForCalendarEvents } = await import("../../logic/autorecord.js");
       const dbEvents = await db.CalendarEvent.findAll({
         where: {
@@ -45,11 +46,14 @@ async function syncCalendarEvents(calendar) {
         },
       });
       await updateAutoRecordStatusForCalendarEvents({ calendar, events: dbEvents });
+      // Queue bot scheduling for events that should be recorded
       for (const event of dbEvents) {
-        await backgroundQueue.add("calendarevent.update_bot_schedule", {
-          calendarId: calendar.id,
-          recallEventId: event.recallId,
-        });
+        if (event.shouldRecordAutomatic || event.shouldRecordManual) {
+          await backgroundQueue.add("calendarevent.update_bot_schedule", {
+            calendarId: calendar.id,
+            recallEventId: event.recallId,
+          });
+        }
       }
     }
 

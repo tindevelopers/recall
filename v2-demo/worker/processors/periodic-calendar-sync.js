@@ -89,7 +89,8 @@ export default async (job) => {
           `[PERIODIC-SYNC] Synced calendar ${calendar.id}: ${eventsUpserted.length} upserted, ${eventsDeleted.length} deleted`
         );
 
-        // Update auto-record status for synced events
+        // Update auto-record status for ALL synced events (not just new ones)
+        // This ensures events that were synced before but never had auto-record run get processed
         if (eventsUpserted.length > 0) {
           const { updateAutoRecordStatusForCalendarEvents } = await import(
             "../../logic/autorecord.js"
@@ -107,16 +108,20 @@ export default async (job) => {
             events: dbEvents,
           });
 
-          // Queue bot scheduling jobs for new/updated events
+          // Queue bot scheduling jobs ONLY for events that should be recorded
+          let scheduledCount = 0;
           for (const event of dbEvents) {
-            await backgroundQueue.add("calendarevent.update_bot_schedule", {
-              calendarId: calendar.id,
-              recallEventId: event.recallId,
-            });
+            if (event.shouldRecordAutomatic || event.shouldRecordManual) {
+              await backgroundQueue.add("calendarevent.update_bot_schedule", {
+                calendarId: calendar.id,
+                recallEventId: event.recallId,
+              });
+              scheduledCount++;
+            }
           }
 
           console.log(
-            `[PERIODIC-SYNC] Queued ${dbEvents.length} bot scheduling job(s) for calendar ${calendar.id}`
+            `[PERIODIC-SYNC] Queued ${scheduledCount} bot scheduling job(s) for calendar ${calendar.id} (${dbEvents.length} events checked)`
           );
         }
 
