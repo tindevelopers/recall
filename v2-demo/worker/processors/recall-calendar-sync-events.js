@@ -4,6 +4,9 @@ import { backgroundQueue } from "../../queue.js";
 
 export default async (job) => {
   const { calendarId, recallId, lastUpdatedTimestamp } = job.data;
+  // #region agent log
+  fetch('http://127.0.0.1:7248/ingest/9df62f0f-78c1-44fb-821f-c3c7b9f764cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'recall-calendar-sync-events.js:ENTRY',message:'Worker processing sync_events job',data:{calendarId,recallId,lastUpdatedTimestamp,jobId:job.id},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'D'})}).catch(()=>{});
+  // #endregion
   console.log(
     `INFO: Sync events for calendar ${calendarId}(recall_id: ${recallId}) since ${lastUpdatedTimestamp}`
   );
@@ -11,6 +14,9 @@ export default async (job) => {
     id: recallId,
     lastUpdatedTimestamp,
   });
+  // #region agent log
+  fetch('http://127.0.0.1:7248/ingest/9df62f0f-78c1-44fb-821f-c3c7b9f764cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'recall-calendar-sync-events.js:EVENTS_FETCHED',message:'Fetched events from Recall',data:{calendarId,eventCount:events.length,eventIds:events.slice(0,5).map(e=>e.id)},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'D'})}).catch(()=>{});
+  // #endregion
 
   let eventsUpserted = [];
   let eventsDeleted = [];

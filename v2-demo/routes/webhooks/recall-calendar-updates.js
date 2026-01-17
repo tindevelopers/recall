@@ -3,6 +3,9 @@ import db from "../../db.js";
 
 export default async (req, res) => {
   try {
+    // #region agent log
+    fetch('http://127.0.0.1:7248/ingest/9df62f0f-78c1-44fb-821f-c3c7b9f764cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'recall-calendar-updates.js:ENTRY',message:'Webhook endpoint hit',data:{method:req.method,path:req.path,contentType:req.headers['content-type'],userAgent:req.headers['user-agent'],bodyKeys:req.body?Object.keys(req.body):null,event:req.body?.event,calendarId:req.body?.data?.calendar_id},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'B'})}).catch(()=>{});
+    // #endregion
     // Log incoming webhook request for debugging
     console.log(
       `[WEBHOOK] Received request: method=${req.method}, path=${req.path}, headers=${JSON.stringify({
@@ -43,6 +46,9 @@ export default async (req, res) => {
 
     // verify calendar exists on our end
     const calendar = await db.Calendar.findOne({ where: { recallId } });
+    // #region agent log
+    fetch('http://127.0.0.1:7248/ingest/9df62f0f-78c1-44fb-821f-c3c7b9f764cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'recall-calendar-updates.js:CALENDAR_LOOKUP',message:'Calendar lookup result',data:{recallId,found:!!calendar,calendarId:calendar?.id,email:calendar?.email},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'E'})}).catch(()=>{});
+    // #endregion
     if (!calendar) {
       console.warn(
         `[WEBHOOK] Could not find calendar with recall_id: ${recallId}. Ignoring webhook.`
@@ -79,13 +85,22 @@ export default async (req, res) => {
       }
     } else if (event === "calendar.sync_events") {
       try {
+        // #region agent log
+        fetch('http://127.0.0.1:7248/ingest/9df62f0f-78c1-44fb-821f-c3c7b9f764cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'recall-calendar-updates.js:QUEUE_SYNC',message:'About to queue sync_events job',data:{calendarId:calendar.id,recallId:calendar.recallId,lastUpdatedTs:payload.last_updated_ts},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'C'})}).catch(()=>{});
+        // #endregion
         await backgroundQueue.add("recall.calendar.sync_events", {
           calendarId: calendar.id,
           recallId: calendar.recallId,
           lastUpdatedTimestamp: payload.last_updated_ts,
         });
+        // #region agent log
+        fetch('http://127.0.0.1:7248/ingest/9df62f0f-78c1-44fb-821f-c3c7b9f764cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'recall-calendar-updates.js:QUEUE_SUCCESS',message:'Successfully queued sync_events job',data:{calendarId:calendar.id},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'C'})}).catch(()=>{});
+        // #endregion
         console.log(`[WEBHOOK] Queued job to sync events for calendar ${calendar.id}`);
       } catch (queueError) {
+        // #region agent log
+        fetch('http://127.0.0.1:7248/ingest/9df62f0f-78c1-44fb-821f-c3c7b9f764cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'recall-calendar-updates.js:QUEUE_FAIL',message:'Failed to queue sync_events job',data:{error:queueError.message},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'C'})}).catch(()=>{});
+        // #endregion
         console.error(`[WEBHOOK] Failed to queue calendar sync events job:`, queueError);
       }
     } else {

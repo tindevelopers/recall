@@ -156,21 +156,22 @@ backgroundQueue.on("ready", async () => {
       }
     }
 
-    // Add new periodic sync job (every 5 minutes)
+    // Add new periodic sync job (every 2 minutes for faster event detection)
+    // Note: Recall.ai webhooks can be unreliable, so periodic sync is essential
     await backgroundQueue.add(
       "periodic.calendar.sync",
       {},
       {
         repeat: {
-          every: 5 * 60 * 1000, // 5 minutes in milliseconds
+          every: 2 * 60 * 1000, // 2 minutes in milliseconds
         },
         jobId: "periodic-calendar-sync", // Unique ID to prevent duplicates
       }
     );
 
-    console.log("⏰ Scheduled periodic calendar sync (every 5 minutes)");
+    console.log("⏰ Scheduled periodic calendar sync (every 2 minutes)");
     telemetryLog("INFO", "Periodic sync scheduled", {
-      intervalMinutes: 5,
+      intervalMinutes: 2,
     });
 
     // Run initial sync immediately (don't wait 5 minutes)
