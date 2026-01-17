@@ -1,82 +1,206 @@
 <%- include('partials/header') -%>
-<div class="min-h-full">
+<div class="min-h-full bg-gradient-to-br from-slate-50 via-white to-indigo-50">
   <%- include('partials/navigation', { user: user, currentPage: 'meetings' }) -%>
   <%- include('partials/notice', { notice: notice }) -%>
+  
   <div class="py-10">
-    <header>
+    <header class="mb-8">
       <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div class="md:flex md:items-center md:justify-between">
           <div class="min-w-0 flex-1">
-            <h1 class="text-3xl font-bold leading-tight tracking-tight text-gray-900">
+            <h1 class="text-3xl font-bold tracking-tight text-gray-900 flex items-center">
+              <svg class="w-8 h-8 mr-3 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+              </svg>
               Meetings
             </h1>
-            <p class="mt-1 text-sm text-gray-500">
-              View recordings, transcripts, and AI-generated notes from your meetings.
+            <p class="mt-2 text-sm text-gray-600">
+              View upcoming events and access recordings, transcripts, and AI-generated notes from past meetings.
             </p>
           </div>
         </div>
       </div>
     </header>
+
     <main>
-      <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 mt-8">
-        <% if (meetings.length === 0) { %>
-          <div class="text-center py-12">
-            <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+      <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <% if (!hasCalendars) { %>
+          <!-- No Calendar Connected State -->
+          <div class="text-center py-16 bg-white rounded-2xl shadow-sm border border-gray-100">
+            <svg class="mx-auto h-16 w-16 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
             </svg>
-            <h3 class="mt-2 text-sm font-semibold text-gray-900">No meetings yet</h3>
-            <p class="mt-1 text-sm text-gray-500">
-              <% if (hasCalendars) { %>
-                Your calendar is connected! Meetings will appear here once your bot has attended and recorded them.
-              <% } else { %>
-                Meetings will appear here once your bot has attended and recorded them. Connect your calendar to get started.
-              <% } %>
+            <h3 class="mt-4 text-lg font-semibold text-gray-900">No Calendar Connected</h3>
+            <p class="mt-2 text-sm text-gray-500 max-w-md mx-auto">
+              Connect your Google Calendar or Microsoft Outlook to start scheduling meeting recordings automatically.
             </p>
-            <% if (!hasCalendars) { %>
               <div class="mt-6">
-                <a href="/" class="inline-flex items-center rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500">
-                  <svg class="-ml-0.5 mr-1.5 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <a href="/" class="inline-flex items-center rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 transition-colors">
+                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
                   </svg>
                   Connect a Calendar
                 </a>
               </div>
-            <% } else { %>
-              <div class="mt-6">
-                <a href="/" class="inline-flex items-center rounded-md bg-gray-100 px-3 py-2 text-sm font-semibold text-gray-700 shadow-sm hover:bg-gray-200">
-                  View Connected Calendars
-                </a>
-              </div>
-            <% } %>
           </div>
         <% } else { %>
-          <div class="overflow-hidden bg-white shadow sm:rounded-lg">
-            <ul role="list" class="divide-y divide-gray-200">
+          <!-- Tabbed Interface -->
+          <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+            <!-- Tab Navigation -->
+            <div class="border-b border-gray-200">
+              <nav class="-mb-px flex" aria-label="Tabs">
+                <button 
+                  onclick="switchMeetingsTab('upcoming')"
+                  id="tab-upcoming"
+                  class="meetings-tab-button flex-1 group inline-flex items-center justify-center py-4 px-4 border-b-2 font-medium text-sm transition-colors border-indigo-500 text-indigo-600"
+                >
+                  <svg class="w-5 h-5 mr-2 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                  </svg>
+                  Upcoming
+                  <% if (upcomingEvents && upcomingEvents.length > 0) { %>
+                    <span class="ml-2 inline-flex items-center rounded-full bg-indigo-100 px-2.5 py-0.5 text-xs font-medium text-indigo-700">
+                      <%= upcomingEvents.length %>
+                    </span>
+                  <% } %>
+                </button>
+                <button 
+                  onclick="switchMeetingsTab('past')"
+                  id="tab-past"
+                  class="meetings-tab-button flex-1 group inline-flex items-center justify-center py-4 px-4 border-b-2 font-medium text-sm transition-colors border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                >
+                  <svg class="w-5 h-5 mr-2 text-gray-400 group-hover:text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                  </svg>
+                  Past Meetings
+                  <% if (meetings && meetings.length > 0) { %>
+                    <span class="ml-2 inline-flex items-center rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-600 group-hover:bg-gray-200">
+                      <%= meetings.length %>
+                    </span>
+                  <% } %>
+                </button>
+              </nav>
+            </div>
+
+            <!-- Tab Content -->
+            <div class="p-6">
+              <!-- Upcoming Events Tab -->
+              <div id="content-upcoming" class="meetings-tab-content">
+                <% if (!upcomingEvents || upcomingEvents.length === 0) { %>
+                  <div class="text-center py-12">
+                    <svg class="mx-auto h-12 w-12 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                    </svg>
+                    <h3 class="mt-4 text-lg font-semibold text-gray-900">No upcoming meetings</h3>
+                    <p class="mt-2 text-sm text-gray-500">
+                      Your upcoming calendar events with meeting links will appear here.
+                    </p>
+                  </div>
+                <% } else { %>
+                  <div class="space-y-4">
+                    <% upcomingEvents.forEach(function(event) { %>
+                      <div class="bg-gray-50 rounded-xl p-5 hover:bg-gray-100 transition-colors border border-gray-200">
+                        <div class="flex items-start justify-between">
+                          <div class="flex items-start space-x-4">
+                            <div class="flex-shrink-0">
+                              <% if (event.platform === 'google_calendar') { %>
+                                <div class="w-12 h-12 bg-white rounded-xl shadow-sm flex items-center justify-center">
+                                  <img class="h-7 w-7" src="https://upload.wikimedia.org/wikipedia/commons/thumb/a/a5/Google_Calendar_icon_%282020%29.svg/2048px-Google_Calendar_icon_%282020%29.svg.png" alt="Google Calendar" />
+                                </div>
+                              <% } else { %>
+                                <div class="w-12 h-12 bg-white rounded-xl shadow-sm flex items-center justify-center">
+                                  <img class="h-7 w-7" src="https://img.icons8.com/color/480/outlook-calendar.png" alt="Outlook" />
+                                </div>
+                              <% } %>
+                            </div>
+                            <div class="flex-1 min-w-0">
+                              <h4 class="text-sm font-semibold text-gray-900 truncate"><%= event.title || 'Untitled Meeting' %></h4>
+                              <div class="mt-1 flex items-center text-sm text-gray-500">
+                                <svg class="mr-1.5 h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                </svg>
+                                <% if (event.startTime) { %>
+                                  <%= new Date(event.startTime).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }) %>
+                                  at
+                                  <%= new Date(event.startTime).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) %>
+                                <% } %>
+                              </div>
+                              <% if (event.calendarEmail) { %>
+                                <p class="mt-1 text-xs text-gray-400"><%= event.calendarEmail %></p>
+                              <% } %>
+                            </div>
+                          </div>
+                          <div class="flex items-center space-x-3">
+                            <% if (event.recordStatus === 'record') { %>
+                              <span class="inline-flex items-center rounded-full bg-green-100 px-3 py-1 text-xs font-medium text-green-800">
+                                <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 8 8"><circle cx="4" cy="4" r="3"/></svg>
+                                Bot scheduled
+                              </span>
+                            <% } else if (event.recordStatus === 'do_not_record') { %>
+                              <span class="inline-flex items-center rounded-full bg-gray-100 px-3 py-1 text-xs font-medium text-gray-600">
+                                No recording
+                              </span>
+                            <% } else { %>
+                              <span class="inline-flex items-center rounded-full bg-amber-100 px-3 py-1 text-xs font-medium text-amber-800">
+                                Pending
+                              </span>
+                            <% } %>
+                            <% if (event.meetingUrl) { %>
+                              <a href="<%= event.meetingUrl %>" target="_blank" class="inline-flex items-center text-xs font-medium text-indigo-600 hover:text-indigo-500">
+                                Join
+                                <svg class="w-3 h-3 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path>
+                                </svg>
+                              </a>
+                            <% } %>
+                          </div>
+                        </div>
+                      </div>
+                    <% }); %>
+                  </div>
+                <% } %>
+              </div>
+
+              <!-- Past Meetings Tab -->
+              <div id="content-past" class="meetings-tab-content hidden">
+                <% if (!meetings || meetings.length === 0) { %>
+                  <div class="text-center py-12">
+                    <svg class="mx-auto h-12 w-12 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
+                    </svg>
+                    <h3 class="mt-4 text-lg font-semibold text-gray-900">No recorded meetings yet</h3>
+                    <p class="mt-2 text-sm text-gray-500">
+                      Meetings will appear here once your bot has attended and recorded them.
+                    </p>
+                  </div>
+                <% } else { %>
+                  <div class="space-y-4">
               <% meetings.forEach(function(meeting) { %>
-                <li>
-                  <a href="/meetings/<%= meeting.id %>" class="block hover:bg-gray-50">
-                    <div class="px-4 py-4 sm:px-6">
-                      <div class="flex items-center justify-between">
-                        <div class="flex items-center min-w-0 flex-1">
+                      <div class="bg-white rounded-xl border border-gray-200 overflow-hidden hover:shadow-md transition-shadow">
+                        <div class="p-5">
+                          <div class="flex items-start justify-between">
+                            <div class="flex items-start space-x-4">
                           <div class="flex-shrink-0">
                             <% if (meeting.platform === 'google_calendar') { %>
-                              <img class="h-10 w-10 rounded-full" src="https://upload.wikimedia.org/wikipedia/commons/thumb/a/a5/Google_Calendar_icon_%282020%29.svg/2048px-Google_Calendar_icon_%282020%29.svg.png" alt="Google Calendar" />
+                                  <div class="w-12 h-12 bg-gray-50 rounded-xl flex items-center justify-center">
+                                    <img class="h-7 w-7" src="https://upload.wikimedia.org/wikipedia/commons/thumb/a/a5/Google_Calendar_icon_%282020%29.svg/2048px-Google_Calendar_icon_%282020%29.svg.png" alt="Google Calendar" />
+                                  </div>
                             <% } else if (meeting.platform === 'microsoft_outlook') { %>
-                              <img class="h-10 w-10 rounded-full" src="https://img.icons8.com/color/480/outlook-calendar.png" alt="Microsoft Outlook" />
+                                  <div class="w-12 h-12 bg-gray-50 rounded-xl flex items-center justify-center">
+                                    <img class="h-7 w-7" src="https://img.icons8.com/color/480/outlook-calendar.png" alt="Outlook" />
+                                  </div>
                             <% } else { %>
-                              <div class="h-10 w-10 rounded-full bg-indigo-100 flex items-center justify-center">
+                                  <div class="w-12 h-12 bg-indigo-50 rounded-xl flex items-center justify-center">
                                 <svg class="h-6 w-6 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
                                 </svg>
                               </div>
                             <% } %>
                           </div>
-                          <div class="ml-4 min-w-0 flex-1">
-                            <p class="truncate text-sm font-medium text-indigo-600">
-                              <%= meeting.title %>
-                            </p>
+                              <div class="flex-1 min-w-0">
+                                <h4 class="text-sm font-semibold text-gray-900 truncate"><%= meeting.title %></h4>
                             <div class="mt-1 flex items-center text-sm text-gray-500">
-                              <svg class="mr-1.5 h-4 w-4 flex-shrink-0 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <svg class="mr-1.5 h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
                               </svg>
                               <% if (meeting.startTime) { %>
@@ -88,16 +212,13 @@
                               <% } %>
                             </div>
                             <% if (meeting.calendarEmail) { %>
-                              <p class="mt-1 text-xs text-gray-400">
-                                <%= meeting.calendarEmail %>
-                              </p>
+                                  <p class="mt-1 text-xs text-gray-400"><%= meeting.calendarEmail %></p>
                             <% } %>
-                          </div>
-                        </div>
-                        <div class="ml-4 flex flex-shrink-0 items-center space-x-2">
-                          <!-- Status badges -->
+                                
+                                <!-- Status Badges -->
+                                <div class="mt-3 flex flex-wrap gap-2">
                           <% if (meeting.hasRecording) { %>
-                            <span class="inline-flex items-center rounded-full bg-green-50 px-2 py-1 text-xs font-medium text-green-700 ring-1 ring-inset ring-green-600/20">
+                                    <span class="inline-flex items-center rounded-full bg-green-50 px-2.5 py-1 text-xs font-medium text-green-700 ring-1 ring-inset ring-green-600/20">
                               <svg class="mr-1 h-3 w-3" fill="currentColor" viewBox="0 0 20 20">
                                 <path d="M2 6a2 2 0 012-2h6a2 2 0 012 2v8a2 2 0 01-2 2H4a2 2 0 01-2-2V6zM14.553 7.106A1 1 0 0014 8v4a1 1 0 00.553.894l2 1A1 1 0 0018 13V7a1 1 0 00-1.447-.894l-2 1z"></path>
                               </svg>
@@ -105,7 +226,7 @@
                             </span>
                           <% } %>
                           <% if (meeting.hasTranscript) { %>
-                            <span class="inline-flex items-center rounded-full bg-blue-50 px-2 py-1 text-xs font-medium text-blue-700 ring-1 ring-inset ring-blue-600/20">
+                                    <span class="inline-flex items-center rounded-full bg-blue-50 px-2.5 py-1 text-xs font-medium text-blue-700 ring-1 ring-inset ring-blue-600/20">
                               <svg class="mr-1 h-3 w-3" fill="currentColor" viewBox="0 0 20 20">
                                 <path fill-rule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 6a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1zm1 3a1 1 0 100 2h6a1 1 0 100-2H7z" clip-rule="evenodd"></path>
                               </svg>
@@ -113,39 +234,110 @@
                             </span>
                           <% } %>
                           <% if (meeting.hasSummary) { %>
-                            <span class="inline-flex items-center rounded-full bg-purple-50 px-2 py-1 text-xs font-medium text-purple-700 ring-1 ring-inset ring-purple-600/20">
+                                    <span class="inline-flex items-center rounded-full bg-purple-50 px-2.5 py-1 text-xs font-medium text-purple-700 ring-1 ring-inset ring-purple-600/20">
                               <svg class="mr-1 h-3 w-3" fill="currentColor" viewBox="0 0 20 20">
                                 <path d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.38z"></path>
                               </svg>
-                              AI Notes
+                                      AI Summary
                             </span>
                           <% } %>
-                          <!-- Arrow -->
-                          <svg class="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                </div>
+                              </div>
+                            </div>
+                            
+                            <!-- Action Buttons -->
+                            <div class="flex items-center space-x-2">
+                              <% if (meeting.hasRecording && (meeting.recordingUrl || meeting.audioUrl)) { %>
+                                <% if (meeting.recordingUrl) { %>
+                                  <a href="<%= meeting.recordingUrl %>" target="_blank" class="inline-flex items-center rounded-lg bg-green-50 px-3 py-2 text-xs font-medium text-green-700 hover:bg-green-100 transition-colors">
+                                    <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"></path>
+                                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                    </svg>
+                                    Video
+                                  </a>
+                                <% } %>
+                                <% if (meeting.audioUrl) { %>
+                                  <a href="<%= meeting.audioUrl %>" target="_blank" class="inline-flex items-center rounded-lg bg-blue-50 px-3 py-2 text-xs font-medium text-blue-700 hover:bg-blue-100 transition-colors">
+                                    <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"></path>
+                                    </svg>
+                                    Audio
+                                  </a>
+                                <% } %>
+                              <% } %>
+                              <a href="/meetings/<%= meeting.id %>" class="inline-flex items-center rounded-lg bg-indigo-50 px-3 py-2 text-xs font-medium text-indigo-700 hover:bg-indigo-100 transition-colors">
+                                View Details
+                                <svg class="w-4 h-4 ml-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
                           </svg>
+                              </a>
+                      </div>
+                          </div>
                         </div>
                       </div>
-                      <% if (meeting.participants && meeting.participants.length > 0) { %>
-                        <div class="mt-2 ml-14">
-                          <div class="flex items-center text-xs text-gray-500">
-                            <svg class="mr-1 h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
-                            </svg>
-                            <%= meeting.participants.length %> participant<%= meeting.participants.length !== 1 ? 's' : '' %>
-                          </div>
+                    <% }); %>
                         </div>
                       <% } %>
                     </div>
-                  </a>
-                </li>
-              <% }); %>
-            </ul>
+            </div>
           </div>
         <% } %>
       </div>
     </main>
   </div>
 </div>
-<%- include('partials/footer') -%>
 
+<script>
+function switchMeetingsTab(tabName) {
+  // Hide all content
+  document.querySelectorAll('.meetings-tab-content').forEach(el => el.classList.add('hidden'));
+  
+  // Reset all tab buttons
+  document.querySelectorAll('.meetings-tab-button').forEach(el => {
+    el.classList.remove('border-indigo-500', 'text-indigo-600');
+    el.classList.add('border-transparent', 'text-gray-500', 'hover:text-gray-700', 'hover:border-gray-300');
+    const svg = el.querySelector('svg');
+    if (svg) {
+      svg.classList.remove('text-indigo-500');
+      svg.classList.add('text-gray-400', 'group-hover:text-gray-500');
+    }
+    const badge = el.querySelector('span');
+    if (badge) {
+      badge.classList.remove('bg-indigo-100', 'text-indigo-700');
+      badge.classList.add('bg-gray-100', 'text-gray-600', 'group-hover:bg-gray-200');
+    }
+  });
+  
+  // Show selected content
+  document.getElementById('content-' + tabName).classList.remove('hidden');
+  
+  // Activate selected tab
+  const activeTab = document.getElementById('tab-' + tabName);
+  activeTab.classList.remove('border-transparent', 'text-gray-500', 'hover:text-gray-700', 'hover:border-gray-300');
+  activeTab.classList.add('border-indigo-500', 'text-indigo-600');
+  const svg = activeTab.querySelector('svg');
+  if (svg) {
+    svg.classList.remove('text-gray-400', 'group-hover:text-gray-500');
+    svg.classList.add('text-indigo-500');
+  }
+  const badge = activeTab.querySelector('span');
+  if (badge) {
+    badge.classList.remove('bg-gray-100', 'text-gray-600', 'group-hover:bg-gray-200');
+    badge.classList.add('bg-indigo-100', 'text-indigo-700');
+  }
+  
+  // Update URL hash
+  history.replaceState(null, null, '#' + tabName);
+}
+
+// Handle initial tab from URL hash
+document.addEventListener('DOMContentLoaded', function() {
+  const hash = window.location.hash.slice(1);
+  if (hash && document.getElementById('tab-' + hash)) {
+    switchMeetingsTab(hash);
+  }
+});
+</script>
+
+<%- include('partials/footer') -%>

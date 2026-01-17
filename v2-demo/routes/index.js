@@ -27,6 +27,7 @@ import apiDebugCalendars from "./api/debug-calendars.js";
 import apiDebugBotConfig from "./api/debug-bot-config.js";
 import meetingsList from "./meetings/list.js";
 import meetingsDetail from "./meetings/detail.js";
+import settingsGet from "./settings/get.js";
 
 const router = Router();
 
@@ -67,6 +68,8 @@ router.post("/api/debug-bot-config", apiDebugBotConfig);
 
 router.get("/meetings", meetingsList);
 router.get("/meetings/:id", meetingsDetail);
+
+router.get("/settings", settingsGet);
 
 router.get("*", catchAll);
 

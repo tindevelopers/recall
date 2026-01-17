@@ -1,0 +1,147 @@
+<div class="space-y-6">
+  <div>
+    <h2 class="text-xl font-semibold text-gray-900">Recording Preferences</h2>
+    <p class="mt-1 text-sm text-gray-500">Configure how your meetings are recorded and which events to include.</p>
+  </div>
+
+  <form method="POST" action="/calendar/<%= calendar.id %>" class="space-y-8">
+    <input type="hidden" name="_method" value="PATCH">
+    
+    <!-- Auto-Recording Settings -->
+    <div class="bg-gray-50 rounded-xl p-6 space-y-4">
+      <h3 class="text-sm font-semibold text-gray-900 uppercase tracking-wide flex items-center">
+        <svg class="w-5 h-5 mr-2 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+        </svg>
+        Event Selection
+      </h3>
+      
+      <div class="space-y-4">
+        <label class="relative flex items-start bg-white rounded-xl p-4 cursor-pointer hover:shadow-sm transition-shadow border border-gray-200">
+          <div class="flex h-6 items-center">
+            <input 
+              id="autoRecordExternalEvents" 
+              name="autoRecordExternalEvents" 
+              type="checkbox" 
+              <%= calendar.autoRecordExternalEvents ? "checked" : "" %>
+              class="h-5 w-5 rounded border-gray-300 text-indigo-600 focus:ring-indigo-600"
+            />
+          </div>
+          <div class="ml-4">
+            <span class="text-sm font-semibold text-gray-900">Record External Events</span>
+            <p class="text-sm text-gray-500 mt-0.5">Automatically record meetings you were invited to by others</p>
+          </div>
+        </label>
+
+        <label class="relative flex items-start bg-white rounded-xl p-4 cursor-pointer hover:shadow-sm transition-shadow border border-gray-200">
+          <div class="flex h-6 items-center">
+            <input 
+              id="autoRecordOnlyConfirmedEvents" 
+              name="autoRecordOnlyConfirmedEvents" 
+              type="checkbox" 
+              <%= calendar.autoRecordOnlyConfirmedEvents ? "checked" : "" %>
+              class="h-5 w-5 rounded border-gray-300 text-indigo-600 focus:ring-indigo-600"
+            />
+          </div>
+          <div class="ml-4">
+            <span class="text-sm font-semibold text-gray-900">Only Confirmed Events</span>
+            <p class="text-sm text-gray-500 mt-0.5">Skip tentative or unconfirmed calendar events</p>
+          </div>
+        </label>
+      </div>
+    </div>
+
+    <!-- Media Settings -->
+    <div class="bg-gray-50 rounded-xl p-6 space-y-4">
+      <h3 class="text-sm font-semibold text-gray-900 uppercase tracking-wide flex items-center">
+        <svg class="w-5 h-5 mr-2 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
+        </svg>
+        Media Capture
+      </h3>
+      
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <label class="relative flex items-start bg-white rounded-xl p-4 cursor-pointer hover:shadow-sm transition-shadow border border-gray-200">
+          <div class="flex h-6 items-center">
+            <input 
+              id="recordVideo" 
+              name="recordVideo" 
+              type="checkbox" 
+              <%= calendar.recordVideo !== false ? "checked" : "" %>
+              class="h-5 w-5 rounded border-gray-300 text-indigo-600 focus:ring-indigo-600"
+            />
+          </div>
+          <div class="ml-4">
+            <div class="flex items-center">
+              <svg class="w-5 h-5 mr-2 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
+              </svg>
+              <span class="text-sm font-semibold text-gray-900">Video Recording</span>
+            </div>
+            <p class="text-sm text-gray-500 mt-1">Capture screen shares and webcam feeds</p>
+          </div>
+        </label>
+
+        <label class="relative flex items-start bg-white rounded-xl p-4 cursor-pointer hover:shadow-sm transition-shadow border border-gray-200">
+          <div class="flex h-6 items-center">
+            <input 
+              id="recordAudio" 
+              name="recordAudio" 
+              type="checkbox" 
+              <%= calendar.recordAudio !== false ? "checked" : "" %>
+              class="h-5 w-5 rounded border-gray-300 text-indigo-600 focus:ring-indigo-600"
+            />
+          </div>
+          <div class="ml-4">
+            <div class="flex items-center">
+              <svg class="w-5 h-5 mr-2 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"></path>
+              </svg>
+              <span class="text-sm font-semibold text-gray-900">Audio Recording</span>
+            </div>
+            <p class="text-sm text-gray-500 mt-1">Capture audio from all participants</p>
+          </div>
+        </label>
+      </div>
+    </div>
+
+    <!-- Transcription Provider -->
+    <div class="bg-gray-50 rounded-xl p-6 space-y-4">
+      <h3 class="text-sm font-semibold text-gray-900 uppercase tracking-wide flex items-center">
+        <svg class="w-5 h-5 mr-2 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+        </svg>
+        Transcription Provider
+      </h3>
+      
+      <label class="relative flex items-start bg-white rounded-xl p-4 cursor-pointer hover:shadow-sm transition-shadow border border-gray-200">
+        <div class="flex h-6 items-center">
+          <input 
+            id="useRetellTranscription" 
+            name="useRetellTranscription" 
+            type="checkbox" 
+            <%= calendar.useRetellTranscription ? "checked" : "" %>
+            class="h-5 w-5 rounded border-gray-300 text-indigo-600 focus:ring-indigo-600"
+          />
+        </div>
+        <div class="ml-4">
+          <span class="text-sm font-semibold text-gray-900">Use Retell Transcription</span>
+          <p class="text-sm text-gray-500 mt-0.5">Use Retell's transcription service instead of the default provider</p>
+        </div>
+      </label>
+    </div>
+
+    <!-- Save Button -->
+    <div class="flex justify-end">
+      <button 
+        type="submit" 
+        class="inline-flex items-center rounded-xl bg-indigo-600 px-6 py-3 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 transition-colors"
+      >
+        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+        </svg>
+        Save Recording Preferences
+      </button>
+    </div>
+  </form>
+</div>

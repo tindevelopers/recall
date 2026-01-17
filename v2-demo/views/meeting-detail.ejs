@@ -65,7 +65,7 @@
           <!-- Main content column -->
           <div class="lg:col-span-2 space-y-6">
             
-            <!-- Media Section -->
+            <!-- Media Player Section -->
             <% if (meeting.videoUrl || meeting.audioUrl) { %>
               <div class="overflow-hidden bg-white shadow sm:rounded-lg">
                 <div class="px-4 py-5 sm:px-6 border-b border-gray-200">
@@ -77,7 +77,77 @@
                   </h2>
                 </div>
                 <div class="px-4 py-5 sm:px-6">
-                  <div class="flex flex-wrap gap-3">
+                  <!-- Media Toggle Buttons -->
+                  <% if (meeting.videoUrl && meeting.audioUrl) { %>
+                    <div class="flex space-x-2 mb-4">
+                      <button 
+                        type="button" 
+                        onclick="toggleMedia('video')" 
+                        id="video-toggle-btn"
+                        class="inline-flex items-center rounded-md bg-indigo-600 px-3 py-2 text-sm font-medium text-white shadow-sm hover:bg-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+                      >
+                        <svg class="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
+                        </svg>
+                        Video
+                      </button>
+                      <button 
+                        type="button" 
+                        onclick="toggleMedia('audio')" 
+                        id="audio-toggle-btn"
+                        class="inline-flex items-center rounded-md bg-white px-3 py-2 text-sm font-medium text-gray-700 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+                      >
+                        <svg class="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3"></path>
+                        </svg>
+                        Audio Only
+                      </button>
+                    </div>
+                  <% } %>
+
+                  <!-- Video Player -->
+                  <% if (meeting.videoUrl) { %>
+                    <div id="video-player-container" class="mb-4">
+                      <div class="relative bg-black rounded-lg overflow-hidden aspect-video">
+                        <video 
+                          id="video-player"
+                          controls 
+                          class="w-full h-full"
+                          poster=""
+                        >
+                          <source src="<%= meeting.videoUrl %>" type="video/mp4">
+                          Your browser does not support the video tag.
+                        </video>
+                      </div>
+                    </div>
+                  <% } %>
+
+                  <!-- Audio Player -->
+                  <% if (meeting.audioUrl) { %>
+                    <div id="audio-player-container" class="mb-4 <%= meeting.videoUrl ? 'hidden' : '' %>">
+                      <div class="bg-gradient-to-r from-indigo-500 to-purple-600 rounded-lg p-6">
+                        <div class="flex items-center justify-center mb-4">
+                          <div class="w-20 h-20 bg-white/20 rounded-full flex items-center justify-center">
+                            <svg class="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3"></path>
+                            </svg>
+                          </div>
+                        </div>
+                        <p class="text-white text-center text-sm font-medium mb-4"><%= meeting.title %></p>
+                        <audio 
+                          id="audio-player"
+                          controls 
+                          class="w-full"
+                        >
+                          <source src="<%= meeting.audioUrl %>" type="audio/mpeg">
+                          Your browser does not support the audio element.
+                        </audio>
+                      </div>
+                    </div>
+                  <% } %>
+
+                  <!-- Download Buttons -->
+                  <div class="flex flex-wrap gap-3 pt-4 border-t border-gray-200">
                     <% if (meeting.videoUrl) { %>
                       <a
                         href="<%= meeting.videoUrl %>"
@@ -109,160 +179,212 @@
               </div>
             <% } %>
 
-            <!-- Summary Section -->
-            <% if (meeting.summary) { %>
-              <div class="overflow-hidden bg-white shadow sm:rounded-lg">
-                <div class="px-4 py-5 sm:px-6 border-b border-gray-200">
-                  <h2 class="text-lg font-semibold text-gray-900 flex items-center">
-                    <svg class="w-5 h-5 mr-2 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <!-- Tabbed Content Section -->
+            <div class="overflow-hidden bg-white shadow sm:rounded-lg">
+              <!-- Tab Navigation -->
+              <div class="border-b border-gray-200">
+                <nav class="-mb-px flex" aria-label="Tabs">
+                  <button
+                    type="button"
+                    onclick="switchTab('summary')"
+                    id="tab-summary"
+                    class="tab-btn border-indigo-500 text-indigo-600 w-1/4 border-b-2 py-4 px-1 text-center text-sm font-medium"
+                    aria-current="page"
+                  >
+                    <svg class="mx-auto h-5 w-5 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path>
                     </svg>
-                    AI Summary
-                  </h2>
-                </div>
-                <div class="px-4 py-5 sm:px-6">
-                  <div class="prose prose-sm max-w-none text-gray-700">
-                    <%= meeting.summary %>
-                  </div>
-                </div>
-              </div>
-            <% } %>
-
-            <!-- Action Items Section -->
-            <% if (meeting.actionItems && meeting.actionItems.length > 0) { %>
-              <div class="overflow-hidden bg-white shadow sm:rounded-lg">
-                <div class="px-4 py-5 sm:px-6 border-b border-gray-200">
-                  <h2 class="text-lg font-semibold text-gray-900 flex items-center">
-                    <svg class="w-5 h-5 mr-2 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    Summary
+                  </button>
+                  <button
+                    type="button"
+                    onclick="switchTab('actions')"
+                    id="tab-actions"
+                    class="tab-btn border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 w-1/4 border-b-2 py-4 px-1 text-center text-sm font-medium"
+                  >
+                    <svg class="mx-auto h-5 w-5 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"></path>
                     </svg>
-                    Action Items
-                    <span class="ml-2 inline-flex items-center rounded-full bg-orange-100 px-2.5 py-0.5 text-xs font-medium text-orange-800">
-                      <%= meeting.actionItems.length %>
-                    </span>
-                  </h2>
-                </div>
-                <div class="px-4 py-5 sm:px-6">
-                  <ul class="space-y-3">
-                    <% meeting.actionItems.forEach(function(item, index) { %>
-                      <li class="flex items-start">
-                        <span class="flex-shrink-0 h-6 w-6 flex items-center justify-center rounded-full bg-orange-100 text-orange-600 text-xs font-medium">
-                          <%= index + 1 %>
-                        </span>
-                        <div class="ml-3">
-                          <p class="text-sm text-gray-900">
-                            <% if (typeof item === 'object') { %>
-                              <%= item.task || item.description || item.text || JSON.stringify(item) %>
-                              <% if (item.assignee) { %>
-                                <span class="ml-2 inline-flex items-center rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-600">
-                                  <svg class="mr-1 h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
-                                  </svg>
-                                  <%= item.assignee %>
-                                </span>
-                              <% } %>
-                              <% if (item.due_date) { %>
-                                <span class="ml-2 inline-flex items-center rounded-full bg-red-50 px-2 py-0.5 text-xs font-medium text-red-600">
-                                  <svg class="mr-1 h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
-                                  </svg>
-                                  <%= item.due_date %>
-                                </span>
-                              <% } %>
-                            <% } else { %>
-                              <%= item %>
-                            <% } %>
-                          </p>
-                        </div>
-                      </li>
-                    <% }); %>
-                  </ul>
-                </div>
-              </div>
-            <% } %>
-
-            <!-- Follow-ups Section -->
-            <% if (meeting.followUps && meeting.followUps.length > 0) { %>
-              <div class="overflow-hidden bg-white shadow sm:rounded-lg">
-                <div class="px-4 py-5 sm:px-6 border-b border-gray-200">
-                  <h2 class="text-lg font-semibold text-gray-900 flex items-center">
-                    <svg class="w-5 h-5 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    Actions
+                    <% if (meeting.actionItems && meeting.actionItems.length > 0) { %>
+                      <span class="ml-1 inline-flex items-center rounded-full bg-orange-100 px-2 py-0.5 text-xs font-medium text-orange-800"><%= meeting.actionItems.length %></span>
+                    <% } %>
+                  </button>
+                  <button
+                    type="button"
+                    onclick="switchTab('followups')"
+                    id="tab-followups"
+                    class="tab-btn border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 w-1/4 border-b-2 py-4 px-1 text-center text-sm font-medium"
+                  >
+                    <svg class="mx-auto h-5 w-5 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 9l3 3m0 0l-3 3m3-3H8m13 0a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                     </svg>
                     Follow-ups
-                    <span class="ml-2 inline-flex items-center rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-medium text-blue-800">
-                      <%= meeting.followUps.length %>
-                    </span>
-                  </h2>
-                </div>
-                <div class="px-4 py-5 sm:px-6">
-                  <ul class="space-y-2">
-                    <% meeting.followUps.forEach(function(item) { %>
-                      <li class="flex items-start">
-                        <svg class="h-5 w-5 text-blue-500 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
-                          <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-8.707l-3-3a1 1 0 00-1.414 1.414L10.586 9H7a1 1 0 100 2h3.586l-1.293 1.293a1 1 0 101.414 1.414l3-3a1 1 0 000-1.414z" clip-rule="evenodd"></path>
-                        </svg>
-                        <span class="ml-2 text-sm text-gray-700">
-                          <% if (typeof item === 'object') { %>
-                            <%= item.description || item.text || item.task || JSON.stringify(item) %>
-                          <% } else { %>
-                            <%= item %>
-                          <% } %>
-                        </span>
-                      </li>
-                    <% }); %>
-                  </ul>
-                </div>
-              </div>
-            <% } %>
-
-            <!-- Transcript Section -->
-            <% if (meeting.transcript && meeting.transcript.length > 0) { %>
-              <div class="overflow-hidden bg-white shadow sm:rounded-lg">
-                <div class="px-4 py-5 sm:px-6 border-b border-gray-200">
-                  <h2 class="text-lg font-semibold text-gray-900 flex items-center">
-                    <svg class="w-5 h-5 mr-2 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <% if (meeting.followUps && meeting.followUps.length > 0) { %>
+                      <span class="ml-1 inline-flex items-center rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-800"><%= meeting.followUps.length %></span>
+                    <% } %>
+                  </button>
+                  <button
+                    type="button"
+                    onclick="switchTab('transcript')"
+                    id="tab-transcript"
+                    class="tab-btn border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 w-1/4 border-b-2 py-4 px-1 text-center text-sm font-medium"
+                  >
+                    <svg class="mx-auto h-5 w-5 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
                     </svg>
                     Transcript
-                    <span class="ml-2 inline-flex items-center rounded-full bg-indigo-100 px-2.5 py-0.5 text-xs font-medium text-indigo-800">
-                      <%= meeting.transcript.length %> segments
-                    </span>
-                  </h2>
+                  </button>
+                </nav>
+              </div>
+
+              <!-- Tab Content -->
+              <div class="px-4 py-5 sm:px-6">
+                <!-- Summary Tab -->
+                <div id="content-summary" class="tab-content">
+                  <% if (meeting.summary) { %>
+                    <div class="prose prose-sm max-w-none text-gray-700">
+                      <%= meeting.summary %>
+                    </div>
+                  <% } else { %>
+                    <div class="text-center py-8">
+                      <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path>
+                      </svg>
+                      <h3 class="mt-2 text-sm font-semibold text-gray-900">No summary available</h3>
+                      <p class="mt-1 text-sm text-gray-500">An AI-generated summary will appear here once the meeting is processed.</p>
+                    </div>
+                  <% } %>
                 </div>
-                <div class="px-4 py-5 sm:px-6 max-h-96 overflow-y-auto">
-                  <div class="space-y-4">
-                    <% 
-                      let currentSpeaker = null;
-                      meeting.transcript.forEach(function(chunk) { 
-                        const showSpeaker = chunk.speaker !== currentSpeaker;
-                        currentSpeaker = chunk.speaker;
-                    %>
-                      <div class="<%= showSpeaker ? 'pt-3 border-t border-gray-100' : '' %>">
-                        <% if (showSpeaker) { %>
-                          <div class="flex items-center mb-1">
-                            <span class="inline-flex items-center rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-800">
-                              <svg class="mr-1 h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
-                              </svg>
-                              <%= chunk.speaker %>
-                            </span>
-                            <% if (chunk.startTimeMs) { %>
-                              <span class="ml-2 text-xs text-gray-400">
-                                <%= Math.floor(chunk.startTimeMs / 60000) %>:<%= String(Math.floor((chunk.startTimeMs % 60000) / 1000)).padStart(2, '0') %>
-                              </span>
+
+                <!-- Actions Tab -->
+                <div id="content-actions" class="tab-content hidden">
+                  <% if (meeting.actionItems && meeting.actionItems.length > 0) { %>
+                    <ul class="space-y-3">
+                      <% meeting.actionItems.forEach(function(item, index) { %>
+                        <li class="flex items-start bg-orange-50 rounded-lg p-3">
+                          <span class="flex-shrink-0 h-6 w-6 flex items-center justify-center rounded-full bg-orange-100 text-orange-600 text-xs font-medium">
+                            <%= index + 1 %>
+                          </span>
+                          <div class="ml-3 flex-1">
+                            <p class="text-sm text-gray-900">
+                              <% if (typeof item === 'object') { %>
+                                <%= item.task || item.description || item.text || JSON.stringify(item) %>
+                              <% } else { %>
+                                <%= item %>
+                              <% } %>
+                            </p>
+                            <% if (typeof item === 'object' && (item.assignee || item.due_date)) { %>
+                              <div class="mt-2 flex flex-wrap gap-2">
+                                <% if (item.assignee) { %>
+                                  <span class="inline-flex items-center rounded-full bg-white px-2 py-0.5 text-xs font-medium text-gray-600 ring-1 ring-inset ring-gray-200">
+                                    <svg class="mr-1 h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+                                    </svg>
+                                    <%= item.assignee %>
+                                  </span>
+                                <% } %>
+                                <% if (item.due_date) { %>
+                                  <span class="inline-flex items-center rounded-full bg-red-50 px-2 py-0.5 text-xs font-medium text-red-600 ring-1 ring-inset ring-red-200">
+                                    <svg class="mr-1 h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                                    </svg>
+                                    <%= item.due_date %>
+                                  </span>
+                                <% } %>
+                              </div>
                             <% } %>
                           </div>
-                        <% } %>
-                        <p class="text-sm text-gray-700 pl-4">
-                          <%= chunk.text %>
-                        </p>
+                        </li>
+                      <% }); %>
+                    </ul>
+                  <% } else { %>
+                    <div class="text-center py-8">
+                      <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"></path>
+                      </svg>
+                      <h3 class="mt-2 text-sm font-semibold text-gray-900">No action items</h3>
+                      <p class="mt-1 text-sm text-gray-500">Action items extracted from the meeting will appear here.</p>
+                    </div>
+                  <% } %>
+                </div>
+
+                <!-- Follow-ups Tab -->
+                <div id="content-followups" class="tab-content hidden">
+                  <% if (meeting.followUps && meeting.followUps.length > 0) { %>
+                    <ul class="space-y-2">
+                      <% meeting.followUps.forEach(function(item) { %>
+                        <li class="flex items-start bg-blue-50 rounded-lg p-3">
+                          <svg class="h-5 w-5 text-blue-500 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-8.707l-3-3a1 1 0 00-1.414 1.414L10.586 9H7a1 1 0 100 2h3.586l-1.293 1.293a1 1 0 101.414 1.414l3-3a1 1 0 000-1.414z" clip-rule="evenodd"></path>
+                          </svg>
+                          <span class="ml-3 text-sm text-gray-700">
+                            <% if (typeof item === 'object') { %>
+                              <%= item.description || item.text || item.task || JSON.stringify(item) %>
+                            <% } else { %>
+                              <%= item %>
+                            <% } %>
+                          </span>
+                        </li>
+                      <% }); %>
+                    </ul>
+                  <% } else { %>
+                    <div class="text-center py-8">
+                      <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 9l3 3m0 0l-3 3m3-3H8m13 0a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                      </svg>
+                      <h3 class="mt-2 text-sm font-semibold text-gray-900">No follow-ups</h3>
+                      <p class="mt-1 text-sm text-gray-500">Suggested follow-ups from the meeting will appear here.</p>
+                    </div>
+                  <% } %>
+                </div>
+
+                <!-- Transcript Tab -->
+                <div id="content-transcript" class="tab-content hidden">
+                  <% if (meeting.transcript && meeting.transcript.length > 0) { %>
+                    <div class="max-h-96 overflow-y-auto">
+                      <div class="space-y-4">
+                        <% 
+                          let currentSpeaker = null;
+                          meeting.transcript.forEach(function(chunk) { 
+                            const showSpeaker = chunk.speaker !== currentSpeaker;
+                            currentSpeaker = chunk.speaker;
+                        %>
+                          <div class="<%= showSpeaker ? 'pt-3 border-t border-gray-100' : '' %>">
+                            <% if (showSpeaker) { %>
+                              <div class="flex items-center mb-1">
+                                <span class="inline-flex items-center rounded-full bg-indigo-100 px-2.5 py-0.5 text-xs font-medium text-indigo-800">
+                                  <svg class="mr-1 h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+                                  </svg>
+                                  <%= chunk.speaker %>
+                                </span>
+                                <% if (chunk.startTimeMs) { %>
+                                  <span class="ml-2 text-xs text-gray-400">
+                                    <%= Math.floor(chunk.startTimeMs / 60000) %>:<%= String(Math.floor((chunk.startTimeMs % 60000) / 1000)).padStart(2, '0') %>
+                                  </span>
+                                <% } %>
+                              </div>
+                            <% } %>
+                            <p class="text-sm text-gray-700 pl-4">
+                              <%= chunk.text %>
+                            </p>
+                          </div>
+                        <% }); %>
                       </div>
-                    <% }); %>
-                  </div>
+                    </div>
+                  <% } else { %>
+                    <div class="text-center py-8">
+                      <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                      </svg>
+                      <h3 class="mt-2 text-sm font-semibold text-gray-900">No transcript available</h3>
+                      <p class="mt-1 text-sm text-gray-500">The meeting transcript will appear here once it's processed.</p>
+                    </div>
+                  <% } %>
                 </div>
               </div>
-            <% } %>
+            </div>
 
           </div>
 
@@ -414,5 +536,61 @@
     </main>
   </div>
 </div>
-<%- include('partials/footer') -%>
 
+<script>
+  // Tab switching functionality
+  function switchTab(tabName) {
+    // Hide all content
+    document.querySelectorAll('.tab-content').forEach(content => {
+      content.classList.add('hidden');
+    });
+    
+    // Remove active state from all tabs
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+      btn.classList.remove('border-indigo-500', 'text-indigo-600');
+      btn.classList.add('border-transparent', 'text-gray-500', 'hover:border-gray-300', 'hover:text-gray-700');
+    });
+    
+    // Show selected content
+    document.getElementById('content-' + tabName).classList.remove('hidden');
+    
+    // Activate selected tab
+    const activeTab = document.getElementById('tab-' + tabName);
+    activeTab.classList.remove('border-transparent', 'text-gray-500', 'hover:border-gray-300', 'hover:text-gray-700');
+    activeTab.classList.add('border-indigo-500', 'text-indigo-600');
+  }
+
+  // Media toggle functionality
+  function toggleMedia(mediaType) {
+    const videoContainer = document.getElementById('video-player-container');
+    const audioContainer = document.getElementById('audio-player-container');
+    const videoBtn = document.getElementById('video-toggle-btn');
+    const audioBtn = document.getElementById('audio-toggle-btn');
+
+    if (mediaType === 'video') {
+      if (videoContainer) videoContainer.classList.remove('hidden');
+      if (audioContainer) audioContainer.classList.add('hidden');
+      if (videoBtn) {
+        videoBtn.classList.remove('bg-white', 'text-gray-700', 'ring-1', 'ring-inset', 'ring-gray-300');
+        videoBtn.classList.add('bg-indigo-600', 'text-white');
+      }
+      if (audioBtn) {
+        audioBtn.classList.remove('bg-indigo-600', 'text-white');
+        audioBtn.classList.add('bg-white', 'text-gray-700', 'ring-1', 'ring-inset', 'ring-gray-300');
+      }
+    } else {
+      if (videoContainer) videoContainer.classList.add('hidden');
+      if (audioContainer) audioContainer.classList.remove('hidden');
+      if (audioBtn) {
+        audioBtn.classList.remove('bg-white', 'text-gray-700', 'ring-1', 'ring-inset', 'ring-gray-300');
+        audioBtn.classList.add('bg-indigo-600', 'text-white');
+      }
+      if (videoBtn) {
+        videoBtn.classList.remove('bg-indigo-600', 'text-white');
+        videoBtn.classList.add('bg-white', 'text-gray-700', 'ring-1', 'ring-inset', 'ring-gray-300');
+      }
+    }
+  }
+</script>
+
+<%- include('partials/footer') -%>

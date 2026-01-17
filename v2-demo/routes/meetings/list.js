@@ -11,6 +11,38 @@ export default async (req, res) => {
   // Check if user has any connected calendars
   const calendars = await req.authentication.user.getCalendars();
 
+  // Get upcoming events from all calendars (future events only)
+  const now = new Date();
+  const upcomingEvents = [];
+  
+  if (calendars.length > 0) {
+    const calendarIds = calendars.map(c => c.id);
+    
+    const futureEvents = await db.CalendarEvent.findAll({
+      where: {
+        calendarId: { [Op.in]: calendarIds },
+        startTime: { [Op.gt]: now },
+      },
+      include: [{ model: db.Calendar }],
+      order: [["startTime", "ASC"]],
+      limit: 50,
+    });
+
+    for (const event of futureEvents) {
+      upcomingEvents.push({
+        id: event.id,
+        title: event.title || "Untitled Meeting",
+        startTime: event.startTime,
+        endTime: event.endTime,
+        meetingUrl: event.meetingUrl,
+        platform: event.Calendar?.platform || null,
+        calendarEmail: event.Calendar?.email || null,
+        recordStatus: event.recordStatus,
+        recallEventId: event.recallId,
+      });
+    }
+  }
+
   // Get all meeting artifacts for this user with their summaries
   const artifacts = await db.MeetingArtifact.findAll({
     where: { userId },
@@ -65,7 +97,7 @@ export default async (req, res) => {
       audioUrl: artifact.rawPayload?.data?.audio_url || null,
       participants: artifact.rawPayload?.data?.participants || artifact.rawPayload?.data?.attendees || [],
       calendarEmail: calendarEvent?.Calendar?.email || null,
-      platform: calendarEvent?.platform || null,
+      platform: calendarEvent?.Calendar?.platform || null,
       summaryId: summary?.id || null,
       createdAt: artifact.createdAt,
     });
@@ -106,7 +138,7 @@ export default async (req, res) => {
     notice: req.notice,
     user: req.authentication.user,
     meetings,
+    upcomingEvents,
     hasCalendars: calendars.length > 0,
   });
 };
-

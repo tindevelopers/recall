@@ -95,4 +95,3 @@ export default async (req, res) => {
 
   return res.redirect(`/calendar/${calendar.id}`);
 };
-

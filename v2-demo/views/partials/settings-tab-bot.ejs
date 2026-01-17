@@ -1,0 +1,294 @@
+<div class="space-y-6">
+  <div>
+    <h2 class="text-xl font-semibold text-gray-900">Bot Settings</h2>
+    <p class="mt-1 text-sm text-gray-500">Customize your meeting bot's appearance and behavior.</p>
+  </div>
+
+  <form method="POST" action="/calendar/<%= calendar.id %>/bot-settings" class="space-y-8">
+    <input type="hidden" name="_method" value="PATCH">
+
+    <!-- Bot Appearance -->
+    <div class="bg-gradient-to-br from-indigo-50 to-purple-50 rounded-xl p-6 space-y-6 border border-indigo-100">
+      <h3 class="text-sm font-semibold text-gray-900 uppercase tracking-wide flex items-center">
+        <svg class="w-5 h-5 mr-2 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+        </svg>
+        Bot Identity
+      </h3>
+      
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div>
+          <label for="botName" class="block text-sm font-medium text-gray-700 mb-2">Bot Name</label>
+          <input
+            type="text"
+            id="botName"
+            name="botName"
+            value="<%= calendar.botName || 'Meeting Assistant' %>"
+            placeholder="Meeting Assistant"
+            class="block w-full rounded-xl border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm py-3 px-4"
+          />
+          <p class="mt-2 text-xs text-gray-500">This name will be shown to all meeting participants</p>
+        </div>
+        <div>
+          <label for="botAvatarUrl" class="block text-sm font-medium text-gray-700 mb-2">Avatar URL</label>
+          <input
+            type="url"
+            id="botAvatarUrl"
+            name="botAvatarUrl"
+            value="<%= calendar.botAvatarUrl || '' %>"
+            placeholder="https://example.com/avatar.png"
+            class="block w-full rounded-xl border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm py-3 px-4"
+          />
+          <p class="mt-2 text-xs text-gray-500">Custom profile picture for your bot (optional)</p>
+        </div>
+      </div>
+      
+      <!-- Preview Card -->
+      <div class="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+        <p class="text-xs text-gray-500 mb-3">Preview</p>
+        <div class="flex items-center space-x-3">
+          <div class="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-bold text-sm shadow-md" id="bot-avatar-preview">
+            <%= (calendar.botName || 'MA').charAt(0).toUpperCase() %>
+          </div>
+          <div>
+            <p class="text-sm font-semibold text-gray-900" id="bot-name-preview"><%= calendar.botName || 'Meeting Assistant' %></p>
+            <p class="text-xs text-gray-500">Joining meeting...</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Transcription Settings -->
+    <div class="bg-gray-50 rounded-xl p-6 space-y-6">
+      <h3 class="text-sm font-semibold text-gray-900 uppercase tracking-wide flex items-center">
+        <svg class="w-5 h-5 mr-2 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+        </svg>
+        Transcription
+      </h3>
+      
+      <div class="space-y-4">
+        <label class="relative flex items-start bg-white rounded-xl p-4 cursor-pointer hover:shadow-sm transition-shadow border border-gray-200">
+          <div class="flex h-6 items-center">
+            <input 
+              id="enableTranscription" 
+              name="enableTranscription" 
+              type="checkbox" 
+              <%= calendar.enableTranscription !== false ? "checked" : "" %>
+              class="h-5 w-5 rounded border-gray-300 text-indigo-600 focus:ring-indigo-600"
+            />
+          </div>
+          <div class="ml-4">
+            <span class="text-sm font-semibold text-gray-900">Enable Transcription</span>
+            <p class="text-sm text-gray-500 mt-0.5">Convert speech to text with speaker identification</p>
+          </div>
+        </label>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 ml-0">
+          <div>
+            <label for="transcriptionMode" class="block text-sm font-medium text-gray-700 mb-2">Mode</label>
+            <select
+              id="transcriptionMode"
+              name="transcriptionMode"
+              class="block w-full rounded-xl border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm py-3"
+            >
+              <option value="realtime" <%= calendar.transcriptionMode === 'realtime' || !calendar.transcriptionMode ? 'selected' : '' %>>Real-time (during meeting)</option>
+              <option value="async" <%= calendar.transcriptionMode === 'async' ? 'selected' : '' %>>Async (after meeting ends)</option>
+            </select>
+          </div>
+          <div>
+            <label for="transcriptionLanguage" class="block text-sm font-medium text-gray-700 mb-2">Language</label>
+            <select
+              id="transcriptionLanguage"
+              name="transcriptionLanguage"
+              class="block w-full rounded-xl border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm py-3"
+            >
+              <option value="en" <%= calendar.transcriptionLanguage === 'en' || !calendar.transcriptionLanguage ? 'selected' : '' %>>English</option>
+              <option value="es" <%= calendar.transcriptionLanguage === 'es' ? 'selected' : '' %>>Spanish</option>
+              <option value="fr" <%= calendar.transcriptionLanguage === 'fr' ? 'selected' : '' %>>French</option>
+              <option value="de" <%= calendar.transcriptionLanguage === 'de' ? 'selected' : '' %>>German</option>
+              <option value="it" <%= calendar.transcriptionLanguage === 'it' ? 'selected' : '' %>>Italian</option>
+              <option value="pt" <%= calendar.transcriptionLanguage === 'pt' ? 'selected' : '' %>>Portuguese</option>
+              <option value="ja" <%= calendar.transcriptionLanguage === 'ja' ? 'selected' : '' %>>Japanese</option>
+              <option value="ko" <%= calendar.transcriptionLanguage === 'ko' ? 'selected' : '' %>>Korean</option>
+              <option value="zh" <%= calendar.transcriptionLanguage === 'zh' ? 'selected' : '' %>>Chinese</option>
+              <option value="auto" <%= calendar.transcriptionLanguage === 'auto' ? 'selected' : '' %>>Auto-detect</option>
+            </select>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- AI Features -->
+    <div class="bg-gray-50 rounded-xl p-6 space-y-4">
+      <h3 class="text-sm font-semibold text-gray-900 uppercase tracking-wide flex items-center">
+        <svg class="w-5 h-5 mr-2 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path>
+        </svg>
+        AI Features
+      </h3>
+      
+      <div class="space-y-3">
+        <label class="relative flex items-start bg-white rounded-xl p-4 cursor-pointer hover:shadow-sm transition-shadow border border-gray-200">
+          <div class="flex h-6 items-center">
+            <input 
+              id="enableSummary" 
+              name="enableSummary" 
+              type="checkbox" 
+              <%= calendar.enableSummary !== false ? "checked" : "" %>
+              class="h-5 w-5 rounded border-gray-300 text-indigo-600 focus:ring-indigo-600"
+            />
+          </div>
+          <div class="ml-4">
+            <span class="text-sm font-semibold text-gray-900">Generate Summary</span>
+            <p class="text-sm text-gray-500 mt-0.5">Create AI-powered meeting summaries automatically</p>
+          </div>
+        </label>
+
+        <label class="relative flex items-start bg-white rounded-xl p-4 cursor-pointer hover:shadow-sm transition-shadow border border-gray-200">
+          <div class="flex h-6 items-center">
+            <input 
+              id="enableActionItems" 
+              name="enableActionItems" 
+              type="checkbox" 
+              <%= calendar.enableActionItems !== false ? "checked" : "" %>
+              class="h-5 w-5 rounded border-gray-300 text-indigo-600 focus:ring-indigo-600"
+            />
+          </div>
+          <div class="ml-4">
+            <span class="text-sm font-semibold text-gray-900">Extract Action Items</span>
+            <p class="text-sm text-gray-500 mt-0.5">Identify tasks and assignments from the meeting</p>
+          </div>
+        </label>
+
+        <label class="relative flex items-start bg-white rounded-xl p-4 cursor-pointer hover:shadow-sm transition-shadow border border-gray-200">
+          <div class="flex h-6 items-center">
+            <input 
+              id="enableFollowUps" 
+              name="enableFollowUps" 
+              type="checkbox" 
+              <%= calendar.enableFollowUps !== false ? "checked" : "" %>
+              class="h-5 w-5 rounded border-gray-300 text-indigo-600 focus:ring-indigo-600"
+            />
+          </div>
+          <div class="ml-4">
+            <span class="text-sm font-semibold text-gray-900">Generate Follow-ups</span>
+            <p class="text-sm text-gray-500 mt-0.5">Suggest next steps and follow-up items</p>
+          </div>
+        </label>
+
+        <label class="relative flex items-start bg-white rounded-xl p-4 cursor-pointer hover:shadow-sm transition-shadow border border-gray-200">
+          <div class="flex h-6 items-center">
+            <input 
+              id="autoPublishToNotion" 
+              name="autoPublishToNotion" 
+              type="checkbox" 
+              <%= calendar.autoPublishToNotion ? "checked" : "" %>
+              class="h-5 w-5 rounded border-gray-300 text-indigo-600 focus:ring-indigo-600"
+            />
+          </div>
+          <div class="ml-4">
+            <span class="text-sm font-semibold text-gray-900">Auto-publish to Notion</span>
+            <p class="text-sm text-gray-500 mt-0.5">Automatically send notes to your Notion workspace</p>
+          </div>
+        </label>
+      </div>
+    </div>
+
+    <!-- Bot Behavior -->
+    <div class="bg-gray-50 rounded-xl p-6 space-y-6">
+      <h3 class="text-sm font-semibold text-gray-900 uppercase tracking-wide flex items-center">
+        <svg class="w-5 h-5 mr-2 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+        </svg>
+        Bot Behavior
+      </h3>
+      
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div>
+          <label for="joinBeforeStartMinutes" class="block text-sm font-medium text-gray-700 mb-2">Join before start</label>
+          <div class="relative">
+            <input
+              type="number"
+              id="joinBeforeStartMinutes"
+              name="joinBeforeStartMinutes"
+              min="0"
+              max="15"
+              value="<%= calendar.joinBeforeStartMinutes || 1 %>"
+              class="block w-full rounded-xl border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm py-3 pr-16"
+            />
+            <span class="absolute right-4 top-1/2 -translate-y-1/2 text-sm text-gray-500">minutes</span>
+          </div>
+        </div>
+        <div>
+          <label for="leaveAfterEndMinutes" class="block text-sm font-medium text-gray-700 mb-2">Stay after end</label>
+          <div class="relative">
+            <input
+              type="number"
+              id="leaveAfterEndMinutes"
+              name="leaveAfterEndMinutes"
+              min="0"
+              max="30"
+              value="<%= calendar.leaveAfterEndMinutes || 0 %>"
+              class="block w-full rounded-xl border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm py-3 pr-16"
+            />
+            <span class="absolute right-4 top-1/2 -translate-y-1/2 text-sm text-gray-500">minutes</span>
+          </div>
+        </div>
+      </div>
+
+      <label class="relative flex items-start bg-white rounded-xl p-4 cursor-pointer hover:shadow-sm transition-shadow border border-gray-200">
+        <div class="flex h-6 items-center">
+          <input 
+            id="autoLeaveIfAlone" 
+            name="autoLeaveIfAlone" 
+            type="checkbox" 
+            <%= calendar.autoLeaveIfAlone !== false ? "checked" : "" %>
+            class="h-5 w-5 rounded border-gray-300 text-indigo-600 focus:ring-indigo-600"
+          />
+        </div>
+        <div class="ml-4 flex-1">
+          <div class="flex items-center justify-between">
+            <span class="text-sm font-semibold text-gray-900">Auto-leave when alone</span>
+            <div class="flex items-center space-x-2">
+              <span class="text-sm text-gray-500">after</span>
+              <input
+                type="number"
+                id="autoLeaveAloneTimeoutSeconds"
+                name="autoLeaveAloneTimeoutSeconds"
+                min="10"
+                max="300"
+                value="<%= calendar.autoLeaveAloneTimeoutSeconds || 60 %>"
+                class="w-20 rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm py-1.5"
+              />
+              <span class="text-sm text-gray-500">seconds</span>
+            </div>
+          </div>
+          <p class="text-sm text-gray-500 mt-0.5">Bot will leave if it's the only participant</p>
+        </div>
+      </label>
+    </div>
+
+    <!-- Save Button -->
+    <div class="flex justify-end">
+      <button 
+        type="submit" 
+        class="inline-flex items-center rounded-xl bg-indigo-600 px-6 py-3 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 transition-colors"
+      >
+        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+        </svg>
+        Save Bot Settings
+      </button>
+    </div>
+  </form>
+</div>
+
+<script>
+// Live preview for bot name
+document.getElementById('botName').addEventListener('input', function(e) {
+  const name = e.target.value || 'Meeting Assistant';
+  document.getElementById('bot-name-preview').textContent = name;
+  document.getElementById('bot-avatar-preview').textContent = name.charAt(0).toUpperCase();
+});
+</script>

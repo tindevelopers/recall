@@ -2,16 +2,6 @@ import Recall from "../../services/recall/index.js";
 import db from "../../db.js";
 import { buildBotConfig } from "../../logic/bot-config.js";
 
-const DEBUG_ENDPOINT =
-  "http://127.0.0.1:7248/ingest/9df62f0f-78c1-44fb-821f-c3c7b9f764cc";
-const logDebug = (payload) => {
-  fetch(DEBUG_ENDPOINT, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  }).catch(() => {});
-};
-
 // add or remove bot for a calendar event based on its record status
 export default async (job) => {
   const { recallEventId } = job.data;
@@ -28,23 +18,6 @@ export default async (job) => {
     
     // Get calendar to check bot settings
     const calendar = await db.Calendar.findByPk(event.calendarId);
-    
-    // #region agent log
-    logDebug({
-      sessionId: "debug-session",
-      runId: "pre-fix",
-      hypothesisId: "H1",
-      location: "calendar-event-update-bot-schedule.js:23",
-      message: "Scheduling bot entry",
-      data: {
-        eventId: event.id,
-        recallEventId: event.recallId,
-        shouldRecord: event.shouldRecordAutomatic || event.shouldRecordManual,
-        meetingUrl: event.meetingUrl,
-      },
-      timestamp: Date.now(),
-    });
-    // #endregion
 
     // Determine public URL for webhooks (try multiple sources)
     let publicUrl = process.env.PUBLIC_URL;
@@ -63,22 +36,6 @@ export default async (job) => {
       calendar,
       publicUrl,
     });
-
-    // #region agent log
-    logDebug({
-      sessionId: "debug-session",
-      runId: "post-fix",
-      hypothesisId: "H2",
-      location: "calendar-event-update-bot-schedule.js:buildBotConfig",
-      message: "Bot config built (includes transcript/realtime_endpoints when enabled)",
-      data: {
-        hasRecordingConfig: !!botConfig.recording_config,
-        hasTranscript: !!botConfig.recording_config?.transcript,
-        hasRealtimeEndpoints: !!botConfig.recording_config?.realtime_endpoints,
-      },
-      timestamp: Date.now(),
-    });
-    // #endregion
     
     // Log the bot config being sent to Recall API for debugging
     console.log(`[BOT_CONFIG] Sending bot config for event ${event.id}:`, JSON.stringify(botConfig, null, 2));
@@ -91,20 +48,6 @@ export default async (job) => {
     });
     
     console.log(`[BOT_CONFIG] Bot scheduled successfully for event ${event.id}`);
-    // #region agent log
-    logDebug({
-      sessionId: "debug-session",
-      runId: "pre-fix",
-      hypothesisId: "H3",
-      location: "calendar-event-update-bot-schedule.js:74",
-      message: "Bot scheduled response",
-      data: {
-        recallEventId: event.recallId,
-        responseSummary: !!updatedEventFromRecall,
-      },
-      timestamp: Date.now(),
-    });
-    // #endregion
   } else {
     console.log(`INFO: Delete bot for event ${event.id}`);
     // delete the bot for the event. Recall will handle the case where the bot does not exist.

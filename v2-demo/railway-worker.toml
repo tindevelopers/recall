@@ -4,10 +4,10 @@
 
 [build]
 builder = "dockerfile"
-dockerfilePath = "Dockerfile"
+dockerfilePath = "Dockerfile.worker"
 
 [deploy]
-startCommand = "npm run start:worker"
+# CMD in Dockerfile.worker handles the start command
 # No healthcheck for worker (it doesn't serve HTTP)
 restartPolicyType = "on_failure"
 restartPolicyMaxRetries = 10
