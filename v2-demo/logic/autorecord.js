@@ -2,10 +2,6 @@ export async function updateAutoRecordStatusForCalendarEvents({
   calendar,
   events = [],
 }) {
-  // #region agent log
-  fetch('http://127.0.0.1:7248/ingest/9df62f0f-78c1-44fb-821f-c3c7b9f764cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'autorecord.js:updateAutoRecordStatus:ENTRY',message:'Auto-record update called',data:{calendarId:calendar?.id,calendarEmail:calendar?.email,eventCount:events?.length,autoRecordExternalEvents:calendar?.autoRecordExternalEvents,eventTitles:events?.slice(0,5).map(e=>e.title)},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'I'})}).catch(()=>{});
-  // #endregion
-  
   if (!calendar || !events || events.length === 0) {
     return;
   }
