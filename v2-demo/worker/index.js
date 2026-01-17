@@ -48,6 +48,7 @@ import recallCalendarUpdate from "./processors/recall-calendar-update.js";
 import recallCalendarSyncEvents from "./processors/recall-calendar-sync-events.js";
 import meetingEnrich from "./processors/meeting-enrich.js";
 import publishingDispatch from "./processors/publishing-dispatch.js";
+import periodicCalendarSync from "./processors/periodic-calendar-sync.js";
 
 dotenv.config();
 consoleStamp(console);
@@ -119,6 +120,7 @@ const processors = [
   { name: "recall.calendar.sync_events", concurrency: 2, handler: recallCalendarSyncEvents },
   { name: "meeting.enrich", concurrency: 2, handler: meetingEnrich },
   { name: "publishing.dispatch", concurrency: 2, handler: publishingDispatch },
+  { name: "periodic.calendar.sync", concurrency: 1, handler: periodicCalendarSync },
 ];
 
 processors.forEach(({ name, concurrency, handler }) => {
@@ -134,13 +136,53 @@ telemetryLog("INFO", "All job processors registered", {
   totalProcessors: processors.length,
 });
 
-backgroundQueue.on("ready", () => {
+backgroundQueue.on("ready", async () => {
   console.log("✅ Redis connection established - Queue is ready");
   console.log("🎯 Worker is now listening for jobs...");
   telemetryLog("INFO", "Redis queue ready", {
     queueName: backgroundQueue.name,
     redisUrl: process.env.REDIS_URL ? "configured" : "not-set",
   });
+
+  // Schedule periodic calendar sync job (runs every 5 minutes)
+  // This catches events that weren't picked up by webhooks
+  try {
+    // Remove any existing periodic sync jobs to avoid duplicates
+    const existingJobs = await backgroundQueue.getRepeatableJobs();
+    for (const job of existingJobs) {
+      if (job.name === "periodic.calendar.sync") {
+        await backgroundQueue.removeRepeatableByKey(job.key);
+        console.log(`🗑️  Removed existing periodic sync job: ${job.key}`);
+      }
+    }
+
+    // Add new periodic sync job (every 5 minutes)
+    await backgroundQueue.add(
+      "periodic.calendar.sync",
+      {},
+      {
+        repeat: {
+          every: 5 * 60 * 1000, // 5 minutes in milliseconds
+        },
+        jobId: "periodic-calendar-sync", // Unique ID to prevent duplicates
+      }
+    );
+
+    console.log("⏰ Scheduled periodic calendar sync (every 5 minutes)");
+    telemetryLog("INFO", "Periodic sync scheduled", {
+      intervalMinutes: 5,
+    });
+
+    // Run initial sync immediately (don't wait 5 minutes)
+    await backgroundQueue.add("periodic.calendar.sync", {}, { jobId: "periodic-calendar-sync-initial" });
+    console.log("🔄 Triggered initial calendar sync");
+  } catch (error) {
+    console.error("❌ Failed to schedule periodic sync:", error);
+    telemetryLog("ERROR", "Failed to schedule periodic sync", {
+      error: error.message,
+      stack: error.stack,
+    });
+  }
 });
 
 backgroundQueue.on("error", (error) => {
