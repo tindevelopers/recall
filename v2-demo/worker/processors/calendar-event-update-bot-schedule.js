@@ -46,10 +46,22 @@ export default async (job) => {
     });
     // #endregion
 
+    // Determine public URL for webhooks (try multiple sources)
+    let publicUrl = process.env.PUBLIC_URL;
+    if (!publicUrl && process.env.RAILWAY_PUBLIC_DOMAIN) {
+      publicUrl = `https://${process.env.RAILWAY_PUBLIC_DOMAIN}`;
+    }
+    if (!publicUrl && process.env.RAILWAY_STATIC_URL) {
+      publicUrl = process.env.RAILWAY_STATIC_URL;
+    }
+    
+    console.log(`[BOT_CONFIG] Calendar settings: enableTranscription=${calendar?.enableTranscription}, transcriptionMode=${calendar?.transcriptionMode}`);
+    console.log(`[BOT_CONFIG] Public URL for webhooks: ${publicUrl || 'NOT SET - realtime_endpoints will be empty!'}`);
+
     // Build bot config from calendar settings (shared logic)
     const botConfig = buildBotConfig({
       calendar,
-      publicUrl: process.env.PUBLIC_URL,
+      publicUrl,
     });
 
     // #region agent log

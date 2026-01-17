@@ -45,13 +45,27 @@ export default async (req, res) => {
     }
 
     // Build the bot config using the same logic as the worker
-    const publicUrl = process.env.PUBLIC_URL || process.env.RAILWAY_PUBLIC_DOMAIN
-      ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}`
-      : "http://localhost:3000";
+    let publicUrl = process.env.PUBLIC_URL;
+    if (!publicUrl && process.env.RAILWAY_PUBLIC_DOMAIN) {
+      publicUrl = `https://${process.env.RAILWAY_PUBLIC_DOMAIN}`;
+    }
+    if (!publicUrl && process.env.RAILWAY_STATIC_URL) {
+      publicUrl = process.env.RAILWAY_STATIC_URL;
+    }
+    if (!publicUrl) {
+      publicUrl = "http://localhost:3000";
+    }
 
     const botConfig = buildBotConfig({ calendar, publicUrl });
 
     const response = {
+      // Environment diagnostics
+      environment: {
+        PUBLIC_URL: process.env.PUBLIC_URL || "(not set)",
+        RAILWAY_PUBLIC_DOMAIN: process.env.RAILWAY_PUBLIC_DOMAIN || "(not set)",
+        RAILWAY_STATIC_URL: process.env.RAILWAY_STATIC_URL || "(not set)",
+        resolvedPublicUrl: publicUrl,
+      },
       calendar: calendar
         ? {
             id: calendar.id,
@@ -83,6 +97,21 @@ export default async (req, res) => {
           : "debug-key",
         bot_config: botConfig,
       },
+      // Warnings
+      warnings: [
+        !process.env.PUBLIC_URL && !process.env.RAILWAY_PUBLIC_DOMAIN
+          ? "⚠️ PUBLIC_URL not set - realtime_endpoints may be empty. Set PUBLIC_URL env var to your app's public URL."
+          : null,
+        calendar && calendar.enableTranscription === false
+          ? "⚠️ Transcription is DISABLED for this calendar. Enable it in Bot Settings."
+          : null,
+        !botConfig.recording_config?.transcript
+          ? "⚠️ No transcript config in bot_config - transcription will NOT be enabled."
+          : null,
+        !botConfig.recording_config?.realtime_endpoints?.length
+          ? "⚠️ No realtime_endpoints - you won't receive streaming transcript events."
+          : null,
+      ].filter(Boolean),
     };
 
     // Optionally enqueue the bot scheduling job
