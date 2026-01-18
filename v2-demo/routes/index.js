@@ -29,6 +29,7 @@ import apiDebugWebhooks from "./api/debug-webhooks.js";
 import apiDebugBotScheduling from "./api/debug-bot-scheduling.js";
 import apiDiagnoseBotScheduling from "./api/diagnose-bot-scheduling.js";
 import apiTriggerCalendarSync from "./api/trigger-calendar-sync.js";
+import apiTestWebhook from "./api/test-webhook.js";
 import apiCheckMeetingPayload from "./api/check-meeting-payload.js";
 import apiUpdateWebhookUrl from "./api/update-webhook-url.js";
 import meetingsList from "./meetings/list.js";
@@ -77,6 +78,7 @@ router.get("/api/debug-webhooks", apiDebugWebhooks);
 router.get("/api/debug-bot-scheduling", apiDebugBotScheduling);
 router.get("/api/diagnose-bot-scheduling", apiDiagnoseBotScheduling);
 router.post("/api/trigger-calendar-sync", apiTriggerCalendarSync);
+router.post("/api/test-webhook", apiTestWebhook);
 router.get("/api/check-meeting-payload", apiCheckMeetingPayload);
 router.post("/api/update-webhook-url", apiUpdateWebhookUrl);
 
