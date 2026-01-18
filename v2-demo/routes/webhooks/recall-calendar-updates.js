@@ -53,17 +53,37 @@ export default async (req, res) => {
 
     console.log(`[WEBHOOK] Found calendar: id=${calendar.id}, platform=${calendar.platform}, email=${calendar.email}`);
 
-    // queue job to save the webhook for bookkeeping
+    // Save webhook synchronously to ensure it's recorded even if worker isn't running
     try {
-      await backgroundQueue.add("calendarwebhooks.save", {
+      // #region agent log
+      fetch('http://127.0.0.1:7250/ingest/bf0206c3-6e13-4499-92a3-7fb2b7527fcf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'routes/webhooks/recall-calendar-updates.js:56',message:'Saving webhook synchronously to PostgreSQL',data:{calendarId:calendar.id,event,recallId,hasPayload:!!payload},timestamp:Date.now(),sessionId:'debug-session',runId:'run4',hypothesisId:'I'})}).catch(()=>{});
+      // #endregion
+      const calendarWebhook = await db.CalendarWebhook.create({
         calendarId: calendar.id,
         event,
         payload,
+        receivedAt: new Date(),
       });
-      console.log(`[WEBHOOK] Queued job to save webhook for calendar ${calendar.id}`);
-    } catch (queueError) {
-      console.error(`[WEBHOOK] Failed to queue webhook save job:`, queueError);
-      // Continue processing even if save job fails
+      console.log(`[WEBHOOK] Saved webhook to database: id=${calendarWebhook.id}, event=${event}, calendarId=${calendar.id}`);
+      // #region agent log
+      fetch('http://127.0.0.1:7250/ingest/bf0206c3-6e13-4499-92a3-7fb2b7527fcf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'routes/webhooks/recall-calendar-updates.js:62',message:'Webhook saved successfully to PostgreSQL',data:{webhookId:calendarWebhook.id,calendarId:calendar.id,event,receivedAt:calendarWebhook.receivedAt},timestamp:Date.now(),sessionId:'debug-session',runId:'run4',hypothesisId:'I'})}).catch(()=>{});
+      // #endregion
+    } catch (saveError) {
+      console.error(`[WEBHOOK] Failed to save webhook directly:`, saveError);
+      // #region agent log
+      fetch('http://127.0.0.1:7250/ingest/bf0206c3-6e13-4499-92a3-7fb2b7527fcf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'routes/webhooks/recall-calendar-updates.js:65',message:'Webhook direct save failed, trying queue',data:{calendarId:calendar.id,event,error:saveError.message},timestamp:Date.now(),sessionId:'debug-session',runId:'run4',hypothesisId:'I'})}).catch(()=>{});
+      // #endregion
+      // Fallback: try to queue the job (worker might be running)
+      try {
+        await backgroundQueue.add("calendarwebhooks.save", {
+          calendarId: calendar.id,
+          event,
+          payload,
+        });
+        console.log(`[WEBHOOK] Queued webhook save job as fallback`);
+      } catch (queueError) {
+        console.error(`[WEBHOOK] Failed to queue webhook save job:`, queueError);
+      }
     }
 
     // queue jobs to process the webhook
