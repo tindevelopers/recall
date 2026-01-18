@@ -32,7 +32,7 @@ import apiUpdateWebhookUrl from "./api/update-webhook-url.js";
 import meetingsList from "./meetings/list.js";
 import meetingsDetail from "./meetings/detail.js";
 import meetingsUpdateTranscriptionMode from "./meetings/update-transcription-mode.js";
-import { getTranscript, getSummary, getActionItems } from "./api/meeting-details.js";
+import { getTranscript, getSummary, getActionItems, triggerEnrichment } from "./api/meeting-details.js";
 import settingsGet from "./settings/get.js";
 
 const router = Router();
@@ -84,6 +84,7 @@ router.post("/meetings/:eventId/transcription-mode", meetingsUpdateTranscription
 router.get("/api/meetings/:meetingId/transcript", getTranscript);
 router.get("/api/meetings/:meetingId/summary", getSummary);
 router.get("/api/meetings/:meetingId/actions", getActionItems);
+router.post("/api/meetings/enrich", triggerEnrichment);
 
 router.get("/settings", settingsGet);
 

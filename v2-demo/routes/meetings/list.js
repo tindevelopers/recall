@@ -5,6 +5,290 @@ import { backgroundQueue } from "../../queue.js";
 const { sequelize } = db;
 
 /**
+ * Helper to check if a transcript object has content
+ * Transcript can be an array of segments or an object with a words array
+ */
+function hasTranscriptContent(transcript) {
+  if (!transcript) return false;
+  // Array format (direct array of segments)
+  if (Array.isArray(transcript) && transcript.length > 0) return true;
+  // Object format with words array
+  if (transcript.words && Array.isArray(transcript.words) && transcript.words.length > 0) return true;
+  // Object format with results array
+  if (transcript.results && Array.isArray(transcript.results) && transcript.results.length > 0) return true;
+  return false;
+}
+
+/**
+ * Get the count of transcript segments for logging
+ */
+function getTranscriptCount(transcript) {
+  if (!transcript) return 0;
+  if (Array.isArray(transcript)) return transcript.length;
+  if (transcript.words && Array.isArray(transcript.words)) return transcript.words.length;
+  if (transcript.results && Array.isArray(transcript.results)) return transcript.results.length;
+  return 0;
+}
+
+/**
+ * Fetch bot data directly from Recall API and create MeetingArtifacts on-demand
+ * This is a fallback for when webhooks don't reach the local server
+ */
+async function syncBotArtifacts(calendars, userId) {
+  // List recent bots directly from Recall API
+  let bots = [];
+  try {
+    console.log(`[MEETINGS] Fetching bots from Recall API...`);
+    bots = await Recall.listBots({ limit: 50 });
+    console.log(`[MEETINGS] Found ${bots.length} bots from Recall API`);
+  } catch (error) {
+    console.error(`[MEETINGS] Error listing bots from Recall API:`, error.message);
+    return;
+  }
+  
+  // Log all bot statuses for debugging
+  console.log(`[MEETINGS] Bot statuses:`, bots.map(b => ({ id: b.id, status: b.status, status_changes: b.status_changes })));
+  
+  // Filter to completed bots - check various status formats
+  const completedBots = bots.filter(bot => {
+    const statusCode = bot.status?.code || bot.status;
+    const lastStatusChange = bot.status_changes?.[bot.status_changes?.length - 1];
+    const lastStatus = lastStatusChange?.code || lastStatusChange;
+    
+    const isComplete = ['done', 'fatal', 'analysis_done', 'recording_done'].includes(statusCode) ||
+                       ['done', 'fatal', 'analysis_done', 'recording_done'].includes(lastStatus);
+    
+    console.log(`[MEETINGS] Bot ${bot.id}: statusCode=${statusCode}, lastStatus=${lastStatus}, isComplete=${isComplete}`);
+    return isComplete;
+  });
+  
+  console.log(`[MEETINGS] Found ${completedBots.length} completed bots`);
+  
+  // Get calendar recallIds for matching
+  const calendarRecallIds = calendars.map(c => c.recallId);
+  
+  for (const bot of completedBots) {
+    const botId = bot.id;
+    const botStatus = bot.status?.code || bot.status;
+    
+    // Check if we already have an artifact for this bot
+    const existingArtifact = await db.MeetingArtifact.findOne({
+      where: { recallBotId: botId },
+    });
+    
+    if (existingArtifact) {
+      // Check if the existing artifact has transcript chunks - if not, try to create them
+      const existingChunks = await db.MeetingTranscriptChunk.count({
+        where: { meetingArtifactId: existingArtifact.id }
+      });
+      
+      const existingTranscript = existingArtifact.rawPayload?.data?.transcript;
+      
+      // Fetch transcript if we don't have it
+      let transcript = existingTranscript;
+      if (!hasTranscriptContent(existingTranscript)) {
+        console.log(`[MEETINGS] Existing artifact ${existingArtifact.id} missing transcript, fetching...`);
+        try {
+          transcript = await Recall.getBotTranscript(botId);
+          console.log(`[MEETINGS] Transcript API response for ${botId}:`, JSON.stringify(transcript).substring(0, 500));
+          if (hasTranscriptContent(transcript)) {
+            const updatedPayload = {
+              ...existingArtifact.rawPayload,
+              data: {
+                ...existingArtifact.rawPayload?.data,
+                transcript: transcript,
+              },
+            };
+            await existingArtifact.update({ rawPayload: updatedPayload });
+            console.log(`[MEETINGS] Updated artifact ${existingArtifact.id} with transcript (${getTranscriptCount(transcript)} segments)`);
+          } else {
+            console.log(`[MEETINGS] No transcript available for bot ${botId} (empty response)`);
+          }
+        } catch (e) {
+          console.log(`[MEETINGS] Could not fetch transcript for bot ${botId}: ${e.message}`);
+        }
+      }
+      
+      // Create transcript chunks if we have transcript but no chunks
+      if (existingChunks === 0 && hasTranscriptContent(transcript)) {
+        console.log(`[MEETINGS] Creating transcript chunks for existing artifact ${existingArtifact.id}`);
+        try {
+          let chunksToCreate = [];
+          
+          if (Array.isArray(transcript)) {
+            // Direct array format - each item is a transcript segment
+            chunksToCreate = transcript.map((segment, idx) => ({
+              meetingArtifactId: existingArtifact.id,
+              userId: userId,
+              calendarEventId: existingArtifact.calendarEventId || null,
+              sequence: idx,
+              speaker: segment.participant?.name || segment.speaker || 'Speaker',
+              text: segment.text || segment.word || '',
+              startTimeMs: segment.start_timestamp || segment.start_time || 0,
+              endTimeMs: segment.end_timestamp || segment.end_time || 0,
+            }));
+          } else if (transcript.words && Array.isArray(transcript.words)) {
+            // Object format with words array
+            chunksToCreate = transcript.words.map((word, idx) => ({
+              meetingArtifactId: existingArtifact.id,
+              userId: userId,
+              calendarEventId: existingArtifact.calendarEventId || null,
+              sequence: word.sequence || idx,
+              speaker: word.speaker || 'Speaker',
+              text: word.word || word.text || '',
+              startTimeMs: word.start_timestamp || 0,
+              endTimeMs: word.end_timestamp || 0,
+            }));
+          } else if (transcript.results && Array.isArray(transcript.results)) {
+            // Object format with results array
+            chunksToCreate = transcript.results.map((result, idx) => ({
+              meetingArtifactId: existingArtifact.id,
+              userId: userId,
+              calendarEventId: existingArtifact.calendarEventId || null,
+              sequence: idx,
+              speaker: result.speaker || 'Speaker',
+              text: result.text || result.transcript || '',
+              startTimeMs: result.start_timestamp || 0,
+              endTimeMs: result.end_timestamp || 0,
+            }));
+          }
+          
+          if (chunksToCreate.length > 0) {
+            await db.MeetingTranscriptChunk.bulkCreate(chunksToCreate);
+            console.log(`[MEETINGS] Created ${chunksToCreate.length} transcript chunks for existing artifact ${existingArtifact.id}`);
+          }
+        } catch (chunkError) {
+          console.error(`[MEETINGS] Error creating transcript chunks for existing artifact ${existingArtifact.id}:`, chunkError.message);
+        }
+      }
+      
+      continue; // Already have this one
+    }
+    
+    console.log(`[MEETINGS] Processing new completed bot: ${botId} (status: ${botStatus})`);
+    
+    // Try to find matching calendar event
+    let calendarEvent = null;
+    const calendarEventId = bot.calendar_meetings?.[0]?.id || bot.calendar_event_id;
+    if (calendarEventId) {
+      calendarEvent = await db.CalendarEvent.findOne({
+        where: { recallId: calendarEventId },
+        include: [{ model: db.Calendar }],
+      });
+    }
+    
+    // If no calendar event found, try matching by meeting URL
+    if (!calendarEvent && bot.meeting_url) {
+      const allEvents = await db.CalendarEvent.findAll({
+        include: [{ model: db.Calendar }],
+      });
+      calendarEvent = allEvents.find(e => e.meetingUrl === bot.meeting_url);
+    }
+    
+    // Fetch transcript
+    let transcript = null;
+    try {
+      transcript = await Recall.getBotTranscript(botId);
+      console.log(`[MEETINGS] Transcript API response for new bot ${botId}:`, JSON.stringify(transcript).substring(0, 500));
+      if (hasTranscriptContent(transcript)) {
+        console.log(`[MEETINGS] Got transcript for bot ${botId} (${getTranscriptCount(transcript)} segments)`);
+      } else {
+        console.log(`[MEETINGS] Empty transcript for bot ${botId}`);
+        transcript = null;
+      }
+    } catch (e) {
+      console.log(`[MEETINGS] No transcript available for bot ${botId}: ${e.message}`);
+    }
+    
+    // Create the artifact
+    try {
+      const artifact = await db.MeetingArtifact.create({
+        recallEventId: calendarEvent?.recallId || null,
+        recallBotId: botId,
+        calendarEventId: calendarEvent?.id || null,
+        userId: userId,
+        eventType: 'bot.done',
+        status: 'done',
+        rawPayload: {
+          event: 'bot.done',
+          data: {
+            bot_id: botId,
+            calendar_event_id: calendarEvent?.recallId || null,
+            title: calendarEvent?.title || bot.meeting_metadata?.title || 'Meeting',
+            start_time: bot.join_at || bot.created_at,
+            end_time: bot.updated_at,
+            meeting_url: bot.meeting_url,
+            video_url: bot.video_url || null,
+            audio_url: bot.audio_url || null,
+            recording_url: bot.video_url || null,
+            transcript: transcript,
+            status: botStatus,
+            participants: bot.meeting_participants || [],
+          },
+          synced_from_api: true,
+        },
+      });
+      
+      console.log(`[MEETINGS] Created artifact ${artifact.id} for bot ${botId}`);
+      
+      // Create MeetingTranscriptChunk records for the chat API to use
+      if (hasTranscriptContent(transcript)) {
+        try {
+          let chunksToCreate = [];
+          
+          if (Array.isArray(transcript)) {
+            // Direct array format - each item is a transcript segment
+            chunksToCreate = transcript.map((segment, idx) => ({
+              meetingArtifactId: artifact.id,
+              userId: userId,
+              calendarEventId: calendarEvent?.id || null,
+              sequence: idx,
+              speaker: segment.participant?.name || segment.speaker || 'Speaker',
+              text: segment.text || segment.word || '',
+              startTimeMs: segment.start_timestamp || segment.start_time || 0,
+              endTimeMs: segment.end_timestamp || segment.end_time || 0,
+            }));
+          } else if (transcript.words && Array.isArray(transcript.words)) {
+            // Object format with words array
+            chunksToCreate = transcript.words.map((word, idx) => ({
+              meetingArtifactId: artifact.id,
+              userId: userId,
+              calendarEventId: calendarEvent?.id || null,
+              sequence: word.sequence || idx,
+              speaker: word.speaker || 'Speaker',
+              text: word.word || word.text || '',
+              startTimeMs: word.start_timestamp || 0,
+              endTimeMs: word.end_timestamp || 0,
+            }));
+          } else if (transcript.results && Array.isArray(transcript.results)) {
+            // Object format with results array
+            chunksToCreate = transcript.results.map((result, idx) => ({
+              meetingArtifactId: artifact.id,
+              userId: userId,
+              calendarEventId: calendarEvent?.id || null,
+              sequence: idx,
+              speaker: result.speaker || 'Speaker',
+              text: result.text || result.transcript || '',
+              startTimeMs: result.start_timestamp || 0,
+              endTimeMs: result.end_timestamp || 0,
+            }));
+          }
+          
+          if (chunksToCreate.length > 0) {
+            await db.MeetingTranscriptChunk.bulkCreate(chunksToCreate);
+            console.log(`[MEETINGS] Created ${chunksToCreate.length} transcript chunks for artifact ${artifact.id}`);
+          }
+        } catch (chunkError) {
+          console.error(`[MEETINGS] Error creating transcript chunks for bot ${botId}:`, chunkError.message);
+        }
+      }
+    } catch (error) {
+      console.error(`[MEETINGS] Error creating artifact for bot ${botId}:`, error.message);
+    }
+  }
+}
+
+/**
  * Perform on-demand sync for a calendar to get latest events from Recall.ai
  * This ensures fresh data when viewing meetings, since webhooks can be unreliable
  */
@@ -99,6 +383,11 @@ export default async (req, res) => {
     const syncStartTime = Date.now();
     await Promise.all(calendars.map(cal => syncCalendarEvents(cal)));
     console.log(`[MEETINGS] On-demand sync completed in ${Date.now() - syncStartTime}ms`);
+    
+    // Sync bot artifacts for past events (fallback for missing webhooks)
+    const botSyncStartTime = Date.now();
+    await syncBotArtifacts(calendars, userId);
+    console.log(`[MEETINGS] Bot artifact sync completed in ${Date.now() - botSyncStartTime}ms`);
   }
 
   // Get upcoming events from all calendars (future events only)

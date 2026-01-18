@@ -90,6 +90,11 @@ export default async (job) => {
     actionItems: enrichmentSettings.enableActionItems ? (notepadResult.actionItems || []) : [],
     followUps: enrichmentSettings.enableFollowUps ? (notepadResult.followUps || []) : [],
     topics: notepadResult.topics || [],
+    // Sentiment and insights
+    sentiment: notepadResult.sentiment || null,
+    keyInsights: notepadResult.keyInsights || [],
+    decisions: notepadResult.decisions || [],
+    outcome: notepadResult.outcome || null,
     // Store the source for debugging/transparency
     source: notepadResult.source || "unknown",
   };

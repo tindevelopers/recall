@@ -147,9 +147,29 @@ export default {
       requestedOutputs.push("follow_ups: Array of suggested follow-up items and next steps");
     }
     requestedOutputs.push("topics: Array of main topics/themes discussed");
+    requestedOutputs.push("sentiment: Object with 'score' (-1 to 1, negative to positive), 'label' (negative/neutral/positive), and 'confidence' (0-1)");
+    requestedOutputs.push("key_insights: Array of key insights or great ideas from the meeting, each with 'insight' (the idea) and 'importance' (high/medium/low)");
+    requestedOutputs.push("decisions: Array of decisions made during the meeting, each with 'decision' and 'context'");
+    requestedOutputs.push("outcome: Overall meeting outcome - one of: 'productive', 'inconclusive', 'needs_followup', 'blocked', 'informational'");
     
-    const systemPrompt = `You are an expert meeting summarizer. Analyze the meeting transcript and produce the following outputs:
+    const systemPrompt = `You are an expert meeting summarizer and analyst. Analyze the meeting transcript and produce the following outputs:
 ${requestedOutputs.map((o, i) => `${i + 1}. ${o}`).join("\n")}
+
+For sentiment analysis:
+- Consider the overall tone, language used, and emotional indicators
+- Score from -1 (very negative/frustrated) to 1 (very positive/enthusiastic)
+- Label as 'negative', 'neutral', or 'positive'
+
+For key insights:
+- Identify innovative ideas, important realizations, or valuable suggestions
+- Rate importance as 'high', 'medium', or 'low'
+
+For outcome:
+- 'productive': Clear progress made, goals achieved
+- 'inconclusive': Discussion without clear resolution
+- 'needs_followup': Requires additional meetings or actions
+- 'blocked': Progress blocked by issues
+- 'informational': Primarily information sharing
 
 Return valid JSON with these fields. Be concise but thorough.`;
 
@@ -193,6 +213,10 @@ Return valid JSON with these fields. Be concise but thorough.`;
       actionItems: settings.enableActionItems !== false ? (parsed.action_items || parsed.actions || []) : [],
       followUps: settings.enableFollowUps !== false ? (parsed.follow_ups || parsed.followups || []) : [],
       topics: parsed.topics || parsed.key_points || [],
+      sentiment: parsed.sentiment || { score: 0, label: "neutral", confidence: 0.5 },
+      keyInsights: parsed.key_insights || parsed.keyInsights || [],
+      decisions: parsed.decisions || [],
+      outcome: parsed.outcome || "informational",
     };
   },
 };

@@ -61,6 +61,31 @@ export default async (req, res) => {
     calendarEvent = summary.CalendarEvent;
   }
 
+  // Build transcript from chunks or rawPayload
+  let transcriptData = transcriptChunks.map(chunk => ({
+    id: chunk.id,
+    speaker: chunk.speaker || "Unknown",
+    text: chunk.text,
+    startTimeMs: chunk.startTimeMs,
+    endTimeMs: chunk.endTimeMs,
+  }));
+  
+  // If no transcript chunks, try to parse from rawPayload (for API-synced artifacts)
+  if (transcriptData.length === 0 && artifact?.rawPayload?.data?.transcript) {
+    const rawTranscript = artifact.rawPayload.data.transcript;
+    if (Array.isArray(rawTranscript)) {
+      transcriptData = rawTranscript.map((item, index) => ({
+        id: `raw-${index}`,
+        speaker: item.speaker || item.speaker_name || "Unknown",
+        text: Array.isArray(item.words) 
+          ? item.words.map(w => w.text || w.word || w).join(' ')
+          : (item.text || item.transcript || ''),
+        startTimeMs: item.start_time || item.start_ms || item.start || 0,
+        endTimeMs: item.end_time || item.end_ms || item.end || 0,
+      }));
+    }
+  }
+
   // Build meeting data
   const meeting = {
     id: artifact?.id || summary?.id,
@@ -82,18 +107,23 @@ export default async (req, res) => {
     followUps: summary?.followUps || [],
     topics: summary?.topics || [],
     
+    // Sentiment and insights
+    sentiment: summary?.sentiment || null,
+    keyInsights: summary?.keyInsights || [],
+    decisions: summary?.decisions || [],
+    outcome: summary?.outcome || null,
+    summarySource: summary?.source || null,
+    
     // Transcript
-    transcript: transcriptChunks.map(chunk => ({
-      id: chunk.id,
-      speaker: chunk.speaker || "Unknown",
-      text: chunk.text,
-      startTimeMs: chunk.startTimeMs,
-      endTimeMs: chunk.endTimeMs,
-    })),
+    transcript: transcriptData,
     
     // Metadata
     createdAt: artifact?.createdAt || summary?.createdAt,
     rawPayload: artifact?.rawPayload || null,
+    
+    // For enrichment trigger
+    artifactId: artifact?.id || null,
+    hasBeenEnriched: !!summary,
   };
 
   // Get publish deliveries for this meeting

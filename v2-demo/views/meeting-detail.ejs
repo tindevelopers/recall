@@ -391,6 +391,116 @@
           <!-- Sidebar -->
           <div class="lg:col-span-1 space-y-6">
             
+            <!-- Meeting Sentiment & Outcome -->
+            <% if (meeting.sentiment || meeting.outcome) { %>
+              <div class="overflow-hidden bg-white shadow sm:rounded-lg">
+                <div class="px-4 py-5 sm:px-6 border-b border-gray-200">
+                  <h2 class="text-base font-semibold text-gray-900 flex items-center">
+                    <svg class="w-4 h-4 mr-2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+                    </svg>
+                    Meeting Pulse
+                  </h2>
+                </div>
+                <div class="px-4 py-5 sm:px-6 space-y-4">
+                  <% if (meeting.sentiment) { %>
+                    <div>
+                      <p class="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">Sentiment</p>
+                      <% 
+                        const sentimentLower = (meeting.sentiment || '').toLowerCase();
+                        let sentimentColor = 'gray';
+                        let sentimentIcon = '😐';
+                        if (sentimentLower.includes('positive') || sentimentLower.includes('good') || sentimentLower.includes('great')) {
+                          sentimentColor = 'green';
+                          sentimentIcon = '😊';
+                        } else if (sentimentLower.includes('negative') || sentimentLower.includes('bad') || sentimentLower.includes('poor')) {
+                          sentimentColor = 'red';
+                          sentimentIcon = '😟';
+                        } else if (sentimentLower.includes('neutral') || sentimentLower.includes('mixed')) {
+                          sentimentColor = 'yellow';
+                          sentimentIcon = '😐';
+                        }
+                      %>
+                      <div class="inline-flex items-center rounded-full bg-<%= sentimentColor %>-100 px-3 py-1.5 text-sm font-medium text-<%= sentimentColor %>-800">
+                        <span class="mr-2"><%= sentimentIcon %></span>
+                        <%= meeting.sentiment %>
+                      </div>
+                    </div>
+                  <% } %>
+                  <% if (meeting.outcome) { %>
+                    <div>
+                      <p class="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">Outcome</p>
+                      <p class="text-sm text-gray-700"><%= meeting.outcome %></p>
+                    </div>
+                  <% } %>
+                </div>
+              </div>
+            <% } %>
+
+            <!-- Key Insights Section -->
+            <% if (meeting.keyInsights && meeting.keyInsights.length > 0) { %>
+              <div class="overflow-hidden bg-white shadow sm:rounded-lg">
+                <div class="px-4 py-5 sm:px-6 border-b border-gray-200">
+                  <h2 class="text-base font-semibold text-gray-900 flex items-center">
+                    <svg class="w-4 h-4 mr-2 text-yellow-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path>
+                    </svg>
+                    Key Insights
+                  </h2>
+                </div>
+                <div class="px-4 py-5 sm:px-6">
+                  <ul class="space-y-3">
+                    <% meeting.keyInsights.forEach(function(insight, index) { %>
+                      <li class="flex items-start">
+                        <span class="flex-shrink-0 h-5 w-5 flex items-center justify-center rounded-full bg-yellow-100 text-yellow-600 text-xs font-bold mt-0.5">
+                          💡
+                        </span>
+                        <span class="ml-2 text-sm text-gray-700">
+                          <% if (typeof insight === 'object') { %>
+                            <%= insight.text || insight.insight || insight.description || JSON.stringify(insight) %>
+                          <% } else { %>
+                            <%= insight %>
+                          <% } %>
+                        </span>
+                      </li>
+                    <% }); %>
+                  </ul>
+                </div>
+              </div>
+            <% } %>
+
+            <!-- Decisions Section -->
+            <% if (meeting.decisions && meeting.decisions.length > 0) { %>
+              <div class="overflow-hidden bg-white shadow sm:rounded-lg">
+                <div class="px-4 py-5 sm:px-6 border-b border-gray-200">
+                  <h2 class="text-base font-semibold text-gray-900 flex items-center">
+                    <svg class="w-4 h-4 mr-2 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                    Decisions Made
+                  </h2>
+                </div>
+                <div class="px-4 py-5 sm:px-6">
+                  <ul class="space-y-2">
+                    <% meeting.decisions.forEach(function(decision) { %>
+                      <li class="flex items-start bg-purple-50 rounded-lg p-2">
+                        <svg class="h-4 w-4 text-purple-500 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                          <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path>
+                        </svg>
+                        <span class="ml-2 text-sm text-gray-700">
+                          <% if (typeof decision === 'object') { %>
+                            <%= decision.text || decision.decision || decision.description || JSON.stringify(decision) %>
+                          <% } else { %>
+                            <%= decision %>
+                          <% } %>
+                        </span>
+                      </li>
+                    <% }); %>
+                  </ul>
+                </div>
+              </div>
+            <% } %>
+
             <!-- Topics Section -->
             <% if (meeting.topics && meeting.topics.length > 0) { %>
               <div class="overflow-hidden bg-white shadow sm:rounded-lg">
@@ -515,6 +625,31 @@
                 <h2 class="text-base font-semibold text-gray-900">Quick Actions</h2>
               </div>
               <div class="px-4 py-5 sm:px-6 space-y-3">
+                <% if (meeting.artifactId && !meeting.hasBeenEnriched) { %>
+                  <button
+                    type="button"
+                    onclick="triggerEnrichment('<%= meeting.artifactId %>')"
+                    id="enrich-btn"
+                    class="w-full inline-flex items-center justify-center rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+                  >
+                    <svg class="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                    </svg>
+                    <span id="enrich-btn-text">Generate AI Summary</span>
+                  </button>
+                <% } else if (meeting.artifactId && meeting.hasBeenEnriched) { %>
+                  <button
+                    type="button"
+                    onclick="triggerEnrichment('<%= meeting.artifactId %>')"
+                    id="enrich-btn"
+                    class="w-full inline-flex items-center justify-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50"
+                  >
+                    <svg class="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                    </svg>
+                    <span id="enrich-btn-text">Re-generate Summary</span>
+                  </button>
+                <% } %>
                 <a href="/meetings" class="w-full inline-flex items-center justify-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50">
                   <svg class="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
@@ -558,6 +693,50 @@
     const activeTab = document.getElementById('tab-' + tabName);
     activeTab.classList.remove('border-transparent', 'text-gray-500', 'hover:border-gray-300', 'hover:text-gray-700');
     activeTab.classList.add('border-indigo-500', 'text-indigo-600');
+  }
+
+  // Enrichment trigger functionality
+  async function triggerEnrichment(artifactId) {
+    const btn = document.getElementById('enrich-btn');
+    const btnText = document.getElementById('enrich-btn-text');
+    
+    // Disable button and show loading state
+    btn.disabled = true;
+    btn.classList.add('opacity-75', 'cursor-not-allowed');
+    const originalText = btnText.textContent;
+    btnText.innerHTML = '<svg class="animate-spin -ml-1 mr-2 h-4 w-4 inline" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> Processing...';
+    
+    try {
+      const response = await fetch('/api/meetings/enrich', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ artifactId }),
+      });
+      
+      const result = await response.json();
+      
+      if (result.success) {
+        btnText.textContent = '✓ Queued for processing';
+        // Reload page after a short delay to show updated data
+        setTimeout(() => {
+          window.location.reload();
+        }, 2000);
+      } else {
+        throw new Error(result.error || 'Failed to trigger enrichment');
+      }
+    } catch (error) {
+      console.error('Enrichment error:', error);
+      btnText.textContent = 'Error: ' + error.message;
+      btn.classList.remove('opacity-75', 'cursor-not-allowed');
+      btn.disabled = false;
+      
+      // Reset button text after 3 seconds
+      setTimeout(() => {
+        btnText.textContent = originalText;
+      }, 3000);
+    }
   }
 
   // Media toggle functionality

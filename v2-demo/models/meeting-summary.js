@@ -43,6 +43,27 @@ export default (sequelize) => {
         type: DataTypes.JSON,
         allowNull: true,
       },
+      // Sentiment and meeting insights
+      sentiment: {
+        type: DataTypes.JSON,
+        allowNull: true,
+        comment: "Overall meeting sentiment: { score: number (-1 to 1), label: string, confidence: number }",
+      },
+      keyInsights: {
+        type: DataTypes.JSON,
+        allowNull: true,
+        comment: "Key insights/ideas from the meeting: [{ insight: string, importance: string }]",
+      },
+      decisions: {
+        type: DataTypes.JSON,
+        allowNull: true,
+        comment: "Decisions made during the meeting: [{ decision: string, context: string }]",
+      },
+      outcome: {
+        type: DataTypes.STRING,
+        allowNull: true,
+        comment: "Meeting outcome: productive, inconclusive, needs_followup, etc.",
+      },
       source: {
         type: DataTypes.STRING,
         allowNull: true,
