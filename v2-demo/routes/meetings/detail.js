@@ -108,7 +108,13 @@ export default async (req, res) => {
     topics: summary?.topics || [],
     
     // Sentiment and insights
-    sentiment: summary?.sentiment || null,
+    // Handle sentiment as object {label, score, confidence} or string
+    sentiment: summary?.sentiment 
+      ? (typeof summary.sentiment === 'string' 
+          ? summary.sentiment 
+          : (summary.sentiment.label || summary.sentiment.sentiment || 'neutral'))
+      : null,
+    sentimentData: summary?.sentiment && typeof summary.sentiment === 'object' ? summary.sentiment : null,
     keyInsights: summary?.keyInsights || [],
     decisions: summary?.decisions || [],
     outcome: summary?.outcome || null,

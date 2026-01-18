@@ -407,7 +407,8 @@
                     <div>
                       <p class="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">Sentiment</p>
                       <% 
-                        const sentimentLower = (meeting.sentiment || '').toLowerCase();
+                        const sentimentLabel = meeting.sentiment || 'neutral';
+                        const sentimentLower = sentimentLabel.toLowerCase();
                         let sentimentColor = 'gray';
                         let sentimentIcon = '😐';
                         if (sentimentLower.includes('positive') || sentimentLower.includes('good') || sentimentLower.includes('great')) {
@@ -420,10 +421,15 @@
                           sentimentColor = 'yellow';
                           sentimentIcon = '😐';
                         }
+                        const sentimentScore = meeting.sentimentData?.score;
+                        const sentimentConfidence = meeting.sentimentData?.confidence;
                       %>
                       <div class="inline-flex items-center rounded-full bg-<%= sentimentColor %>-100 px-3 py-1.5 text-sm font-medium text-<%= sentimentColor %>-800">
                         <span class="mr-2"><%= sentimentIcon %></span>
-                        <%= meeting.sentiment %>
+                        <%= sentimentLabel.charAt(0).toUpperCase() + sentimentLabel.slice(1) %>
+                        <% if (sentimentScore !== undefined) { %>
+                          <span class="ml-2 text-xs opacity-75">(<%= (sentimentScore * 100).toFixed(0) %>%<%= sentimentConfidence ? `, ${(sentimentConfidence * 100).toFixed(0)}% confidence` : '' %>)</span>
+                        <% } %>
                       </div>
                     </div>
                   <% } %>
