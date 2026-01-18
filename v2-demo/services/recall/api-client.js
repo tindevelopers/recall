@@ -25,7 +25,13 @@ class RecallApi {
       url = this.buildUrl(path, queryParams);
     }
 
-    console.log(`Making ${method} request to ${url} with token ${this.apiKey}...`);
+    // Avoid log spam / leaking tokens; log only host + path.
+    try {
+      const parsedUrl = new URL(url);
+      console.log(`Making ${method} request to ${parsedUrl.origin}${parsedUrl.pathname}`);
+    } catch {
+      console.log(`Making ${method} request to ${url}`);
+    }
     let res;
     try {
       res = await fetch(url, {
@@ -53,6 +59,7 @@ class RecallApi {
         `${method} request failed with status ${res.status}, response body: \n\n${res.status < 500 ? body : res.status}`
       );
       err.res = res;
+      err.body = body;
       throw err;
     }
 

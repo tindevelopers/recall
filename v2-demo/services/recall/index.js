@@ -1,4 +1,5 @@
 import { getClient } from "./api-client.js";
+import { telemetryEvent } from "../../utils/telemetry.js";
 
 let client = null;
 export default {
@@ -60,24 +61,54 @@ export default {
   },
   
   addBotToCalendarEvent: async ({ id, deduplicationKey, botConfig }) => {
-    // #region agent log
-    fetch('http://127.0.0.1:7248/ingest/9df62f0f-78c1-44fb-821f-c3c7b9f764cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'services/recall/index.js:62',message:'Recall API addBotToCalendarEvent called',data:{calendarEventId:id,deduplicationKey,hasBotConfig:!!botConfig,hasJoinAt:!!botConfig?.join_at},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'G'})}).catch(()=>{});
-    // #endregion
-    
-    const result = await client.request({
-      path: `/api/v2/calendar-events/${id}/bot/`,
-      method: "POST",
-      data: {
-        deduplication_key: deduplicationKey,
-        bot_config: botConfig,
+    await telemetryEvent(
+      "Recall.addBotToCalendarEvent.request",
+      {
+        calendarEventId: id,
+        deduplicationKey,
+        hasJoinAt: !!botConfig?.join_at,
       },
-    });
+      { location: "services/recall/index.js:addBotToCalendarEvent" }
+    );
     
-    // #region agent log
-    fetch('http://127.0.0.1:7248/ingest/9df62f0f-78c1-44fb-821f-c3c7b9f764cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'services/recall/index.js:71',message:'Recall API addBotToCalendarEvent response',data:{calendarEventId:id,hasResult:!!result,resultBots:result?.bots?.length||0,botIds:result?.bots?.map(b=>b.id)||[],resultKeys:Object.keys(result||{})},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'G'})}).catch(()=>{});
-    // #endregion
-    
-    return result;
+    try {
+      const result = await client.request({
+        path: `/api/v2/calendar-events/${id}/bot/`,
+        method: "POST",
+        data: {
+          deduplication_key: deduplicationKey,
+          bot_config: botConfig,
+        },
+      });
+
+      const botIds = Array.isArray(result?.bots)
+        ? result.bots.map((b) => b?.id).filter(Boolean)
+        : [];
+
+      await telemetryEvent(
+        "Recall.addBotToCalendarEvent.success",
+        {
+          calendarEventId: id,
+          resultKeys: Object.keys(result || {}),
+          botIds,
+          botCount: botIds.length,
+        },
+        { location: "services/recall/index.js:addBotToCalendarEvent" }
+      );
+
+      return result;
+    } catch (err) {
+      await telemetryEvent(
+        "Recall.addBotToCalendarEvent.failure",
+        {
+          calendarEventId: id,
+          errorMessage: err?.message,
+          status: err?.res?.status,
+        },
+        { location: "services/recall/index.js:addBotToCalendarEvent" }
+      );
+      throw err;
+    }
   },
   removeBotFromCalendarEvent: async ({ id }) => {
     return await client.request({

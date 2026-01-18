@@ -1,21 +1,33 @@
 import Recall from "../../services/recall/index.js";
 import db from "../../db.js";
 import { buildBotConfig } from "../../logic/bot-config.js";
+import { telemetryEvent } from "../../utils/telemetry.js";
 
 // add or remove bot for a calendar event based on its record status
 export default async (job) => {
   const { recallEventId } = job.data;
-  // #region agent log
-  fetch('http://127.0.0.1:7248/ingest/9df62f0f-78c1-44fb-821f-c3c7b9f764cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'worker/processors/calendar-event-update-bot-schedule.js:6',message:'Bot scheduling job started',data:{recallEventId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'G'})}).catch(()=>{});
-  // #endregion
+  await telemetryEvent(
+    "BotScheduling.job_started",
+    { recallEventId },
+    { location: "worker/processors/calendar-event-update-bot-schedule.js:job_start" }
+  );
   
   const event = await db.CalendarEvent.findOne({
     where: { recallId: recallEventId },
   });
   
-  // #region agent log
-  fetch('http://127.0.0.1:7248/ingest/9df62f0f-78c1-44fb-821f-c3c7b9f764cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'worker/processors/calendar-event-update-bot-schedule.js:10',message:'Calendar event found',data:{eventId:event?.id,hasEvent:!!event,shouldRecordAutomatic:event?.shouldRecordAutomatic,shouldRecordManual:event?.shouldRecordManual,hasMeetingUrl:!!event?.meetingUrl,recallId:event?.recallId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'G'})}).catch(()=>{});
-  // #endregion
+  await telemetryEvent(
+    "BotScheduling.event_loaded",
+    {
+      recallEventId,
+      hasEvent: !!event,
+      eventId: event?.id,
+      shouldRecordAutomatic: event?.shouldRecordAutomatic,
+      shouldRecordManual: event?.shouldRecordManual,
+      hasMeetingUrl: !!event?.meetingUrl,
+    },
+    { location: "worker/processors/calendar-event-update-bot-schedule.js:event_loaded" }
+  );
 
   let updatedEventFromRecall = null;
   if (
@@ -60,13 +72,16 @@ export default async (job) => {
       botConfig.join_at = joinAtTime.toISOString();
     }
     
-    // Log the bot config being sent to Recall API for debugging
-    console.log(`[BOT_CONFIG] Sending bot config for event ${event.id}:`, JSON.stringify(botConfig, null, 2));
-    console.log(`[BOT_CONFIG] Event start: ${event.startTime.toISOString()}, join_at: ${botConfig.join_at || 'not set'}`);
+    // Log only a compact summary (Railway log rate limiting can drop important messages)
+    console.log(
+      `[BOT_CONFIG] Scheduling summary: eventId=${event.id} recallEventId=${event.recallId} start=${event.startTime.toISOString()} join_at=${botConfig.join_at || "not_set"} hasMeetingUrl=${!!event.meetingUrl}`
+    );
     
     // Validate event is in the future before scheduling
     if (event.startTime <= new Date()) {
-      console.warn(`[BOT_CONFIG] Event ${event.id} has already started or ended. Skipping bot scheduling.`);
+      console.warn(
+        `[BOT_CONFIG] Skipping (past/ongoing): eventId=${event.id} recallEventId=${event.recallId} start=${event.startTime.toISOString()}`
+      );
       return;
     }
     

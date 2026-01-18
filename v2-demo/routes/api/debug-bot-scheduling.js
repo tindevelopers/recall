@@ -8,6 +8,7 @@
 
 import db from "../../db.js";
 import Recall from "../../services/recall/index.js";
+import { telemetryEvent } from "../../utils/telemetry.js";
 
 export default async (req, res) => {
   const { calendarId } = req.query;
@@ -71,10 +72,27 @@ export default async (req, res) => {
     // Try to fetch latest calendar data from Recall
     let recallCalendarData = null;
     let recallError = null;
+    let recallBotsSummary = null;
     try {
       if (calendar.recallId) {
         recallCalendarData = await Recall.getCalendar(calendar.recallId);
       }
+      // Also list a few bots to confirm we are looking at the expected Recall workspace for this API key.
+      const bots = await Recall.listBots({ limit: 5 });
+      recallBotsSummary = {
+        count: bots?.length || 0,
+        botIds: (bots || []).map((b) => b?.id).filter(Boolean),
+      };
+      await telemetryEvent(
+        "DebugBotScheduling.listBots",
+        {
+          calendarId: calendar.id,
+          recallApiHost: process.env.RECALL_API_HOST,
+          botsCount: recallBotsSummary.count,
+          botIds: recallBotsSummary.botIds,
+        },
+        { location: "routes/api/debug-bot-scheduling.js:listBots" }
+      );
     } catch (err) {
       recallError = err.message || String(err);
     }
@@ -128,6 +146,7 @@ export default async (req, res) => {
         analysis: eventsAnalysis,
       },
       recallCalendar: recallCalendarData,
+      recallBotsSummary,
       recallError,
       diagnostics,
     });

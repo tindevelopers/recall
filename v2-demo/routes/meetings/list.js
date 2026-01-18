@@ -2,6 +2,7 @@ import db from "../../db.js";
 import { Op } from "sequelize";
 import Recall from "../../services/recall/index.js";
 import { backgroundQueue } from "../../queue.js";
+import { telemetryEvent } from "../../utils/telemetry.js";
 const { sequelize } = db;
 
 /**
@@ -45,9 +46,15 @@ async function syncBotArtifacts(calendars, userId) {
     console.error(`[MEETINGS] Error listing bots from Recall API:`, error.message);
     return;
   }
-  
-  // Log all bot statuses for debugging
-  console.log(`[MEETINGS] Bot statuses:`, bots.map(b => ({ id: b.id, status: b.status, status_changes: b.status_changes })));
+  // Avoid dumping full bot statuses (can hit Railway log rate limits)
+  await telemetryEvent(
+    "Meetings.syncBotArtifacts.listBots",
+    {
+      userId,
+      botCount: bots.length,
+    },
+    { location: "routes/meetings/list.js:syncBotArtifacts" }
+  );
   
   // Filter to completed bots - check various status formats
   const completedBots = bots.filter(bot => {

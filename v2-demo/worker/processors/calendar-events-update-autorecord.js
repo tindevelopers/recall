@@ -1,6 +1,7 @@
 import db from "../../db.js";
 import { backgroundQueue } from "../../queue.js";
 import { updateAutoRecordStatusForCalendarEvents } from "../../logic/autorecord.js";
+import { telemetryEvent } from "../../utils/telemetry.js";
 
 export default async (job) => {
   const { calendarId, recallEventIds } = job.data;
@@ -21,21 +22,21 @@ export default async (job) => {
   );
 
   // queue up bot schedule updates
-  // #region agent log
-  fetch('http://127.0.0.1:7248/ingest/9df62f0f-78c1-44fb-821f-c3c7b9f764cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'worker/processors/calendar-events-update-autorecord.js:23',message:'Queueing bot scheduling jobs from autorecord',data:{calendarId,eventCount:events.length,recallEventIds:events.map(e=>e.recallId)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'G'})}).catch(()=>{});
-  // #endregion
+  telemetryEvent(
+    "Autorecord.queue_bot_scheduling",
+    { calendarId, eventCount: events.length },
+    { location: "worker/processors/calendar-events-update-autorecord.js:queue" }
+  );
   events.forEach((event) => {
     backgroundQueue.add("calendarevent.update_bot_schedule", {
       calendarId,
       recallEventId: event.recallId,
-    }).then(() => {
-      // #region agent log
-      fetch('http://127.0.0.1:7248/ingest/9df62f0f-78c1-44fb-821f-c3c7b9f764cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'worker/processors/calendar-events-update-autorecord.js:28',message:'Bot scheduling job queued',data:{recallEventId:event.recallId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'G'})}).catch(()=>{});
-      // #endregion
-    }).catch(err => {
-      // #region agent log
-      fetch('http://127.0.0.1:7248/ingest/9df62f0f-78c1-44fb-821f-c3c7b9f764cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'worker/processors/calendar-events-update-autorecord.js:31',message:'Bot scheduling job queue failed',data:{recallEventId:event.recallId,errorMessage:err.message},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'G'})}).catch(()=>{});
-      // #endregion
+    }).catch((err) => {
+      telemetryEvent(
+        "Autorecord.queue_bot_scheduling_failed",
+        { calendarId, recallEventId: event.recallId, errorMessage: err.message },
+        { location: "worker/processors/calendar-events-update-autorecord.js:queue_failed" }
+      );
     });
   });
 };
