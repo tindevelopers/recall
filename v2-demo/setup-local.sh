@@ -1,7 +1,6 @@
 #!/bin/bash
 
 # Setup script for running v2-demo locally
-# Based on v1-demo configuration
 
 set -e
 

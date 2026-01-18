@@ -1,6 +1,6 @@
 # Running V2 Demo Locally
 
-This guide will help you set up and run the v2-demo application on your localhost, based on the v1-demo configuration.
+This guide will help you set up and run the v2-demo application on your localhost.
 
 ## Prerequisites
 

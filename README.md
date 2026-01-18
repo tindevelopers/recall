@@ -1,30 +1,10 @@
-# Recall Calendar Integration Demo
+# Recall Calendar Integration Demo (v2)
 
-V1 Demo - `./v1-demo/README.md`  
-V2 Demo - `./v2-demo/README.md`
+This repository now focuses solely on the `v2-demo` experience. All references to the previous v1 workflow have been removed to avoid confusion.
 
 ## Current Setup
 
-### Client
-A create react app serving as UI for calendar integration. Demo at https://recall-calendar-integration.pages.dev/
-
-1. `npm install`
-2. Create `.env` file from `.env.sample` and update values.
-3. `npm start`
-
-### Server
-Express.js server for generating authentication tokens for using Calendar V1 APIs.
-
-**Deployment**: The server is deployed using Express.js on Vercel (not Cloudflare Pages). The Express server is configured as serverless functions using `@vercel/node`.
-
-1. `npm install`
-2. Create `.env` file from `.env.sample` and update values.
-3. `npm start`
-
-**Vercel Configuration**:
-- Framework Preset: **Express** (correct for Express.js server)
-- Build Configuration: Uses `server/vercel.json` with `@vercel/node` builder
-- Entry Point: `server/api/index.js`
+# See `v2-demo/README.md` for the latest setup instructions. The `client/`, `server/`, and `worker/` directories contain supporting tooling for deployment and integrations.
 
 ## Configuration
 
