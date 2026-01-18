@@ -27,6 +27,7 @@ import apiDebugCalendars from "./api/debug-calendars.js";
 import apiDebugBotConfig from "./api/debug-bot-config.js";
 import apiDebugWebhooks from "./api/debug-webhooks.js";
 import apiDebugBotScheduling from "./api/debug-bot-scheduling.js";
+import apiDiagnoseBotScheduling from "./api/diagnose-bot-scheduling.js";
 import apiCheckMeetingPayload from "./api/check-meeting-payload.js";
 import apiUpdateWebhookUrl from "./api/update-webhook-url.js";
 import meetingsList from "./meetings/list.js";
@@ -73,6 +74,7 @@ router.get("/api/debug-bot-config", apiDebugBotConfig);
 router.post("/api/debug-bot-config", apiDebugBotConfig);
 router.get("/api/debug-webhooks", apiDebugWebhooks);
 router.get("/api/debug-bot-scheduling", apiDebugBotScheduling);
+router.get("/api/diagnose-bot-scheduling", apiDiagnoseBotScheduling);
 router.get("/api/check-meeting-payload", apiCheckMeetingPayload);
 router.post("/api/update-webhook-url", apiUpdateWebhookUrl);
 
