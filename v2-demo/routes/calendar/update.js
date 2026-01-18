@@ -30,7 +30,7 @@ export default async (req, res) => {
         recordAudio = "off",
       } = req.body || {};
       // #region agent log
-      fetch('http://127.0.0.1:7250/ingest/bf0206c3-6e13-4499-92a3-7fb2b7527fcf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'routes/calendar/update.js:24',message:'Parsed form values BEFORE update',data:{autoRecordExternalEvents,autoRecordInternalEvents,autoRecordOnlyConfirmedEvents,useRetellTranscription,recordVideo:req.body?.recordVideo,recordAudio:req.body?.recordAudio,currentAutoRecordExternalEvents:calendar.autoRecordExternalEvents,currentAutoRecordInternalEvents:calendar.autoRecordInternalEvents,currentRecordVideo:calendar.recordVideo,currentRecordAudio:calendar.recordAudio},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+      fetch('http://127.0.0.1:7250/ingest/bf0206c3-6e13-4499-92a3-7fb2b7527fcf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'routes/calendar/update.js:24',message:'Parsed form values BEFORE update',data:{autoRecordExternalEvents,autoRecordInternalEvents,autoRecordOnlyConfirmedEvents,useRetellTranscription,recordVideoRaw:req.body?.recordVideo,recordAudioRaw:req.body?.recordAudio,recordVideoIsArray:Array.isArray(req.body?.recordVideo),recordAudioIsArray:Array.isArray(req.body?.recordAudio),currentAutoRecordExternalEvents:calendar.autoRecordExternalEvents,currentAutoRecordInternalEvents:calendar.autoRecordInternalEvents,currentRecordVideo:calendar.recordVideo,currentRecordAudio:calendar.recordAudio},timestamp:Date.now(),sessionId:'debug-session',runId:'run2',hypothesisId:'G'})}).catch(()=>{});
       // #endregion
 
       calendar.autoRecordExternalEvents = autoRecordExternalEvents === "on" ? true : false;
@@ -40,11 +40,19 @@ export default async (req, res) => {
       // Also handle recordVideo and recordAudio if provided (from settings page)
       // Settings form includes hidden inputs so these fields are always present when form is from settings page
       // Calendar page form doesn't include these fields, so they won't be in req.body
+      // Note: When checkbox is checked, both checkbox ("on") and hidden input ("off") are sent
+      // Express creates an array, so we need to check if "on" is in the array
       if ("recordVideo" in req.body) {
-        calendar.recordVideo = recordVideo === "on";
+        const recordVideoValue = Array.isArray(req.body.recordVideo) 
+          ? req.body.recordVideo.includes("on") ? "on" : "off"
+          : req.body.recordVideo;
+        calendar.recordVideo = recordVideoValue === "on";
       }
       if ("recordAudio" in req.body) {
-        calendar.recordAudio = recordAudio === "on";
+        const recordAudioValue = Array.isArray(req.body.recordAudio)
+          ? req.body.recordAudio.includes("on") ? "on" : "off"
+          : req.body.recordAudio;
+        calendar.recordAudio = recordAudioValue === "on";
       }
       // #region agent log
       fetch('http://127.0.0.1:7250/ingest/bf0206c3-6e13-4499-92a3-7fb2b7527fcf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'routes/calendar/update.js:29',message:'Calendar values AFTER assignment, BEFORE save',data:{autoRecordExternalEvents:calendar.autoRecordExternalEvents,autoRecordInternalEvents:calendar.autoRecordInternalEvents,autoRecordOnlyConfirmedEvents:calendar.autoRecordOnlyConfirmedEvents,useRetellTranscription:calendar.useRetellTranscription,recordVideo:calendar.recordVideo,recordAudio:calendar.recordAudio,hasRecordVideoInBody:'recordVideo' in req.body,hasRecordAudioInBody:'recordAudio' in req.body},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix',hypothesisId:'FIXED'})}).catch(()=>{});
