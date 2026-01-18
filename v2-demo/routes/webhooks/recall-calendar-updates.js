@@ -3,8 +3,22 @@ import db from "../../db.js";
 
 export default async (req, res) => {
   // #region agent log
-  fetch('http://127.0.0.1:7250/ingest/bf0206c3-6e13-4499-92a3-7fb2b7527fcf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'routes/webhooks/recall-calendar-updates.js:4',message:'Webhook handler entry',data:{method:req.method,path:req.path,hasBody:!!req.body,bodyType:typeof req.body,bodyKeys:req.body?Object.keys(req.body):[]},timestamp:Date.now(),sessionId:'debug-session',runId:'run5',hypothesisId:'J'})}).catch(()=>{});
+  fetch('http://127.0.0.1:7250/ingest/bf0206c3-6e13-4499-92a3-7fb2b7527fcf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'routes/webhooks/recall-calendar-updates.js:4',message:'Webhook handler entry',data:{method:req.method,path:req.path,hasBody:!!req.body,bodyType:typeof req.body,bodyKeys:req.body?Object.keys(req.body):[],query:req.query,headers:Object.keys(req.headers)},timestamp:Date.now(),sessionId:'debug-session',runId:'run6',hypothesisId:'K'})}).catch(()=>{});
   // #endregion
+  
+  // Handle GET requests for webhook verification (some webhook systems verify endpoints with GET)
+  if (req.method === 'GET') {
+    console.log(`[WEBHOOK] Received GET request for verification: ${req.path}`);
+    // #region agent log
+    fetch('http://127.0.0.1:7250/ingest/bf0206c3-6e13-4499-92a3-7fb2b7527fcf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'routes/webhooks/recall-calendar-updates.js:10',message:'Webhook verification GET request',data:{method:req.method,path:req.path,query:req.query,userAgent:req.headers['user-agent']},timestamp:Date.now(),sessionId:'debug-session',runId:'run6',hypothesisId:'K'})}).catch(()=>{});
+    // #endregion
+    return res.status(200).json({ 
+      status: 'ok', 
+      message: 'Webhook endpoint is active',
+      timestamp: new Date().toISOString()
+    });
+  }
+  
   try {
     // Log incoming webhook request for debugging
     console.log(

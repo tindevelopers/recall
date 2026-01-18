@@ -63,7 +63,7 @@ router.get("/oauth-callback/microsoft-outlook", oauthCallbackMicrosoftOutlook);
 router.get("/oauth/notion", notionConnect);
 router.get("/oauth-callback/notion", oauthCallbackNotion);
 
-router.post("/webhooks/recall-calendar-updates", webhooksRecallCalendarUpdates);
+router.all("/webhooks/recall-calendar-updates", webhooksRecallCalendarUpdates);
 router.post("/webhooks/recall-notes", webhooksRecallNotes);
 
 router.post("/integrations/notion-target", notionTarget);
