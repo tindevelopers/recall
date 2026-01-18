@@ -7,11 +7,7 @@
 import db from "../../db.js";
 
 export default async (req, res) => {
-  // Allow unauthenticated access for testing (remove this in production if needed)
-  // if (!req.authenticated) {
-  //   return res.status(401).json({ error: "Unauthorized" });
-  // }
-
+  // Public test endpoint - no auth required for debugging
   const { event = "calendar.sync_events", calendar_id: recallId } = req.body;
 
   if (!recallId) {
