@@ -152,31 +152,30 @@ export async function getSummary(req, res) {
     });
 
     if (!summary) {
+      // #region agent log
+      fetch('http://127.0.0.1:7248/ingest/9df62f0f-78c1-44fb-821f-c3c7b9f764cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'routes/api/meeting-details.js:149',message:'No summary found for meeting',data:{meetingId,artifactId:artifact.id,artifactStatus:artifact.status},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'F'})}).catch(()=>{});
+      // #endregion
       return res.json({ summary: null });
     }
 
-    // Parse summary content - could be JSON or plain text
-    let summaryData = {
-      content: summary.content,
-      keyTopics: [],
-      actionItems: [],
-    };
+    // #region agent log
+    fetch('http://127.0.0.1:7248/ingest/9df62f0f-78c1-44fb-821f-c3c7b9f764cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'routes/api/meeting-details.js:155',message:'Summary retrieved',data:{meetingId,hasSummary:!!summary.summary,summaryLength:summary.summary?.length||0,actionItemsCount:summary.actionItems?.length||0,followUpsCount:summary.followUps?.length||0,topicsCount:summary.topics?.length||0,source:summary.source},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'F'})}).catch(()=>{});
+    // #endregion
 
-    // Try to parse as JSON if it looks like JSON
-    if (summary.content && summary.content.startsWith("{")) {
-      try {
-        const parsed = JSON.parse(summary.content);
-        summaryData = {
-          content: parsed.summary || parsed.content || parsed.text || summary.content,
-          keyTopics: parsed.keyTopics || parsed.topics || parsed.key_topics || [],
-          actionItems: parsed.actionItems || parsed.action_items || parsed.tasks || [],
-        };
-      } catch (e) {
-        // Keep as plain text
+    // Use the correct field names from the model
+    return res.json({ 
+      summary: {
+        content: summary.summary || "",
+        keyTopics: summary.topics || [],
+        actionItems: summary.actionItems || [],
+        followUps: summary.followUps || [],
+        sentiment: summary.sentiment || null,
+        keyInsights: summary.keyInsights || [],
+        decisions: summary.decisions || [],
+        outcome: summary.outcome || null,
+        source: summary.source || null,
       }
-    }
-
-    return res.json({ summary: summaryData });
+    });
   } catch (error) {
     console.error(`[API] Error fetching summary for meeting ${meetingId}:`, error);
     return res.status(500).json({ error: "Failed to fetch summary" });
@@ -211,47 +210,12 @@ export async function getActionItems(req, res) {
       order: [["createdAt", "DESC"]],
     });
 
-    let actionItems = [];
-
-    if (summary && summary.content) {
-      // Try to parse action items from summary
-      if (summary.content.startsWith("{")) {
-        try {
-          const parsed = JSON.parse(summary.content);
-          actionItems = parsed.actionItems || parsed.action_items || parsed.tasks || [];
-        } catch (e) {
-          // Extract action items from plain text (look for bullets or numbered items)
-          const lines = summary.content.split("\n");
-          const actionPattern = /^[\-\*\•]\s*(.+)|^\d+[\.\)]\s*(.+)/;
-          for (const line of lines) {
-            const match = line.match(actionPattern);
-            if (match) {
-              actionItems.push({ text: match[1] || match[2] });
-            }
-          }
-        }
-      } else {
-        // Try to extract from plain text
-        const lines = summary.content.split("\n");
-        let inActionSection = false;
-        for (const line of lines) {
-          if (line.toLowerCase().includes("action item") || line.toLowerCase().includes("to-do") || line.toLowerCase().includes("next step")) {
-            inActionSection = true;
-            continue;
-          }
-          if (inActionSection && line.trim()) {
-            const cleanLine = line.replace(/^[\-\*\•\d\.]+\s*/, "").trim();
-            if (cleanLine) {
-              actionItems.push({ text: cleanLine });
-            }
-          }
-          if (inActionSection && !line.trim()) {
-            // Empty line might end action items section
-            if (actionItems.length > 0) break;
-          }
-        }
-      }
-    }
+    // Use the actionItems field directly from the model
+    const actionItems = summary?.actionItems || [];
+    
+    // #region agent log
+    fetch('http://127.0.0.1:7248/ingest/9df62f0f-78c1-44fb-821f-c3c7b9f764cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'routes/api/meeting-details.js:214',message:'Action items retrieved',data:{meetingId,hasSummary:!!summary,actionItemsCount:actionItems.length,actionItemsSample:actionItems.slice(0,3)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'F'})}).catch(()=>{});
+    // #endregion
 
     return res.json({ actionItems });
   } catch (error) {

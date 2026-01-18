@@ -124,7 +124,14 @@ export default {
 
     // Step 4: Fallback to OpenAI for summarization
     console.log(`[NOTEPAD] Falling back to OpenAI for summarization`);
-    return await this.getSummaryFromOpenAI(transcriptText, metadata, settings);
+    // #region agent log
+    fetch('http://127.0.0.1:7248/ingest/9df62f0f-78c1-44fb-821f-c3c7b9f764cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'services/notepad/index.js:126',message:'Falling back to OpenAI',data:{transcriptLength:transcriptText.length,hasMetadata:!!metadata.title},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
+    // #endregion
+    const result = await this.getSummaryFromOpenAI(transcriptText, metadata, settings);
+    // #region agent log
+    fetch('http://127.0.0.1:7248/ingest/9df62f0f-78c1-44fb-821f-c3c7b9f764cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'services/notepad/index.js:129',message:'OpenAI summarization completed',data:{hasSummary:!!result.summary,actionItemsCount:result.actionItems?.length||0,followUpsCount:result.followUps?.length||0,source:result.source},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
+    // #endregion
+    return result;
   },
 
   /**

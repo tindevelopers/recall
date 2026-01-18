@@ -20,6 +20,10 @@ async function ensureChunkEmbeddings(chunks) {
 
 export default async (job) => {
   const { meetingArtifactId } = job.data;
+  // #region agent log
+  fetch('http://127.0.0.1:7248/ingest/9df62f0f-78c1-44fb-821f-c3c7b9f764cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'worker/processors/meeting-enrich.js:21',message:'Enrichment job started',data:{meetingArtifactId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
+  // #endregion
+  
   const artifact = await db.MeetingArtifact.findByPk(meetingArtifactId, {
     include: [
       {
@@ -33,6 +37,9 @@ export default async (job) => {
     console.warn(
       `WARN: meeting.enrich could not find artifact ${meetingArtifactId}`
     );
+    // #region agent log
+    fetch('http://127.0.0.1:7248/ingest/9df62f0f-78c1-44fb-821f-c3c7b9f764cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'worker/processors/meeting-enrich.js:32',message:'Artifact not found',data:{meetingArtifactId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
+    // #endregion
     return;
   }
 
@@ -69,6 +76,10 @@ export default async (job) => {
 
   // Use Notepad service: tries Recall.ai Notepad API first, falls back to OpenAI
   console.log(`[ENRICH] Fetching summary and action items using Notepad service...`);
+  // #region agent log
+  fetch('http://127.0.0.1:7248/ingest/9df62f0f-78c1-44fb-821f-c3c7b9f764cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'worker/processors/meeting-enrich.js:70',message:'Starting enrichment',data:{meetingArtifactId:artifact.id,hasTranscript:chunks.length>0,transcriptLength:transcriptText.length,enrichmentSettings},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
+  // #endregion
+  
   const notepadResult = await Notepad.getSummaryAndActionItems({
     transcriptText,
     metadata,
@@ -79,6 +90,9 @@ export default async (job) => {
   });
 
   console.log(`[ENRICH] Notepad service returned data from source: ${notepadResult.source}`);
+  // #region agent log
+  fetch('http://127.0.0.1:7248/ingest/9df62f0f-78c1-44fb-821f-c3c7b9f764cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'worker/processors/meeting-enrich.js:81',message:'Enrichment completed',data:{source:notepadResult.source,hasSummary:!!notepadResult.summary,actionItemsCount:notepadResult.actionItems?.length||0,followUpsCount:notepadResult.followUps?.length||0,topicsCount:notepadResult.topics?.length||0,hasSentiment:!!notepadResult.sentiment},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
+  // #endregion
 
   const summaryPayload = {
     id: uuidv4(),
@@ -102,6 +116,10 @@ export default async (job) => {
   const [meetingSummary] = await db.MeetingSummary.upsert(summaryPayload, {
     returning: true,
   });
+  
+  // #region agent log
+  fetch('http://127.0.0.1:7248/ingest/9df62f0f-78c1-44fb-821f-c3c7b9f764cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'worker/processors/meeting-enrich.js:102',message:'Summary saved to database',data:{summaryId:meetingSummary.id||meetingSummary?.dataValues?.id,hasSummary:!!summaryPayload.summary,actionItemsCount:summaryPayload.actionItems?.length||0,followUpsCount:summaryPayload.followUps?.length||0},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
+  // #endregion
 
   await ensureChunkEmbeddings(chunks);
 

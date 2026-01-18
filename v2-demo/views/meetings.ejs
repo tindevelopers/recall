@@ -180,6 +180,15 @@
 
               <!-- Past Meetings Tab -->
               <div id="content-past" class="meetings-tab-content hidden">
+                <script>
+                  console.log('[DEBUG] Past meetings check:', {
+                    meetingsType: typeof meetings,
+                    meetingsIsNull: meetings === null,
+                    meetingsIsArray: Array.isArray(meetings),
+                    meetingsLength: meetings ? meetings.length : 'N/A',
+                    meetingsSample: meetings && meetings.length > 0 ? meetings.slice(0, 3) : []
+                  });
+                </script>
                 <% if (typeof meetings === 'undefined' || meetings === null || !Array.isArray(meetings) || meetings.length === 0) { %>
                   <div class="text-center py-12">
                     <svg class="mx-auto h-12 w-12 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">

@@ -1,4 +1,4 @@
-import { Fragment, useState } from "react";
+import React, { Fragment, useState, useEffect } from "react";
 import classNames from "classnames";
 import { Switch } from "@headlessui/react";
 import { format as formatDate } from "date-fns";
@@ -25,6 +25,27 @@ export default function UpcomingMeetings({
   const filteredMeetings = (meetings.data || []).filter((m) => {
     return !showOnlyRecordableMeetings || m.platform;
   });
+  
+  // #region agent log
+  useEffect(() => {
+    const now = new Date();
+    const pastMeetings = (meetings.data || []).filter(m => {
+      try {
+        return m.start_time && new Date(m.start_time) <= now;
+      } catch {
+        return false;
+      }
+    });
+    const futureMeetings = (meetings.data || []).filter(m => {
+      try {
+        return m.start_time && new Date(m.start_time) > now;
+      } catch {
+        return false;
+      }
+    });
+    fetch('http://127.0.0.1:7248/ingest/9df62f0f-78c1-44fb-821f-c3c7b9f764cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'client/src/containers/Home/RecallCalendar/UpcomingMeetings/index.tsx:25',message:'Meetings displayed in UI',data:{totalMeetings:meetings.data?.length||0,pastMeetings:pastMeetings.length,futureMeetings:futureMeetings.length,filteredMeetings:filteredMeetings.length,showOnlyRecordableMeetings},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+  }, [meetings.data, filteredMeetings.length, showOnlyRecordableMeetings]);
+  // #endregion
 
   return (
     <div className="flex flex-col pb-5">

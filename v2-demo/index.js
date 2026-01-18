@@ -1,4 +1,7 @@
 import dotenv from "dotenv";
+// Load environment variables immediately before any other imports that depend on them
+dotenv.config();
+
 import path from "path";
 import { fileURLToPath } from "url";
 import consoleStamp from "console-stamp";
@@ -16,8 +19,6 @@ import Recall from "./services/recall/index.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-
-dotenv.config();
 consoleStamp(console);
 
 // Wrap everything in try-catch to ensure errors are logged

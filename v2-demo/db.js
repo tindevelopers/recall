@@ -1,3 +1,7 @@
+import dotenv from "dotenv";
+// Load environment variables immediately - this ensures DATABASE_URL is available
+dotenv.config();
+
 import { Sequelize } from "sequelize";
 import { Umzug, SequelizeStorage } from "umzug";
 
@@ -13,48 +17,58 @@ import initPublishTargetModel from "./models/publish-target.js";
 import initPublishDeliveryModel from "./models/publish-delivery.js";
 
 let db = {};
+let sequelize = null;
+let umzug = null;
 
-// PostgreSQL only - DATABASE_URL is required
-if (!process.env.DATABASE_URL) {
-  throw new Error("DATABASE_URL environment variable is required. PostgreSQL database is required for this application.");
+function initializeDatabase() {
+  // PostgreSQL only - DATABASE_URL is required
+  if (!process.env.DATABASE_URL) {
+    throw new Error("DATABASE_URL environment variable is required. PostgreSQL database is required for this application.");
+  }
+
+  if (sequelize) {
+    return; // Already initialized
+  }
+
+  const url = new URL(process.env.DATABASE_URL);
+  console.log(`INFO: Configuring PostgreSQL database`);
+  console.log(`   Host: ${url.hostname}, Database: ${url.pathname.substring(1)}`);
+
+  sequelize = new Sequelize(process.env.DATABASE_URL, {
+    dialect: "postgres",
+    logging: false,
+    dialectOptions: {
+      ssl: process.env.NODE_ENV === "production" ? {
+        require: true,
+        rejectUnauthorized: false
+      } : false
+    }
+  });
+  console.log("INFO: Using PostgreSQL database");
+  console.log(`INFO: PostgreSQL connection configured - Host: ${url.hostname}, Database: ${url.pathname.substring(1)}`);
+
+  umzug = new Umzug({
+    migrations: {
+      glob: "migrations/*.js",
+      resolve: ({ name, path }) => {
+        const getModule = () => import(`file:///${path.replace(/\\/g, "/")}`);
+        return {
+          name: name,
+          path: path,
+          up: async (upParams) => (await getModule()).up(upParams),
+          down: async (downParams) => (await getModule()).down(downParams),
+        };
+      },
+    },
+    context: { queryInterface: sequelize.getQueryInterface() },
+    storage: new SequelizeStorage({ sequelize }),
+    logger: undefined,
+  });
 }
 
-const url = new URL(process.env.DATABASE_URL);
-console.log(`INFO: Configuring PostgreSQL database`);
-console.log(`   Host: ${url.hostname}, Database: ${url.pathname.substring(1)}`);
-
-const sequelize = new Sequelize(process.env.DATABASE_URL, {
-  dialect: "postgres",
-  logging: false,
-  dialectOptions: {
-    ssl: process.env.NODE_ENV === "production" ? {
-      require: true,
-      rejectUnauthorized: false
-    } : false
-  }
-});
-console.log("INFO: Using PostgreSQL database");
-console.log(`INFO: PostgreSQL connection configured - Host: ${url.hostname}, Database: ${url.pathname.substring(1)}`);
-
-const umzug = new Umzug({
-  migrations: {
-    glob: "migrations/*.js",
-    resolve: ({ name, path }) => {
-      const getModule = () => import(`file:///${path.replace(/\\/g, "/")}`);
-      return {
-        name: name,
-        path: path,
-        up: async (upParams) => (await getModule()).up(upParams),
-        down: async (downParams) => (await getModule()).down(downParams),
-      };
-    },
-  },
-  context: { queryInterface: sequelize.getQueryInterface() },
-  storage: new SequelizeStorage({ sequelize }),
-  logger: undefined,
-});
-
 export async function connect() {
+  initializeDatabase();
+  initializeModels();
   try {
     await sequelize.authenticate();
     console.log("INFO: Database connection established.");
@@ -70,73 +84,96 @@ export async function connect() {
 }
 
 export async function migrate() {
+  initializeDatabase();
   await umzug.up();
   console.log("INFO: Database migrations synced.");
 }
 
-db.sequelize = sequelize;
+// Initialize database when models are accessed
+function ensureInitialized() {
+  if (!sequelize) {
+    initializeDatabase();
+  }
+}
+
+// Lazy getters for models
+Object.defineProperty(db, 'sequelize', {
+  get() {
+    ensureInitialized();
+    return sequelize;
+  }
+});
+
 db.Sequelize = Sequelize;
 
-db.User = initUserModel(sequelize);
-db.Calendar = initCalendarModel(sequelize);
-db.CalendarEvent = initCalendarEventModel(sequelize);
-db.CalendarWebhook = initCalendarWebhookModel(sequelize);
-db.MeetingArtifact = initMeetingArtifactModel(sequelize);
-db.MeetingTranscriptChunk = initMeetingTranscriptChunkModel(sequelize);
-db.MeetingSummary = initMeetingSummaryModel(sequelize);
-db.Integration = initIntegrationModel(sequelize);
-db.PublishTarget = initPublishTargetModel(sequelize);
-db.PublishDelivery = initPublishDeliveryModel(sequelize);
+// Initialize models lazily when db is accessed
+function initializeModels() {
+  ensureInitialized();
+  if (db.User) {
+    return; // Already initialized
+  }
+  
+  db.User = initUserModel(sequelize);
+  db.Calendar = initCalendarModel(sequelize);
+  db.CalendarEvent = initCalendarEventModel(sequelize);
+  db.CalendarWebhook = initCalendarWebhookModel(sequelize);
+  db.MeetingArtifact = initMeetingArtifactModel(sequelize);
+  db.MeetingTranscriptChunk = initMeetingTranscriptChunkModel(sequelize);
+  db.MeetingSummary = initMeetingSummaryModel(sequelize);
+  db.Integration = initIntegrationModel(sequelize);
+  db.PublishTarget = initPublishTargetModel(sequelize);
+  db.PublishDelivery = initPublishDeliveryModel(sequelize);
 
-db.User.hasMany(db.Calendar, { foreignKey: "userId" });
-db.Calendar.belongsTo(db.User, { foreignKey: "userId" });
+  db.User.hasMany(db.Calendar, { foreignKey: "userId" });
+  db.Calendar.belongsTo(db.User, { foreignKey: "userId" });
 
-db.Calendar.hasMany(db.CalendarEvent, { foreignKey: "calendarId" });
-db.Calendar.hasMany(db.CalendarWebhook, { foreignKey: "calendarId" });
-db.CalendarEvent.belongsTo(db.Calendar, { foreignKey: "calendarId" });
-db.CalendarWebhook.belongsTo(db.Calendar, { foreignKey: "calendarId" });
+  db.Calendar.hasMany(db.CalendarEvent, { foreignKey: "calendarId" });
+  db.Calendar.hasMany(db.CalendarWebhook, { foreignKey: "calendarId" });
+  db.CalendarEvent.belongsTo(db.Calendar, { foreignKey: "calendarId" });
+  db.CalendarWebhook.belongsTo(db.Calendar, { foreignKey: "calendarId" });
 
-db.CalendarEvent.hasMany(db.MeetingArtifact, { foreignKey: "calendarEventId" });
-db.MeetingArtifact.belongsTo(db.CalendarEvent, { foreignKey: "calendarEventId" });
-db.MeetingArtifact.belongsTo(db.User, { foreignKey: "userId" });
+  db.CalendarEvent.hasMany(db.MeetingArtifact, { foreignKey: "calendarEventId" });
+  db.MeetingArtifact.belongsTo(db.CalendarEvent, { foreignKey: "calendarEventId" });
+  db.MeetingArtifact.belongsTo(db.User, { foreignKey: "userId" });
 
-db.MeetingArtifact.hasMany(db.MeetingTranscriptChunk, {
-  foreignKey: "meetingArtifactId",
-});
-db.MeetingTranscriptChunk.belongsTo(db.MeetingArtifact, {
-  foreignKey: "meetingArtifactId",
-});
+  db.MeetingArtifact.hasMany(db.MeetingTranscriptChunk, {
+    foreignKey: "meetingArtifactId",
+  });
+  db.MeetingTranscriptChunk.belongsTo(db.MeetingArtifact, {
+    foreignKey: "meetingArtifactId",
+  });
 
-db.MeetingArtifact.hasMany(db.MeetingSummary, {
-  foreignKey: "meetingArtifactId",
-});
-db.MeetingSummary.belongsTo(db.MeetingArtifact, {
-  foreignKey: "meetingArtifactId",
-});
-db.MeetingSummary.belongsTo(db.CalendarEvent, {
-  foreignKey: "calendarEventId",
-});
-db.MeetingSummary.belongsTo(db.User, {
-  foreignKey: "userId",
-});
+  db.MeetingArtifact.hasMany(db.MeetingSummary, {
+    foreignKey: "meetingArtifactId",
+  });
+  db.MeetingSummary.belongsTo(db.MeetingArtifact, {
+    foreignKey: "meetingArtifactId",
+  });
+  db.MeetingSummary.belongsTo(db.CalendarEvent, {
+    foreignKey: "calendarEventId",
+  });
+  db.MeetingSummary.belongsTo(db.User, {
+    foreignKey: "userId",
+  });
 
-db.User.hasMany(db.Integration, { foreignKey: "userId" });
-db.Integration.belongsTo(db.User, { foreignKey: "userId" });
+  db.User.hasMany(db.Integration, { foreignKey: "userId" });
+  db.Integration.belongsTo(db.User, { foreignKey: "userId" });
 
-db.User.hasMany(db.PublishTarget, { foreignKey: "userId" });
-db.PublishTarget.belongsTo(db.User, { foreignKey: "userId" });
+  db.User.hasMany(db.PublishTarget, { foreignKey: "userId" });
+  db.PublishTarget.belongsTo(db.User, { foreignKey: "userId" });
 
-db.MeetingSummary.hasMany(db.PublishDelivery, {
-  foreignKey: "meetingSummaryId",
-});
-db.PublishDelivery.belongsTo(db.MeetingSummary, {
-  foreignKey: "meetingSummaryId",
-});
-db.PublishTarget.hasMany(db.PublishDelivery, {
-  foreignKey: "publishTargetId",
-});
-db.PublishDelivery.belongsTo(db.PublishTarget, {
-  foreignKey: "publishTargetId",
-});
+  db.MeetingSummary.hasMany(db.PublishDelivery, {
+    foreignKey: "meetingSummaryId",
+  });
+  db.PublishDelivery.belongsTo(db.MeetingSummary, {
+    foreignKey: "meetingSummaryId",
+  });
+  db.PublishTarget.hasMany(db.PublishDelivery, {
+    foreignKey: "publishTargetId",
+  });
+  db.PublishDelivery.belongsTo(db.PublishTarget, {
+    foreignKey: "publishTargetId",
+  });
+}
 
 export default db;

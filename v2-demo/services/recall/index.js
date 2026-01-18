@@ -60,7 +60,11 @@ export default {
   },
   
   addBotToCalendarEvent: async ({ id, deduplicationKey, botConfig }) => {
-    return await client.request({
+    // #region agent log
+    fetch('http://127.0.0.1:7248/ingest/9df62f0f-78c1-44fb-821f-c3c7b9f764cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'services/recall/index.js:62',message:'Recall API addBotToCalendarEvent called',data:{calendarEventId:id,deduplicationKey,hasBotConfig:!!botConfig,hasJoinAt:!!botConfig?.join_at},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'G'})}).catch(()=>{});
+    // #endregion
+    
+    const result = await client.request({
       path: `/api/v2/calendar-events/${id}/bot/`,
       method: "POST",
       data: {
@@ -68,6 +72,12 @@ export default {
         bot_config: botConfig,
       },
     });
+    
+    // #region agent log
+    fetch('http://127.0.0.1:7248/ingest/9df62f0f-78c1-44fb-821f-c3c7b9f764cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'services/recall/index.js:71',message:'Recall API addBotToCalendarEvent response',data:{calendarEventId:id,hasResult:!!result,resultBots:result?.bots?.length||0,botIds:result?.bots?.map(b=>b.id)||[],resultKeys:Object.keys(result||{})},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'G'})}).catch(()=>{});
+    // #endregion
+    
+    return result;
   },
   removeBotFromCalendarEvent: async ({ id }) => {
     return await client.request({

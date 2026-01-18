@@ -332,14 +332,25 @@ async function syncCalendarEvents(calendar) {
       await updateAutoRecordStatusForCalendarEvents({ calendar, events: dbEvents });
       // Queue bot scheduling for events that should be recorded
       // Use Promise.allSettled to avoid blocking if Redis is unavailable
-      const queuePromises = dbEvents
-        .filter(event => event.shouldRecordAutomatic || event.shouldRecordManual)
-        .map(event => 
-          backgroundQueue.add("calendarevent.update_bot_schedule", {
-            calendarId: calendar.id,
-            recallEventId: event.recallId,
-          }).catch(err => console.warn(`[MEETINGS] Queue add failed (Redis unavailable?):`, err.message))
-        );
+      const eventsToSchedule = dbEvents.filter(event => event.shouldRecordAutomatic || event.shouldRecordManual);
+      // #region agent log
+      fetch('http://127.0.0.1:7248/ingest/9df62f0f-78c1-44fb-821f-c3c7b9f764cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'routes/meetings/list.js:335',message:'Queueing bot scheduling jobs',data:{calendarId:calendar.id,eventsToScheduleCount:eventsToSchedule.length,eventIds:eventsToSchedule.map(e=>e.recallId)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'G'})}).catch(()=>{});
+      // #endregion
+      const queuePromises = eventsToSchedule.map(event => 
+        backgroundQueue.add("calendarevent.update_bot_schedule", {
+          calendarId: calendar.id,
+          recallEventId: event.recallId,
+        }).then(() => {
+          // #region agent log
+          fetch('http://127.0.0.1:7248/ingest/9df62f0f-78c1-44fb-821f-c3c7b9f764cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'routes/meetings/list.js:341',message:'Bot scheduling job queued successfully',data:{recallEventId:event.recallId,eventId:event.id},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'G'})}).catch(()=>{});
+          // #endregion
+        }).catch(err => {
+          console.warn(`[MEETINGS] Queue add failed (Redis unavailable?):`, err.message);
+          // #region agent log
+          fetch('http://127.0.0.1:7248/ingest/9df62f0f-78c1-44fb-821f-c3c7b9f764cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'routes/meetings/list.js:345',message:'Bot scheduling job queue failed',data:{recallEventId:event.recallId,errorMessage:err.message},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'G'})}).catch(()=>{});
+          // #endregion
+        })
+      );
       // Don't await - let these run in background
       Promise.allSettled(queuePromises).catch(() => {});
     }
@@ -414,6 +425,9 @@ export default async (req, res) => {
         include: [{ model: db.Calendar }],
         limit: 200, // Get more events to filter in memory
       });
+      // #region agent log
+      fetch('http://127.0.0.1:7248/ingest/9df62f0f-78c1-44fb-821f-c3c7b9f764cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'meetings/list.js:410',message:'All events fetched from DB',data:{totalEvents:allEvents.length,now:now.toISOString()},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+      // #endregion
     } catch (error) {
       console.error(`[MEETINGS] Error fetching calendar events:`, error);
       // Continue with empty events array
@@ -429,6 +443,18 @@ export default async (req, res) => {
         return false;
       }
     });
+    
+    // #region agent log
+    const pastEvents = allEvents.filter(event => {
+      try {
+        const startTime = event.startTime;
+        return startTime && new Date(startTime) <= now;
+      } catch (error) {
+        return false;
+      }
+    });
+    fetch('http://127.0.0.1:7248/ingest/9df62f0f-78c1-44fb-821f-c3c7b9f764cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'meetings/list.js:431',message:'Events filtered',data:{totalEvents:allEvents.length,futureEvents:futureEvents.length,pastEvents:pastEvents.length,now:now.toISOString()},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+    // #endregion
     
     // Sort by start time
     futureEvents.sort((a, b) => {
@@ -584,8 +610,23 @@ export default async (req, res) => {
   const meetings = Array.from(meetingsMap.values()).sort(
     (a, b) => new Date(b.startTime || b.createdAt) - new Date(a.startTime || a.createdAt)
   );
+  
   // #region agent log
-  fetch('http://127.0.0.1:7248/ingest/9df62f0f-78c1-44fb-821f-c3c7b9f764cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'meetings/list.js:562',message:'Final meetings array',data:{meetingsCount:meetings.length,meetings:meetings.map(m=>({id:m.id,title:m.title,type:m.type})),upcomingEventsCount:upcomingEvents.length,hasCalendars:calendars.length>0},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+  const pastMeetingsInFinal = meetings.filter(m => {
+    try {
+      return m.startTime && new Date(m.startTime) <= now;
+    } catch {
+      return false;
+    }
+  });
+  const futureMeetingsInFinal = meetings.filter(m => {
+    try {
+      return m.startTime && new Date(m.startTime) > now;
+    } catch {
+      return false;
+    }
+  });
+  fetch('http://127.0.0.1:7248/ingest/9df62f0f-78c1-44fb-821f-c3c7b9f764cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'meetings/list.js:599',message:'Final meetings array',data:{meetingsCount:meetings.length,pastMeetings:pastMeetingsInFinal.length,futureMeetings:futureMeetingsInFinal.length,meetings:meetings.slice(0,5).map(m=>({id:m.id,title:m.title,type:m.type,startTime:m.startTime})),upcomingEventsCount:upcomingEvents.length,hasCalendars:calendars.length>0,now:now.toISOString()},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
   // #endregion
   
   console.log(`[MEETINGS-DEBUG] Rendering meetings page:`, {
@@ -599,6 +640,10 @@ export default async (req, res) => {
     meetingsSample: meetings.slice(0, 3).map(m => ({ id: m.id, title: m.title, type: m.type })),
   });
 
+  // #region agent log
+  fetch('http://127.0.0.1:7248/ingest/9df62f0f-78c1-44fb-821f-c3c7b9f764cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'meetings/list.js:617',message:'Rendering view with data',data:{meetingsCount:meetings.length,meetingsIsArray:Array.isArray(meetings),upcomingEventsCount:upcomingEvents.length,hasCalendars:calendars.length>0,meetingsSample:meetings.slice(0,3).map(m=>({id:m.id,title:m.title,type:m.type,startTime:m.startTime}))},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+  // #endregion
+  
   return res.render("meetings.ejs", {
     notice: req.notice,
     user: req.authentication.user,
