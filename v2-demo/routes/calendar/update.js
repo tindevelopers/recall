@@ -38,7 +38,8 @@ export default async (req, res) => {
       calendar.autoRecordOnlyConfirmedEvents = autoRecordOnlyConfirmedEvents === "on" ? true : false;
       calendar.useRetellTranscription = useRetellTranscription === "on" ? true : false;
       // Also handle recordVideo and recordAudio if provided (from settings page)
-      // Check if field exists in body (not just default value) to avoid overwriting when not present
+      // Settings form includes hidden inputs so these fields are always present when form is from settings page
+      // Calendar page form doesn't include these fields, so they won't be in req.body
       if ("recordVideo" in req.body) {
         calendar.recordVideo = recordVideo === "on";
       }

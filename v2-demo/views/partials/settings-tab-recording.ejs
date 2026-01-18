@@ -6,6 +6,9 @@
 
   <form method="POST" action="/calendar/<%= calendar.id %>" class="space-y-8">
     <input type="hidden" name="_method" value="PATCH">
+    <!-- Hidden inputs to ensure recordVideo/recordAudio are always sent (even when unchecked) -->
+    <input type="hidden" name="recordVideo" value="off">
+    <input type="hidden" name="recordAudio" value="off">
     
     <!-- Auto-Recording Settings -->
     <div class="bg-gray-50 rounded-xl p-6 space-y-4">
