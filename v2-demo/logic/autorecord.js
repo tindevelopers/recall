@@ -12,6 +12,7 @@ export async function updateAutoRecordStatusForCalendarEvents({
 
   const {
     autoRecordExternalEvents,
+    autoRecordInternalEvents,
     autoRecordOnlyConfirmedEvents,
     email: calendarEmail,
   } = calendar;
@@ -26,13 +27,32 @@ export async function updateAutoRecordStatusForCalendarEvents({
       continue;
     }
 
-    let shouldRecordAutomatic = false;
-    if (autoRecordExternalEvents) {
-      shouldRecordAutomatic = isExternalEvent({
-        event,
-        calendarEmail,
-      });
+    // Wait until attendees are invited (not based on acceptance).
+    // Many meetings won't be "confirmed" but still happen; we just need at least one invitee.
+    if (!hasInvitees(event)) {
+      event.shouldRecordAutomatic = false;
+      await event.save();
+      console.log(
+        `INFO: Not scheduling yet (no invitees): '${event.title}' (${event.recallId})`
+      );
+      continue;
     }
+
+    // If there's no meeting URL yet, we can't schedule a bot.
+    if (!event.meetingUrl) {
+      event.shouldRecordAutomatic = false;
+      await event.save();
+      console.log(
+        `INFO: Not scheduling (no meeting URL): '${event.title}' (${event.recallId})`
+      );
+      continue;
+    }
+
+    let shouldRecordAutomatic = false;
+    const external = isExternalEvent({ event, calendarEmail });
+    shouldRecordAutomatic =
+      (autoRecordExternalEvents && external) ||
+      (autoRecordInternalEvents && !external);
 
     if (autoRecordOnlyConfirmedEvents) {
       shouldRecordAutomatic =
@@ -49,6 +69,12 @@ export async function updateAutoRecordStatusForCalendarEvents({
       `INFO: Updated should record automatic status of '${event.title}' to ${shouldRecordAutomatic}`
     );
   }
+}
+
+function hasInvitees(event) {
+  const raw = event?.recallData?.raw || {};
+  const attendees = raw["attendees"];
+  return Array.isArray(attendees) && attendees.length > 0;
 }
 
 function isExternalEvent({ event, calendarEmail }) {

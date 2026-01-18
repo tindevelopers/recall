@@ -17,11 +17,13 @@ export default async (req, res) => {
       // html form payload does not include unchecked checkboxes, so we default to "off".
       const {
         autoRecordExternalEvents = "off",
+        autoRecordInternalEvents = "off",
         autoRecordOnlyConfirmedEvents = "off",
         useRetellTranscription = "off",
       } = req.body || {};
 
       calendar.autoRecordExternalEvents = autoRecordExternalEvents === "on" ? true : false;
+      calendar.autoRecordInternalEvents = autoRecordInternalEvents === "on" ? true : false;
       calendar.autoRecordOnlyConfirmedEvents = autoRecordOnlyConfirmedEvents === "on" ? true : false;
       calendar.useRetellTranscription = useRetellTranscription === "on" ? true : false;
       await calendar.save();

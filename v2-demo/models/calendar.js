@@ -31,6 +31,13 @@ export default (sequelize) => {
         allowNull: false,
         defaultValue: false,
       },
+      autoRecordInternalEvents: {
+        type: DataTypes.BOOLEAN,
+        allowNull: false,
+        defaultValue: false,
+        comment:
+          "When enabled, internal meetings (same-domain attendees) are eligible for auto-recording.",
+      },
       autoRecordOnlyConfirmedEvents: {
         type: DataTypes.BOOLEAN,
         allowNull: false,

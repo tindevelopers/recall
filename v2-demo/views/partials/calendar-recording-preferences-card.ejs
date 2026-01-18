@@ -21,6 +21,15 @@
         </div>
         <div class="relative flex items-start pb-4 pt-3.5 border-t border-gray-100">
           <div class="min-w-0 flex-1 text-sm leading-6">
+            <label for="autoRecordInternalEvents" class="font-medium text-gray-900">Record Internal Events</label>
+            <p id="autoRecordInternalEvents-description" class="text-gray-500">Also record internal meetings (same-domain attendees). Bots will only be scheduled after invitees are added.</p>
+          </div>
+          <div class="ml-3 flex h-6 items-center">
+            <input id="autoRecordInternalEvents" <%= calendar.autoRecordInternalEvents ? "checked" : "" %> aria-describedby="autoRecordInternalEvents-description" name="autoRecordInternalEvents" type="checkbox" class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-600">
+          </div>
+        </div>
+        <div class="relative flex items-start pb-4 pt-3.5 border-t border-gray-100">
+          <div class="min-w-0 flex-1 text-sm leading-6">
             <label for="autoRecordOnlyConfirmedEvents" class="font-medium text-gray-900">Record Only Confirmed Events</label>
             <p id="autoRecordOnlyConfirmedEvents-description" class="text-gray-500">Record only confirmed events on this calendar.</p>
           </div>

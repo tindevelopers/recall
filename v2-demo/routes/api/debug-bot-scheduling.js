@@ -62,6 +62,7 @@ export default async (req, res) => {
     // Get calendar settings
     const calendarSettings = {
       autoRecordExternalEvents: calendar.autoRecordExternalEvents,
+      autoRecordInternalEvents: calendar.autoRecordInternalEvents,
       autoRecordOnlyConfirmedEvents: calendar.autoRecordOnlyConfirmedEvents,
       enableTranscription: calendar.enableTranscription,
       transcriptionMode: calendar.transcriptionMode,
