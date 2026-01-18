@@ -36,6 +36,22 @@
         <label class="relative flex items-start bg-white rounded-xl p-4 cursor-pointer hover:shadow-sm transition-shadow border border-gray-200">
           <div class="flex h-6 items-center">
             <input 
+              id="autoRecordInternalEvents" 
+              name="autoRecordInternalEvents" 
+              type="checkbox" 
+              <%= calendar.autoRecordInternalEvents ? "checked" : "" %>
+              class="h-5 w-5 rounded border-gray-300 text-indigo-600 focus:ring-indigo-600"
+            />
+          </div>
+          <div class="ml-4">
+            <span class="text-sm font-semibold text-gray-900">Record Internal Events</span>
+            <p class="text-sm text-gray-500 mt-0.5">Also record internal meetings (same-domain attendees). Bots will only be scheduled after invitees are added.</p>
+          </div>
+        </label>
+
+        <label class="relative flex items-start bg-white rounded-xl p-4 cursor-pointer hover:shadow-sm transition-shadow border border-gray-200">
+          <div class="flex h-6 items-center">
+            <input 
               id="autoRecordOnlyConfirmedEvents" 
               name="autoRecordOnlyConfirmedEvents" 
               type="checkbox" 
