@@ -69,11 +69,21 @@ export default async (req, res) => {
     // queue jobs to process the webhook
     if (event === "calendar.update") {
       try {
+        // Update calendar metadata
         await backgroundQueue.add("recall.calendar.update", {
           calendarId: calendar.id,
           recallId: calendar.recallId,
         });
         console.log(`[WEBHOOK] Queued job to update calendar ${calendar.id}`);
+        
+        // Also sync events when calendar is updated (new events may have been added)
+        const last24Hours = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+        await backgroundQueue.add("recall.calendar.sync_events", {
+          calendarId: calendar.id,
+          recallId: calendar.recallId,
+          lastUpdatedTimestamp: last24Hours,
+        });
+        console.log(`[WEBHOOK] Queued event sync job for calendar ${calendar.id} (triggered by calendar.update)`);
       } catch (queueError) {
         console.error(`[WEBHOOK] Failed to queue calendar update job:`, queueError);
       }
