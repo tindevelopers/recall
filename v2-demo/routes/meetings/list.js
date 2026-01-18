@@ -352,6 +352,9 @@ async function syncCalendarEvents(calendar) {
 }
 
 export default async (req, res) => {
+  // #region agent log
+  fetch('http://127.0.0.1:7248/ingest/9df62f0f-78c1-44fb-821f-c3c7b9f764cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'meetings/list.js:354',message:'Route handler started',data:{userId:req.authentication?.user?.id},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+  // #endregion
   if (!req.authenticated) {
     return res.redirect("/sign-in");
   }
@@ -376,6 +379,9 @@ export default async (req, res) => {
   }
   
   console.log(`[MEETINGS] Found ${calendars.length} calendars for user ${userId}`);
+  // #region agent log
+  fetch('http://127.0.0.1:7248/ingest/9df62f0f-78c1-44fb-821f-c3c7b9f764cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'meetings/list.js:378',message:'Calendars fetched',data:{calendarCount:calendars.length,hasCalendars:calendars.length>0},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+  // #endregion
 
   // On-demand sync: fetch latest events from Recall.ai before showing meetings
   // This ensures we have fresh data even if webhooks are delayed/dropped
@@ -462,6 +468,9 @@ export default async (req, res) => {
 
   // Get all meeting artifacts for this user with their summaries
   let artifacts = [];
+  // #region agent log
+  fetch('http://127.0.0.1:7248/ingest/9df62f0f-78c1-44fb-821f-c3c7b9f764cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'meetings/list.js:463',message:'Before artifacts query',data:{userId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+  // #endregion
   try {
     artifacts = await db.MeetingArtifact.findAll({
       where: { userId },
@@ -478,8 +487,14 @@ export default async (req, res) => {
       ],
       order: [["createdAt", "DESC"]],
     });
+    // #region agent log
+    fetch('http://127.0.0.1:7248/ingest/9df62f0f-78c1-44fb-821f-c3c7b9f764cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'meetings/list.js:480',message:'Artifacts query completed',data:{artifactCount:artifacts.length,artifactIds:artifacts.map(a=>a.id)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+    // #endregion
   } catch (error) {
     console.error(`[MEETINGS] Error fetching meeting artifacts:`, error);
+    // #region agent log
+    fetch('http://127.0.0.1:7248/ingest/9df62f0f-78c1-44fb-821f-c3c7b9f764cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'meetings/list.js:482',message:'Artifacts query error',data:{error:error.message,stack:error.stack},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+    // #endregion
   }
 
   // Also get summaries that might not have artifacts (edge case)
@@ -507,10 +522,17 @@ export default async (req, res) => {
   const meetingsMap = new Map();
 
   // Add artifacts
+  // #region agent log
+  fetch('http://127.0.0.1:7248/ingest/9df62f0f-78c1-44fb-821f-c3c7b9f764cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'meetings/list.js:509',message:'Processing artifacts',data:{artifactCount:artifacts.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+  // #endregion
   for (const artifact of artifacts) {
     const key = artifact.id;
     const calendarEvent = artifact.CalendarEvent;
-    const summary = artifact.MeetingSummaries?.[0] || null;
+    // #region agent log
+    const summaryCheck = artifact.MeetingSummaries?.[0] || artifact.MeetingSummary || null;
+    fetch('http://127.0.0.1:7248/ingest/9df62f0f-78c1-44fb-821f-c3c7b9f764cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'meetings/list.js:513',message:'Artifact summary check',data:{artifactId:artifact.id,hasMeetingSummaries:!!artifact.MeetingSummaries,hasMeetingSummary:!!artifact.MeetingSummary,summaryKeys:Object.keys(artifact).filter(k=>k.toLowerCase().includes('summary'))},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'F'})}).catch(()=>{});
+    // #endregion
+    const summary = artifact.MeetingSummaries?.[0] || artifact.MeetingSummary || null;
 
     meetingsMap.set(key, {
       id: artifact.id,
@@ -562,6 +584,20 @@ export default async (req, res) => {
   const meetings = Array.from(meetingsMap.values()).sort(
     (a, b) => new Date(b.startTime || b.createdAt) - new Date(a.startTime || a.createdAt)
   );
+  // #region agent log
+  fetch('http://127.0.0.1:7248/ingest/9df62f0f-78c1-44fb-821f-c3c7b9f764cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'meetings/list.js:562',message:'Final meetings array',data:{meetingsCount:meetings.length,meetings:meetings.map(m=>({id:m.id,title:m.title,type:m.type})),upcomingEventsCount:upcomingEvents.length,hasCalendars:calendars.length>0},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+  // #endregion
+  
+  console.log(`[MEETINGS-DEBUG] Rendering meetings page:`, {
+    userId,
+    calendarsCount: calendars.length,
+    hasCalendars: calendars.length > 0,
+    artifactsCount: artifacts.length,
+    summariesCount: summaries.length,
+    meetingsCount: meetings.length,
+    upcomingEventsCount: upcomingEvents.length,
+    meetingsSample: meetings.slice(0, 3).map(m => ({ id: m.id, title: m.title, type: m.type })),
+  });
 
   return res.render("meetings.ejs", {
     notice: req.notice,
