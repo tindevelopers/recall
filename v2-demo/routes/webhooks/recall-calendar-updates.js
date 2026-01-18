@@ -88,8 +88,36 @@ export default async (req, res) => {
       } catch (queueError) {
         console.error(`[WEBHOOK] Failed to queue calendar sync events job:`, queueError);
       }
+    } else if (event === "calendar.event.created" || event === "calendar.event.updated" || event === "calendar.event") {
+      // Handle individual calendar event webhooks - trigger a sync to get the latest events
+      try {
+        // Sync events from the last 24 hours to catch any new events
+        const last24Hours = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+        await backgroundQueue.add("recall.calendar.sync_events", {
+          calendarId: calendar.id,
+          recallId: calendar.recallId,
+          lastUpdatedTimestamp: last24Hours,
+        });
+        console.log(`[WEBHOOK] Queued job to sync events for calendar ${calendar.id} (triggered by ${event})`);
+      } catch (queueError) {
+        console.error(`[WEBHOOK] Failed to queue calendar sync events job:`, queueError);
+      }
     } else {
-      console.log(`[WEBHOOK] Unknown event type: ${event}. Webhook saved but no processing job queued.`);
+      // For unknown event types, trigger a sync anyway to ensure we don't miss new events
+      // This is a safety net - if Recall sends a new event type we don't recognize,
+      // we'll still sync events to catch any changes
+      console.log(`[WEBHOOK] Unknown event type: ${event}. Triggering event sync as safety measure.`);
+      try {
+        const last24Hours = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+        await backgroundQueue.add("recall.calendar.sync_events", {
+          calendarId: calendar.id,
+          recallId: calendar.recallId,
+          lastUpdatedTimestamp: last24Hours,
+        });
+        console.log(`[WEBHOOK] Queued safety sync job for calendar ${calendar.id}`);
+      } catch (queueError) {
+        console.error(`[WEBHOOK] Failed to queue safety sync job:`, queueError);
+      }
     }
 
     console.log(`[WEBHOOK] Successfully processed webhook for event: ${event}`);
