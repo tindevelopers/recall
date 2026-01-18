@@ -164,14 +164,23 @@ export default async (req, res) => {
       try {
         // Sync events from the last 24 hours to catch any new events
         const last24Hours = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+        // #region agent log
+        fetch('http://127.0.0.1:7250/ingest/bf0206c3-6e13-4499-92a3-7fb2b7527fcf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'routes/webhooks/recall-calendar-updates.js:163',message:'Queueing event sync for calendar.event webhook',data:{event,calendarId:calendar.id,recallId:calendar.recallId,last24Hours,payloadEventId:payload.event_id},timestamp:Date.now(),sessionId:'debug-session',runId:'run7',hypothesisId:'L'})}).catch(()=>{});
+        // #endregion
         await backgroundQueue.add("recall.calendar.sync_events", {
           calendarId: calendar.id,
           recallId: calendar.recallId,
           lastUpdatedTimestamp: last24Hours,
         });
         console.log(`[WEBHOOK] Queued job to sync events for calendar ${calendar.id} (triggered by ${event})`);
+        // #region agent log
+        fetch('http://127.0.0.1:7250/ingest/bf0206c3-6e13-4499-92a3-7fb2b7527fcf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'routes/webhooks/recall-calendar-updates.js:172',message:'Event sync job queued successfully',data:{event,calendarId:calendar.id,recallId:calendar.recallId},timestamp:Date.now(),sessionId:'debug-session',runId:'run7',hypothesisId:'L'})}).catch(()=>{});
+        // #endregion
       } catch (queueError) {
         console.error(`[WEBHOOK] Failed to queue calendar sync events job:`, queueError);
+        // #region agent log
+        fetch('http://127.0.0.1:7250/ingest/bf0206c3-6e13-4499-92a3-7fb2b7527fcf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'routes/webhooks/recall-calendar-updates.js:175',message:'Failed to queue event sync job',data:{event,calendarId:calendar.id,errorMessage:queueError.message},timestamp:Date.now(),sessionId:'debug-session',runId:'run7',hypothesisId:'L'})}).catch(()=>{});
+        // #endregion
       }
     } else {
       // For unknown event types, trigger a sync anyway to ensure we don't miss new events
