@@ -13,9 +13,24 @@ export default async (req, res) => {
       },
     });
     if (calendar) {
-      await Recall.deleteCalendar(calendar.recallId);
       const calendarId = calendar.id;
       const calendarEmail = calendar.email;
+      
+      try {
+        // Try to delete from Recall API first
+        // If the calendar was already deleted from Recall, that's okay - we'll still delete it locally
+        try {
+          await Recall.deleteCalendar(calendar.recallId);
+        } catch (deleteError) {
+          // If calendar was already deleted from Recall, that's okay - we'll just delete it locally
+          console.log(`Calendar ${calendar.recallId} may have already been deleted from Recall: ${deleteError.message}`);
+        }
+      } catch (error) {
+        console.error(`Error deleting calendar from Recall API:`, error);
+        // Continue with local deletion even if Recall API deletion fails
+      }
+      
+      // Delete from local database
       await calendar.destroy();
 
       res.cookie(
