@@ -440,7 +440,7 @@
                             <div class="flex items-center space-x-1">
                               <!-- Play Recording Button -->
                               <button 
-                                onclick="openPlayerModal('<%= meeting.id %>', '<%= meeting.recordingUrl || '' %>', '<%= meeting.audioUrl || '' %>', '<%= (meeting.title || 'Meeting').replace(/'/g, "\\'") %>')"
+                                onclick='openPlayerModal("<%= meeting.id %>", "<%= (meeting.recordingUrl || "").replace(/"/g, "\\\"") %>", "<%= (meeting.audioUrl || "").replace(/"/g, "\\\"") %>", "<%= (meeting.title || "Meeting").replace(/"/g, "\\\"") %>")'
                                 class="<%= meeting.hasRecording ? 'text-green-600 hover:bg-green-50' : 'text-gray-300 cursor-not-allowed' %> p-2 rounded-lg transition-colors"
                                 title="<%= meeting.hasRecording ? 'Play Recording' : 'No recording available' %>"
                                 <%= meeting.hasRecording ? '' : 'disabled' %>
@@ -453,7 +453,7 @@
                               
                               <!-- Transcript Button -->
                               <button 
-                                onclick="openTranscriptModal('<%= meeting.id %>', '<%= (meeting.title || 'Meeting').replace(/'/g, \"\\'\") %>')"
+                                onclick='openTranscriptModal("<%= meeting.id %>", "<%= (meeting.title || "Meeting").replace(/"/g, "\\\"") %>")'
                                 class="<%= meeting.hasTranscript ? 'text-blue-600 hover:bg-blue-50' : 'text-gray-300 cursor-not-allowed' %> p-2 rounded-lg transition-colors text-left"
                                 title="<%= meeting.hasTranscript ? 'View Transcript' : 'No transcript available' %>"
                                 <%= meeting.hasTranscript ? '' : 'disabled' %>
@@ -465,7 +465,7 @@
                               
                               <!-- AI Summary Button -->
                               <button 
-                                onclick="openSummaryModal('<%= meeting.id %>', '<%= meeting.summaryId || '' %>', '<%= (meeting.title || 'Meeting').replace(/'/g, "\\'") %>')"
+                                onclick='openSummaryModal("<%= meeting.id %>", "<%= (meeting.summaryId || "").replace(/"/g, "\\\"") %>", "<%= (meeting.title || "Meeting").replace(/"/g, "\\\"") %>")'
                                 class="<%= meeting.hasSummary ? 'text-purple-600 hover:bg-purple-50' : 'text-gray-300 cursor-not-allowed' %> p-2 rounded-lg transition-colors"
                                 title="<%= meeting.hasSummary ? 'View AI Summary' : 'No summary available' %>"
                                 <%= meeting.hasSummary ? '' : 'disabled' %>
@@ -477,7 +477,7 @@
                               
                               <!-- Action Items Button -->
                               <button 
-                                onclick="openActionsModal('<%= meeting.id %>', '<%= meeting.summaryId || '' %>', '<%= (meeting.title || 'Meeting').replace(/'/g, "\\'") %>')"
+                                onclick='openActionsModal("<%= meeting.id %>", "<%= (meeting.summaryId || "").replace(/"/g, "\\\"") %>", "<%= (meeting.title || "Meeting").replace(/"/g, "\\\"") %>")'
                                 class="<%= meeting.hasSummary ? 'text-amber-600 hover:bg-amber-50' : 'text-gray-300 cursor-not-allowed' %> p-2 rounded-lg transition-colors"
                                 title="<%= meeting.hasSummary ? 'View Action Items' : 'No action items available' %>"
                                 <%= meeting.hasSummary ? '' : 'disabled' %>
