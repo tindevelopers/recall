@@ -116,6 +116,7 @@ function getTranscriptCount(transcript) {
  * This is a fallback for when webhooks don't reach the local server
  */
 async function syncBotArtifacts(calendars, userId) {
+  const MAX_COMPLETED_BOTS = 20; // avoid OOM by capping fetches per sync
   // List recent bots directly from Recall API
   let bots = [];
   try {
@@ -142,6 +143,11 @@ async function syncBotArtifacts(calendars, userId) {
     const lastStatusChange = bot.status_changes?.[bot.status_changes?.length - 1];
     const lastStatus = lastStatusChange?.code || lastStatusChange;
     
+    const effectiveStatus = statusCode || lastStatus;
+    if (['media_expired', 'recording_expired'].includes(effectiveStatus)) {
+      return false; // skip expired media to reduce payload/oom risk
+    }
+
     const isComplete = ['done', 'fatal', 'analysis_done', 'recording_done'].includes(statusCode) ||
                        ['done', 'fatal', 'analysis_done', 'recording_done'].includes(lastStatus);
     
@@ -149,12 +155,13 @@ async function syncBotArtifacts(calendars, userId) {
     return isComplete;
   });
   
-  console.log(`[MEETINGS] Found ${completedBots.length} completed bots`);
+  console.log(`[MEETINGS] Found ${completedBots.length} completed bots (processing max ${MAX_COMPLETED_BOTS})`);
+  const botsToProcess = completedBots.slice(0, MAX_COMPLETED_BOTS);
   
   // Get calendar recallIds for matching
   const calendarRecallIds = calendars.map(c => c.recallId);
   
-  for (const bot of completedBots) {
+  for (const bot of botsToProcess) {
     const botId = bot.id;
     const botStatus = bot.status?.code || bot.status;
     
