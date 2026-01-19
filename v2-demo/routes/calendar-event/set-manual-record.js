@@ -29,7 +29,7 @@ export default async (req, res) => {
         JSON.stringify(
           generateNotice(
             "success",
-            `Calendar Event(ID: ${event.id}) manual record set successfully.`
+            `Recording ${manualRecord === 'true' || manualRecord === true ? 'enabled' : 'disabled'} for "${event.title || 'meeting'}".`
           )
         )
       );
@@ -43,7 +43,8 @@ export default async (req, res) => {
         recallEventId: event.recallId,
       });
 
-      return res.redirect(`/calendar/${calendar.id}`);
+      // Redirect back to meetings page
+      return res.redirect(`/meetings`);
     } else {
       return res.render("404.ejs", {
         notice: req.notice,

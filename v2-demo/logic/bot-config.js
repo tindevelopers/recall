@@ -80,6 +80,12 @@ export function buildBotConfig({ calendar, event, publicUrl }) {
     }
   }
 
+  // Status callback URL - receives bot lifecycle events (recording.done, bot.status_change, etc.)
+  // This is REQUIRED for receiving notifications when recording is complete
+  if (publicUrl) {
+    botConfig.status_callback_url = `${publicUrl}/webhooks/recall-notes`;
+  }
+
   // Bot behavior settings
   if (calendar) {
     // Note: join_at should be calculated based on event start time, not set here

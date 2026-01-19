@@ -567,6 +567,8 @@ export default async (req, res) => {
         calendarTranscriptionMode,  // Calendar default for "Default" option label
         attendees,  // Add attendees for display
         bots: event.bots || [],  // Add bots for display
+        shouldRecordAutomatic: event.shouldRecordAutomatic || false,  // Auto-record status
+        shouldRecordManual: event.shouldRecordManual || false,  // Manual record status
       });
     }
   }

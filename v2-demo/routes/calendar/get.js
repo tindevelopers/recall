@@ -20,17 +20,13 @@ export default async (req, res) => {
           notice: req.notice,
         });
       }
-      const [webhooks, events] = await Promise.all([
-        calendar.getCalendarWebhooks({
-          order: [["receivedAt", "DESC"]],
-        }),
-        calendar.getCalendarEvents(),
-      ]);
+      const webhooks = await calendar.getCalendarWebhooks({
+        order: [["receivedAt", "DESC"]],
+      });
 
       return res.render("calendar.ejs", {        
         calendar,
         webhooks,
-        events: events.sort((a, b) => a.startTime - b.startTime),
         notice: req.notice,
         user: req.authentication.user,
       });
