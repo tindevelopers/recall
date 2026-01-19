@@ -72,9 +72,14 @@ export default async (job) => {
       botConfig.join_at = joinAtTime.toISOString();
     }
     
+    // Use a stable deduplication key based on the Recall event ID
+    // This ensures that when a meeting is updated (e.g., time changes), 
+    // the existing bot is updated rather than creating a new one
+    const deduplicationKey = `recall-event-${event.recallId}`;
+    
     // Log only a compact summary (Railway log rate limiting can drop important messages)
     console.log(
-      `[BOT_CONFIG] Scheduling summary: eventId=${event.id} recallEventId=${event.recallId} start=${event.startTime.toISOString()} join_at=${botConfig.join_at || "not_set"} hasMeetingUrl=${!!event.meetingUrl}`
+      `[BOT_CONFIG] Scheduling summary: eventId=${event.id} recallEventId=${event.recallId} start=${event.startTime.toISOString()} join_at=${botConfig.join_at || "not_set"} hasMeetingUrl=${!!event.meetingUrl} deduplicationKey=${deduplicationKey}`
     );
     
     // Validate event is in the future before scheduling
@@ -88,12 +93,12 @@ export default async (job) => {
     // add a bot to record the event. Recall will handle the case where the bot already exists.
     try {
       // #region agent log
-      fetch('http://127.0.0.1:7250/ingest/bf0206c3-6e13-4499-92a3-7fb2b7527fcf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'worker/processors/calendar-event-update-bot-schedule.js:66',message:'Calling Recall API to add bot',data:{recallEventId:event.recallId,eventId:event.id,deduplicationKey:`${event.startTime.toISOString()}-${event.meetingUrl}`,hasJoinAt:!!botConfig.join_at,joinAt:botConfig.join_at},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'G'})}).catch(()=>{});
+      fetch('http://127.0.0.1:7250/ingest/bf0206c3-6e13-4499-92a3-7fb2b7527fcf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'worker/processors/calendar-event-update-bot-schedule.js:66',message:'Calling Recall API to add bot',data:{recallEventId:event.recallId,eventId:event.id,deduplicationKey,hasJoinAt:!!botConfig.join_at,joinAt:botConfig.join_at},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'G'})}).catch(()=>{});
       // #endregion
       
       updatedEventFromRecall = await Recall.addBotToCalendarEvent({
         id: event.recallId,
-        deduplicationKey: `${event.startTime.toISOString()}-${event.meetingUrl}`,
+        deduplicationKey,
         botConfig,
       });
       
