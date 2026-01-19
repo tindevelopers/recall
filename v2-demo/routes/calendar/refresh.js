@@ -32,16 +32,37 @@ export default async (req, res) => {
           )
         );
       } catch (error) {
-        console.error(`ERROR: Failed to refresh calendar ${calendar.id}:`, error);
-        res.cookie(
-          "notice",
-          JSON.stringify(
-            generateNotice(
-              "error",
-              `Failed to refresh calendar data: ${error.message}`
+        // If calendar was deleted from Recall (404), mark it as disconnected locally
+        if (error.res && error.res.status === 404) {
+          console.log(`Calendar ${calendar.recallId} not found in Recall (was disconnected); marking as disconnected locally.`);
+          const updatedRecallData = {
+            ...calendar.recallData,
+            status: 'disconnected'
+          };
+          calendar.recallData = updatedRecallData;
+          await calendar.save();
+          
+          res.cookie(
+            "notice",
+            JSON.stringify(
+              generateNotice(
+                "success",
+                `Calendar is disconnected. It was removed from Recall.`
+              )
             )
-          )
-        );
+          );
+        } else {
+          console.error(`ERROR: Failed to refresh calendar ${calendar.id}:`, error);
+          res.cookie(
+            "notice",
+            JSON.stringify(
+              generateNotice(
+                "error",
+                `Failed to refresh calendar data: ${error.message}`
+              )
+            )
+          );
+        }
       }
       
       return res.redirect(`/calendar/${calendar.id}`);
