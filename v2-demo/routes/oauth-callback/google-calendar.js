@@ -55,25 +55,52 @@ export default async (req, res) => {
     if (localCalendar) {
       // this calendar was re-connected so we need to update the oauth tokens in Recall
       // and update the calendar in our database
-      recallCalendar = await Recall.updateCalendar({
-        id: localCalendar.recallId,
-        data: {          
-          oauth_refresh_token: oauthTokens.refresh_token,
-          oauth_client_id: process.env.GOOGLE_CALENDAR_OAUTH_CLIENT_ID,
-          oauth_client_secret: process.env.GOOGLE_CALENDAR_OAUTH_CLIENT_SECRET,
-          webhook_url: `${process.env.PUBLIC_URL}/webhooks/recall-calendar-updates`,
-        },
-      });
-      console.log(
-        `Successfully updated calendar in Recall: ${JSON.stringify(
-          recallCalendar
-        )}`
-      );
-      localCalendar.recallData = recallCalendar;
-      await localCalendar.save();
-      console.log(
-        `Successfully updated calendar(id: ${localCalendar.id}) in database`
-      );
+      // If the calendar was deleted from Recall (disconnected), create a new one instead
+      try {
+        recallCalendar = await Recall.updateCalendar({
+          id: localCalendar.recallId,
+          data: {          
+            oauth_refresh_token: oauthTokens.refresh_token,
+            oauth_client_id: process.env.GOOGLE_CALENDAR_OAUTH_CLIENT_ID,
+            oauth_client_secret: process.env.GOOGLE_CALENDAR_OAUTH_CLIENT_SECRET,
+            webhook_url: `${process.env.PUBLIC_URL}/webhooks/recall-calendar-updates`,
+          },
+        });
+        console.log(
+          `Successfully updated calendar in Recall: ${JSON.stringify(
+            recallCalendar
+          )}`
+        );
+        localCalendar.recallData = recallCalendar;
+        await localCalendar.save();
+        console.log(
+          `Successfully updated calendar(id: ${localCalendar.id}) in database`
+        );
+      } catch (err) {
+        // If calendar was deleted from Recall (404), create a new one
+        if (err.res && err.res.status === 404) {
+          console.warn(
+            `Calendar ${localCalendar.recallId} not found in Recall (was disconnected); creating new calendar. Error:`,
+            err.message || err
+          );
+          recallCalendar = await Recall.createCalendar({
+            platform: "google_calendar",
+            webhook_url: `${process.env.PUBLIC_URL}/webhooks/recall-calendar-updates`,
+            oauth_refresh_token: oauthTokens.refresh_token,
+            oauth_client_id: process.env.GOOGLE_CALENDAR_OAUTH_CLIENT_ID,
+            oauth_client_secret: process.env.GOOGLE_CALENDAR_OAUTH_CLIENT_SECRET,
+          });
+          localCalendar.recallId = recallCalendar.id;
+          localCalendar.recallData = recallCalendar;
+          await localCalendar.save();
+          console.log(
+            `Successfully created new Recall calendar and updated local calendar(id: ${localCalendar.id})`
+          );
+        } else {
+          // Re-throw other errors
+          throw err;
+        }
+      }
     } else {
       // Idempotency: if a calendar already exists for this user+platform, treat this as a reconnect.
       // (The dashboard "Connect" button historically didn't include calendarId in state, which caused duplicates.)
