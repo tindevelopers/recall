@@ -5,6 +5,18 @@ import { backgroundQueue } from "../../queue.js";
 import { telemetryEvent } from "../../utils/telemetry.js";
 const { sequelize } = db;
 
+// Generic/placeholder titles we should ignore when deriving a display name
+function isGenericMeetingTitle(title) {
+  if (!title) return true;
+  const normalized = String(title).trim().toLowerCase();
+  return (
+    normalized === "meeting" ||
+    normalized === "untitled meeting" ||
+    normalized === "untitled" ||
+    normalized === "(no title)"
+  );
+}
+
 /**
  * Extract attendees from a calendar event for display
  */
@@ -99,28 +111,22 @@ function getParticipantsForMeeting(artifact, calendarEvent) {
  * Derive a human-readable meeting title from various sources.
  */
 function extractMeetingTitle(artifact, calendarEvent) {
-  const isGeneric = (title) => {
-    if (!title) return true;
-    const normalized = String(title).trim().toLowerCase();
-    return (
-      normalized === "meeting" ||
-      normalized === "untitled meeting" ||
-      normalized === "untitled" ||
-      normalized === "(no title)"
-    );
-  };
-
   // 1) Calendar event title
-  if (calendarEvent?.title && !isGeneric(calendarEvent.title)) return calendarEvent.title;
+  if (calendarEvent?.title && !isGenericMeetingTitle(calendarEvent.title)) {
+    return calendarEvent.title;
+  }
 
   // 2) Artifact payload title
-  if (artifact?.rawPayload?.data?.title && !isGeneric(artifact.rawPayload.data.title)) {
+  if (
+    artifact?.rawPayload?.data?.title &&
+    !isGenericMeetingTitle(artifact.rawPayload.data.title)
+  ) {
     return artifact.rawPayload.data.title;
   }
 
   // 3) Bot meeting_metadata title (if present)
   const botMetaTitle = artifact?.rawPayload?.data?.bot_metadata?.meeting_metadata?.title;
-  if (botMetaTitle && !isGeneric(botMetaTitle)) {
+  if (botMetaTitle && !isGenericMeetingTitle(botMetaTitle)) {
     return botMetaTitle;
   }
 
@@ -132,8 +138,8 @@ function extractMeetingTitle(artifact, calendarEvent) {
     if (urlTitle) return urlTitle;
   }
 
-  // 5) Build from participants
-  const participants = getParticipantsFromArtifact(artifact);
+  // 5) Build from participants (prefer artifact participants, otherwise calendar attendees)
+  const participants = getParticipantsForMeeting(artifact, calendarEvent);
   if (participants.length > 0) {
     const names = participants
       .slice(0, 2)
@@ -956,7 +962,9 @@ export default async (req, res) => {
     const calendarEvent = summary.CalendarEvent;
     const key = `summary-${summary.id}`;
     const summaryTitle =
-      calendarEvent?.title && calendarEvent.title.trim().length > 0
+      calendarEvent?.title &&
+      calendarEvent.title.trim().length > 0 &&
+      !isGenericMeetingTitle(calendarEvent.title)
         ? calendarEvent.title
         : extractMeetingTitle(null, calendarEvent);
     const summaryParticipants = calendarEvent ? getAttendeesFromEvent(calendarEvent) : [];
