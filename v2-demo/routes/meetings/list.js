@@ -99,15 +99,29 @@ function getParticipantsForMeeting(artifact, calendarEvent) {
  * Derive a human-readable meeting title from various sources.
  */
 function extractMeetingTitle(artifact, calendarEvent) {
+  const isGeneric = (title) => {
+    if (!title) return true;
+    const normalized = String(title).trim().toLowerCase();
+    return (
+      normalized === "meeting" ||
+      normalized === "untitled meeting" ||
+      normalized === "untitled" ||
+      normalized === "(no title)"
+    );
+  };
+
   // 1) Calendar event title
-  if (calendarEvent?.title) return calendarEvent.title;
+  if (calendarEvent?.title && !isGeneric(calendarEvent.title)) return calendarEvent.title;
 
   // 2) Artifact payload title
-  if (artifact?.rawPayload?.data?.title) return artifact.rawPayload.data.title;
+  if (artifact?.rawPayload?.data?.title && !isGeneric(artifact.rawPayload.data.title)) {
+    return artifact.rawPayload.data.title;
+  }
 
   // 3) Bot meeting_metadata title (if present)
-  if (artifact?.rawPayload?.data?.bot_metadata?.meeting_metadata?.title) {
-    return artifact.rawPayload.data.bot_metadata.meeting_metadata.title;
+  const botMetaTitle = artifact?.rawPayload?.data?.bot_metadata?.meeting_metadata?.title;
+  if (botMetaTitle && !isGeneric(botMetaTitle)) {
+    return botMetaTitle;
   }
 
   // 4) Derive from meeting URL
@@ -160,6 +174,20 @@ function extractTitleFromUrl(url) {
   } catch (err) {
     return null;
   }
+}
+
+/**
+ * Normalize meeting URL into a string.
+ */
+function normalizeMeetingUrl(rawUrl) {
+  if (!rawUrl) return null;
+  if (typeof rawUrl === "string") return rawUrl;
+  if (typeof rawUrl === "object") {
+    if (rawUrl.url) return rawUrl.url;
+    if (rawUrl.href) return rawUrl.href;
+    if (rawUrl.link) return rawUrl.link;
+  }
+  return null;
 }
 
 /**
@@ -913,10 +941,9 @@ export default async (req, res) => {
       calendarEmail: calendarEvent?.Calendar?.email || null,
       platform: calendarEvent?.Calendar?.platform || null,
       summaryId: summary?.id || null,
-      meetingUrl:
-        calendarEvent?.meetingUrl ||
-        artifact.rawPayload?.data?.meeting_url ||
-        null,
+      meetingUrl: normalizeMeetingUrl(
+        calendarEvent?.meetingUrl || artifact.rawPayload?.data?.meeting_url || null
+      ),
       createdAt: artifact.createdAt,
       syncedFromApi: !!artifact.rawPayload?.synced_from_api,
     });
@@ -929,9 +956,9 @@ export default async (req, res) => {
     const calendarEvent = summary.CalendarEvent;
     const key = `summary-${summary.id}`;
     const summaryTitle =
-      calendarEvent?.title ||
-      extractTitleFromUrl(calendarEvent?.meetingUrl || "") ||
-      "Untitled Meeting";
+      calendarEvent?.title && calendarEvent.title.trim().length > 0
+        ? calendarEvent.title
+        : extractMeetingTitle(null, calendarEvent);
     const summaryParticipants = calendarEvent ? getAttendeesFromEvent(calendarEvent) : [];
 
     meetingsMap.set(key, {
@@ -956,7 +983,7 @@ export default async (req, res) => {
       participants: summaryParticipants,
       calendarEmail: calendarEvent?.Calendar?.email || null,
       platform: calendarEvent?.platform || null,
-      meetingUrl: calendarEvent?.meetingUrl || null,
+      meetingUrl: normalizeMeetingUrl(calendarEvent?.meetingUrl || null),
       summaryId: summary.id,
       createdAt: summary.createdAt,
     });

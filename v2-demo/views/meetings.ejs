@@ -358,7 +358,29 @@
                           </div>
                               <div class="flex-1 min-w-0 space-y-1">
                                 <div class="flex items-center space-x-2">
-                                  <h4 class="text-base font-semibold text-gray-900 truncate"><%= meeting.title %></h4>
+                                  <% 
+                                    const rawTitle = meeting.title || '';
+                                    const genericTitles = ['meeting','untitled meeting','untitled'];
+                                    const isGeneric = genericTitles.includes(rawTitle.trim().toLowerCase());
+                                    let displayTitle = rawTitle;
+                                    if (!displayTitle || isGeneric) {
+                                      if (meeting.participants && meeting.participants.length > 0) {
+                                        const names = meeting.participants
+                                          .slice(0, 2)
+                                          .map(p => (p.name || (p.email ? p.email.split('@')[0] : '') || '').trim())
+                                          .filter(Boolean);
+                                        if (names.length > 0) {
+                                          displayTitle = `Meeting with ${names.join(' and ')}${meeting.participants.length > 2 ? ` +${meeting.participants.length - 2}` : ''}`;
+                                        }
+                                      }
+                                    }
+                                    if ((!displayTitle || isGeneric) && meeting.startTime) {
+                                      const d = new Date(meeting.startTime);
+                                      displayTitle = `Meeting on ${d.toLocaleDateString()}`;
+                                    }
+                                    if (!displayTitle) displayTitle = 'Meeting';
+                                  %>
+                                  <h4 class="text-base font-semibold text-gray-900 truncate"><%= displayTitle %></h4>
                                   <% if (meeting.platform) { %>
                                     <span class="inline-flex items-center rounded-full bg-gray-100 px-2 py-0.5 text-xxs font-medium text-gray-700 ring-1 ring-inset ring-gray-200">
                                       <%= meeting.platform === 'google_calendar' ? 'Google' : meeting.platform === 'microsoft_outlook' ? 'Outlook' : 'Meeting' %>
@@ -390,12 +412,17 @@
                                   <% } %>
                                 </div>
 
-                                <% if (meeting.meetingUrl) { %>
+                                <% if (meeting.meetingUrl) { 
+                                     const urlRaw = meeting.meetingUrl;
+                                     const urlStr = typeof urlRaw === 'string' ? urlRaw : (urlRaw.url || urlRaw.href || urlRaw.link || '');
+                                     let urlHost = urlStr;
+                                     try { urlHost = new URL(urlStr).hostname; } catch (e) {}
+                                %>
                                   <div class="flex items-center text-xs text-indigo-600 truncate max-w-xl">
                                     <svg class="mr-1.5 h-3.5 w-3.5 text-indigo-500" viewBox="0 0 20 20" fill="currentColor">
                                       <path fill-rule="evenodd" d="M12.586 4.586a2 2 0 112.828 2.828l-3 3a2 2 0 01-2.828 0l-.586-.586 1.414-1.414.586.586 3-3zM7.414 9.414l-.586-.586-3 3a2 2 0 102.828 2.828l3-3a2 2 0 000-2.828l-.586-.586-1.414 1.414z" clip-rule="evenodd" />
                                     </svg>
-                                    <a href="<%= meeting.meetingUrl %>" target="_blank" class="hover:underline truncate"><%= meeting.meetingUrl %></a>
+                                    <a href="<%= urlStr %>" target="_blank" class="hover:underline truncate"><%= urlHost || urlStr %></a>
                                   </div>
                                 <% } %>
 
