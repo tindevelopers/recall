@@ -207,7 +207,13 @@ export default async (req, res) => {
 
     // The calendar might still be "connecting" at this point - Recall will send a webhook
     // when it's fully connected with the email. For now, show a generic success message.
-    const emailDisplay = localCalendar.email || "your account";
+    // The calendar might still be "connecting" at this point - Recall will send a webhook
+    // when it's fully connected with the email. Use user's email as fallback.
+    const user = await db.User.findByPk(userId);
+    const calendarEmail = localCalendar.email && localCalendar.email !== "Unknown" 
+      ? localCalendar.email 
+      : null;
+    const emailDisplay = calendarEmail || user?.email || "your account";
     res.cookie(
       "notice",
       JSON.stringify(
