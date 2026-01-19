@@ -87,7 +87,7 @@ export async function getTranscript(req, res) {
           console.log(`[API] Transcript: Using direct array format (${rawTranscript.length} segments)`);
           transcript = rawTranscript.map((segment, idx) => ({
             speaker: segment.speaker || segment.speaker_id || segment.participant?.name || "Speaker",
-            text: segment.text || segment.word || segment.words || segment.transcript || "",
+            text: segment.text || segment.word || segment.transcript || "",
             timestamp: segment.start_timestamp || segment.start_time || segment.timestamp || 0,
             isFinal: true,
           }));
@@ -257,7 +257,7 @@ export async function triggerEnrichment(req, res) {
     await backgroundQueue.add(
       "meeting.enrich",
       {
-        artifactId: artifact.id,
+        meetingArtifactId: artifact.id,
         userId,
         source: "on_demand",
       },
