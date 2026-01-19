@@ -16,6 +16,10 @@ export async function updateAutoRecordStatusForCalendarEvents({
     autoRecordOnlyConfirmedEvents,
     email: calendarEmail,
   } = calendar;
+  
+  // #region agent log
+  fetch('http://127.0.0.1:7250/ingest/bf0206c3-6e13-4499-92a3-7fb2b7527fcf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'autorecord.js:start',message:'Auto-record settings',data:{calendarId:calendar.id,autoRecordExternalEvents,autoRecordInternalEvents,autoRecordOnlyConfirmedEvents,calendarEmail,eventCount:events.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+  // #endregion
 
   for (const index in events) {
     const event = events[index];
@@ -65,6 +69,11 @@ export async function updateAutoRecordStatusForCalendarEvents({
 
     event.shouldRecordAutomatic = shouldRecordAutomatic;
     await event.save();
+    
+    // #region agent log
+    fetch('http://127.0.0.1:7250/ingest/bf0206c3-6e13-4499-92a3-7fb2b7527fcf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'autorecord.js:result',message:'Auto-record decision',data:{eventId:event.id,title:event.title,shouldRecordAutomatic,external:isExternalEvent({event,calendarEmail}),hasMeetingUrl:!!event.meetingUrl,hasInvitees:hasInvitees(event),autoRecordExternalEvents,autoRecordInternalEvents},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'AB'})}).catch(()=>{});
+    // #endregion
+    
     console.log(
       `INFO: Updated should record automatic status of '${event.title}' to ${shouldRecordAutomatic}`
     );

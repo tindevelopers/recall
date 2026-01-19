@@ -88,7 +88,7 @@ export default async (job) => {
     // add a bot to record the event. Recall will handle the case where the bot already exists.
     try {
       // #region agent log
-      fetch('http://127.0.0.1:7248/ingest/9df62f0f-78c1-44fb-821f-c3c7b9f764cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'worker/processors/calendar-event-update-bot-schedule.js:66',message:'Calling Recall API to add bot',data:{recallEventId:event.recallId,eventId:event.id,deduplicationKey:`${event.startTime.toISOString()}-${event.meetingUrl}`,hasJoinAt:!!botConfig.join_at,joinAt:botConfig.join_at},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'G'})}).catch(()=>{});
+      fetch('http://127.0.0.1:7250/ingest/bf0206c3-6e13-4499-92a3-7fb2b7527fcf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'worker/processors/calendar-event-update-bot-schedule.js:66',message:'Calling Recall API to add bot',data:{recallEventId:event.recallId,eventId:event.id,deduplicationKey:`${event.startTime.toISOString()}-${event.meetingUrl}`,hasJoinAt:!!botConfig.join_at,joinAt:botConfig.join_at},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'G'})}).catch(()=>{});
       // #endregion
       
       updatedEventFromRecall = await Recall.addBotToCalendarEvent({
@@ -98,12 +98,12 @@ export default async (job) => {
       });
       
       // #region agent log
-      fetch('http://127.0.0.1:7248/ingest/9df62f0f-78c1-44fb-821f-c3c7b9f764cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'worker/processors/calendar-event-update-bot-schedule.js:72',message:'Recall API call succeeded',data:{eventId:event.id,hasResponse:!!updatedEventFromRecall,responseBots:updatedEventFromRecall?.bots?.length||0,botIds:updatedEventFromRecall?.bots?.map(b=>b.id)||[]},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'G'})}).catch(()=>{});
+      fetch('http://127.0.0.1:7250/ingest/bf0206c3-6e13-4499-92a3-7fb2b7527fcf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'worker/processors/calendar-event-update-bot-schedule.js:72',message:'Recall API call succeeded',data:{eventId:event.id,hasResponse:!!updatedEventFromRecall,responseBots:updatedEventFromRecall?.bots?.length||0,botIds:updatedEventFromRecall?.bots?.map(b=>b.id)||[]},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'G'})}).catch(()=>{});
       // #endregion
     } catch (error) {
       console.error(`[BOT_CONFIG] Failed to schedule bot for event ${event.id}:`, error.message);
       // #region agent log
-      fetch('http://127.0.0.1:7248/ingest/9df62f0f-78c1-44fb-821f-c3c7b9f764cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'worker/processors/calendar-event-update-bot-schedule.js:73',message:'Recall API call failed',data:{eventId:event.id,errorMessage:error.message,errorStatus:error.res?.status,hasErrorBody:!!error.res},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'G'})}).catch(()=>{});
+      fetch('http://127.0.0.1:7250/ingest/bf0206c3-6e13-4499-92a3-7fb2b7527fcf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'worker/processors/calendar-event-update-bot-schedule.js:73',message:'Recall API call failed',data:{eventId:event.id,errorMessage:error.message,errorStatus:error.res?.status,hasErrorBody:!!error.res},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'G'})}).catch(()=>{});
       // #endregion
       // Log the full error for debugging
       if (error.res) {
