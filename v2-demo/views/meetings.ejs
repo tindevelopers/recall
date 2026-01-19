@@ -141,11 +141,11 @@
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                               </svg>
                               <% if (event.startTime) { %>
-                                <%= new Date(event.startTime).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }) %>
+                                <span class="local-datetime" data-iso="<%= new Date(event.startTime).toISOString() %>" data-format="date"></span>
                                 at
-                                <%= new Date(event.startTime).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) %>
+                                <span class="local-datetime" data-iso="<%= new Date(event.startTime).toISOString() %>" data-format="time"></span>
                                 <% if (event.endTime) { %>
-                                  - <%= new Date(event.endTime).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) %>
+                                  - <span class="local-datetime" data-iso="<%= new Date(event.endTime).toISOString() %>" data-format="time"></span>
                                 <% } %>
                               <% } %>
                             </div>
@@ -259,6 +259,29 @@
                     meetingsSample: meetings && meetings.length > 0 ? meetings.slice(0, 3) : []
                   });
                 </script>
+                <% if (totalPages && totalPages > 1) { %>
+                  <div class="flex items-center justify-between mb-4">
+                    <div class="text-xs text-gray-500">
+                      Page <%= page %> of <%= totalPages %>
+                    </div>
+                    <div class="flex space-x-2">
+                      <a
+                        href="<%= hasPrev ? (`/meetings?page=${page - 1}`) : '#' %>"
+                        class="px-3 py-1.5 rounded-lg text-sm font-medium border <%= hasPrev ? 'text-gray-700 border-gray-200 hover:bg-gray-50' : 'text-gray-300 border-gray-100 cursor-not-allowed' %>"
+                        aria-disabled="<%= !hasPrev %>"
+                      >
+                        Previous
+                      </a>
+                      <a
+                        href="<%= hasNext ? (`/meetings?page=${page + 1}`) : '#' %>"
+                        class="px-3 py-1.5 rounded-lg text-sm font-medium border <%= hasNext ? 'text-gray-700 border-gray-200 hover:bg-gray-50' : 'text-gray-300 border-gray-100 cursor-not-allowed' %>"
+                        aria-disabled="<%= !hasNext %>"
+                      >
+                        Next
+                      </a>
+                    </div>
+                  </div>
+                <% } %>
                 <% if (typeof meetings === 'undefined' || meetings === null || !Array.isArray(meetings) || meetings.length === 0) { %>
                   <div class="text-center py-12">
                     <svg class="mx-auto h-12 w-12 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -300,9 +323,7 @@
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
                               </svg>
                               <% if (meeting.startTime) { %>
-                                <%= new Date(meeting.startTime).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' }) %>
-                                at
-                                <%= new Date(meeting.startTime).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) %>
+                                <span class="local-datetime" data-iso="<%= new Date(meeting.startTime).toISOString() %>" data-format="datetime"></span>
                               <% } else { %>
                                 Date unknown
                               <% } %>
@@ -415,6 +436,30 @@
 </div>
 
 <script>
+// Format all datetime elements to user's local timezone
+document.addEventListener('DOMContentLoaded', function() {
+  document.querySelectorAll('.local-datetime').forEach(function(el) {
+    const iso = el.getAttribute('data-iso');
+    const format = el.getAttribute('data-format');
+    if (!iso) return;
+    
+    const date = new Date(iso);
+    let formatted = '';
+    
+    if (format === 'date') {
+      formatted = date.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
+    } else if (format === 'time') {
+      formatted = date.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+    } else if (format === 'datetime') {
+      formatted = date.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' }) + 
+                  ' at ' + 
+                  date.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+    }
+    
+    el.textContent = formatted;
+  });
+});
+
 function switchMeetingsTab(tabName) {
   // Check if tabs exist (only when calendar is connected)
   const tabContent = document.getElementById('content-' + tabName);

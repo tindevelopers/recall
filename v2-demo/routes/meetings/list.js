@@ -512,6 +512,10 @@ export default async (req, res) => {
     return res.redirect("/sign-in");
   }
 
+  const PAGE_SIZE = 50;
+  const page = Math.max(1, parseInt(req.query.page, 10) || 1);
+  const offset = (page - 1) * PAGE_SIZE;
+
   const userId = req.authentication.user.id;
 
   // Check if user has any connected calendars
@@ -639,8 +643,9 @@ export default async (req, res) => {
 
   // Get all meeting artifacts for this user with their summaries
   let artifacts = [];
+  let artifactsCount = 0;
   try {
-    artifacts = await db.MeetingArtifact.findAll({
+    const artifactResult = await db.MeetingArtifact.findAndCountAll({
       where: { userId },
       include: [
         {
@@ -654,15 +659,20 @@ export default async (req, res) => {
         },
       ],
       order: [["createdAt", "DESC"]],
+      limit: PAGE_SIZE,
+      offset,
     });
+    artifacts = artifactResult.rows;
+    artifactsCount = artifactResult.count;
   } catch (error) {
     console.error(`[MEETINGS] Error fetching meeting artifacts:`, error);
   }
 
   // Also get summaries that might not have artifacts (edge case)
   let summaries = [];
+  let summariesCount = 0;
   try {
-    summaries = await db.MeetingSummary.findAll({
+    const summaryResult = await db.MeetingSummary.findAndCountAll({
       where: { userId },
       include: [
         {
@@ -675,7 +685,11 @@ export default async (req, res) => {
         },
       ],
       order: [["createdAt", "DESC"]],
+      limit: PAGE_SIZE,
+      offset,
     });
+    summaries = summaryResult.rows;
+    summariesCount = summaryResult.count;
   } catch (error) {
     console.error(`[MEETINGS] Error fetching meeting summaries:`, error);
   }
@@ -750,8 +764,12 @@ export default async (req, res) => {
   const meetings = Array.from(meetingsMap.values()).sort(
     (a, b) => new Date(b.startTime || b.createdAt) - new Date(a.startTime || a.createdAt)
   );
-  
-  
+
+  const totalCount = artifactsCount + summariesCount;
+  const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
+  const hasNext = page < totalPages;
+  const hasPrev = page > 1;
+
   console.log(`[MEETINGS-DEBUG] Rendering meetings page:`, {
     userId,
     calendarsCount: calendars.length,
@@ -761,6 +779,8 @@ export default async (req, res) => {
     meetingsCount: meetings.length,
     upcomingEventsCount: upcomingEvents.length,
     meetingsSample: meetings.slice(0, 3).map(m => ({ id: m.id, title: m.title, type: m.type })),
+    page,
+    totalPages,
   });
 
   
@@ -770,5 +790,9 @@ export default async (req, res) => {
     meetings,
     upcomingEvents,
     hasCalendars: calendars.length > 0,
+    page,
+    totalPages,
+    hasNext,
+    hasPrev,
   });
 };
