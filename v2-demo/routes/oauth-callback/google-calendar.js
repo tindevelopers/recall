@@ -50,9 +50,14 @@ export default async (req, res) => {
     let recallCalendar = null;
     if (calendarId) {
       localCalendar = await db.Calendar.findByPk(calendarId);
+      // If calendar was deleted (disconnected), treat as new connection
+      if (!localCalendar) {
+        console.log(`Calendar ${calendarId} not found (was deleted/disconnected), treating as new connection`);
+        calendarId = null; // Clear calendarId to force new calendar creation
+      }
     }
 
-    if (localCalendar) {
+    if (localCalendar && localCalendar.recallId) {
       // this calendar was re-connected so we need to update the oauth tokens in Recall
       // and update the calendar in our database
       // If the calendar was deleted from Recall (disconnected), create a new one instead

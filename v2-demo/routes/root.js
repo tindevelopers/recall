@@ -9,16 +9,26 @@ import { getPageOrDatabase } from "../services/notion/api-client.js";
 
 export default async (req, res) => {
   if (req.authenticated) {
-    const calendars = await req.authentication.user.getCalendars();
+    const allCalendars = await req.authentication.user.getCalendars();
+    
+    // Filter out disconnected calendars - they shouldn't be displayed
+    const calendars = allCalendars.filter((calendar) => {
+      const status = calendar.status || calendar.recallData?.status;
+      return status !== "disconnected" && status !== null && status !== undefined;
+    });
+    
     // Pick the most recently updated calendar per platform (we only support one connection
     // per platform per user; reconnect should update the existing record instead of creating a new one).
+    // Only include connected calendars for OAuth URL building
     const calendarIdByPlatform = new Map();
     // Ensure deterministic ordering even if the association doesn't sort
     const calendarsSorted = [...calendars].sort(
       (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
     );
     for (const calendar of calendarsSorted) {
-      if (!calendarIdByPlatform.has(calendar.platform)) {
+      const status = calendar.status || calendar.recallData?.status;
+      // Only include connected calendars for reconnection URLs
+      if (!calendarIdByPlatform.has(calendar.platform) && status === "connected") {
         calendarIdByPlatform.set(calendar.platform, calendar.id);
       }
     }
