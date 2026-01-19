@@ -107,9 +107,71 @@ export function buildBotConfig({ calendar, event, publicUrl }) {
       botConfig.automatic_leave = {
         waiting_room_timeout: calendar.autoLeaveAloneTimeoutSeconds || 60,
         noone_joined_timeout: calendar.autoLeaveAloneTimeoutSeconds || 60,
+        everyone_left_timeout: calendar.autoLeaveAloneTimeoutSeconds || 60,
       };
     }
   }
+
+  // Bot detection - detect other AI bots and leave when only bots remain
+  // This prevents our bot from staying in meetings with only other AI bots
+  botConfig.bot_detection = {
+    // Detect bots by common naming patterns
+    using_participant_names: {
+      keywords: [
+        // Generic bot indicators
+        "notetaker",
+        "note taker",
+        "recorder",
+        "assistant",
+        "bot",
+        "ai ",
+        " ai",
+        // Common AI meeting bot vendors
+        "otter",
+        "otter.ai",
+        "fireflies",
+        "fireflies.ai",
+        "read.ai",
+        "read ai",
+        "fathom",
+        "grain",
+        "gong",
+        "chorus",
+        "avoma",
+        "meetgeek",
+        "krisp",
+        "sembly",
+        "tactiq",
+        "tl;dv",
+        "tldv",
+        "vowel",
+        "airgram",
+        "jamie",
+        "supernormal",
+        "fellow",
+        "nylas",
+        "circleback",
+        "bluedot",
+        "meetrecord",
+        "claap",
+        "rewatch",
+        "loom",
+        "recall",
+      ],
+      // Start detecting after 5 minutes to allow humans time to join
+      activate_after: 300,
+      // Leave 10 seconds after detecting only bots remain
+      timeout: 10,
+    },
+    // Also detect bots by behavior - participants who never speak or share screen
+    using_participant_events: {
+      types: ["active_speaker", "screen_share"],
+      // Start detecting after 5 minutes
+      activate_after: 300,
+      // Leave 30 seconds after detecting no human activity
+      timeout: 30,
+    },
+  };
 
   return botConfig;
 }

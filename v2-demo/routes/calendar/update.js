@@ -4,9 +4,6 @@ import { backgroundQueue } from "../../queue.js";
 import { updateAutoRecordStatusForCalendarEvents } from "../../logic/autorecord.js";
 
 export default async (req, res) => {
-  // #region agent log
-  fetch('http://127.0.0.1:7250/ingest/bf0206c3-6e13-4499-92a3-7fb2b7527fcf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'routes/calendar/update.js:7',message:'PATCH /calendar/:id handler entry',data:{calendarId:req.params.id,method:req.method,bodyKeys:Object.keys(req.body||{}),hasAutoRecordExternalEvents:'autoRecordExternalEvents' in req.body,hasAutoRecordInternalEvents:'autoRecordInternalEvents' in req.body,hasRecordVideo:'recordVideo' in req.body,hasRecordAudio:'recordAudio' in req.body},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-  // #endregion
   if (!req.authenticated) {
     return res.redirect("/");
   } else {
@@ -16,9 +13,6 @@ export default async (req, res) => {
         userId: req.authentication.user.id,
       },
     });
-    // #region agent log
-    fetch('http://127.0.0.1:7250/ingest/bf0206c3-6e13-4499-92a3-7fb2b7527fcf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'routes/calendar/update.js:15',message:'Calendar lookup result',data:{calendarId:req.params.id,calendarFound:!!calendar,calendarEmail:calendar?.email},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-    // #endregion
     if (calendar) {
       // html form payload does not include unchecked checkboxes, so we default to "off".
       const {
@@ -29,9 +23,6 @@ export default async (req, res) => {
         recordVideo = "off",
         recordAudio = "off",
       } = req.body || {};
-      // #region agent log
-      fetch('http://127.0.0.1:7250/ingest/bf0206c3-6e13-4499-92a3-7fb2b7527fcf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'routes/calendar/update.js:24',message:'Parsed form values BEFORE update',data:{autoRecordExternalEvents,autoRecordInternalEvents,autoRecordOnlyConfirmedEvents,useRetellTranscription,recordVideoRaw:req.body?.recordVideo,recordAudioRaw:req.body?.recordAudio,recordVideoIsArray:Array.isArray(req.body?.recordVideo),recordAudioIsArray:Array.isArray(req.body?.recordAudio),currentAutoRecordExternalEvents:calendar.autoRecordExternalEvents,currentAutoRecordInternalEvents:calendar.autoRecordInternalEvents,currentRecordVideo:calendar.recordVideo,currentRecordAudio:calendar.recordAudio},timestamp:Date.now(),sessionId:'debug-session',runId:'run2',hypothesisId:'G'})}).catch(()=>{});
-      // #endregion
 
       calendar.autoRecordExternalEvents = autoRecordExternalEvents === "on" ? true : false;
       calendar.autoRecordInternalEvents = autoRecordInternalEvents === "on" ? true : false;
@@ -54,18 +45,9 @@ export default async (req, res) => {
           : req.body.recordAudio;
         calendar.recordAudio = recordAudioValue === "on";
       }
-      // #region agent log
-      fetch('http://127.0.0.1:7250/ingest/bf0206c3-6e13-4499-92a3-7fb2b7527fcf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'routes/calendar/update.js:57',message:'Calendar values AFTER assignment, BEFORE save',data:{calendarId:calendar.id,autoRecordExternalEvents:calendar.autoRecordExternalEvents,autoRecordInternalEvents:calendar.autoRecordInternalEvents,autoRecordOnlyConfirmedEvents:calendar.autoRecordOnlyConfirmedEvents,useRetellTranscription:calendar.useRetellTranscription,recordVideo:calendar.recordVideo,recordAudio:calendar.recordAudio,hasRecordVideoInBody:'recordVideo' in req.body,hasRecordAudioInBody:'recordAudio' in req.body,changedFields:calendar.changed(),isNewRecord:calendar.isNewRecord},timestamp:Date.now(),sessionId:'debug-session',runId:'run3',hypothesisId:'H'})}).catch(()=>{});
-      // #endregion
       await calendar.save();
-      // #region agent log
-      fetch('http://127.0.0.1:7250/ingest/bf0206c3-6e13-4499-92a3-7fb2b7527fcf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'routes/calendar/update.js:59',message:'Calendar save() completed - verifying database',data:{calendarId:calendar.id,autoRecordExternalEvents:calendar.autoRecordExternalEvents,autoRecordInternalEvents:calendar.autoRecordInternalEvents,autoRecordOnlyConfirmedEvents:calendar.autoRecordOnlyConfirmedEvents,useRetellTranscription:calendar.useRetellTranscription,recordVideo:calendar.recordVideo,recordAudio:calendar.recordAudio,updatedAt:calendar.updatedAt},timestamp:Date.now(),sessionId:'debug-session',runId:'run3',hypothesisId:'H'})}).catch(()=>{});
-      // #endregion
       // Verify by reloading from database
       await calendar.reload();
-      // #region agent log
-      fetch('http://127.0.0.1:7250/ingest/bf0206c3-6e13-4499-92a3-7fb2b7527fcf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'routes/calendar/update.js:62',message:'Calendar reloaded from PostgreSQL - verifying persistence',data:{calendarId:calendar.id,autoRecordExternalEvents:calendar.autoRecordExternalEvents,autoRecordInternalEvents:calendar.autoRecordInternalEvents,autoRecordOnlyConfirmedEvents:calendar.autoRecordOnlyConfirmedEvents,useRetellTranscription:calendar.useRetellTranscription,recordVideo:calendar.recordVideo,recordAudio:calendar.recordAudio,updatedAt:calendar.updatedAt,dataSource:calendar.sequelize?.getDialect()||'unknown'},timestamp:Date.now(),sessionId:'debug-session',runId:'run3',hypothesisId:'H'})}).catch(()=>{});
-      // #endregion
       
       res.cookie(
         "notice",

@@ -186,6 +186,7 @@ export default {
         method: "GET",
       });
       
+      
       // Check for transcript in various locations
       // v1 API may have transcript directly or via URL
       if (bot.transcript) {

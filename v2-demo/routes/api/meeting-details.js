@@ -152,15 +152,9 @@ export async function getSummary(req, res) {
     });
 
     if (!summary) {
-      // #region agent log
-      fetch('http://127.0.0.1:7248/ingest/9df62f0f-78c1-44fb-821f-c3c7b9f764cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'routes/api/meeting-details.js:149',message:'No summary found for meeting',data:{meetingId,artifactId:artifact.id,artifactStatus:artifact.status},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'F'})}).catch(()=>{});
-      // #endregion
       return res.json({ summary: null });
     }
 
-    // #region agent log
-    fetch('http://127.0.0.1:7248/ingest/9df62f0f-78c1-44fb-821f-c3c7b9f764cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'routes/api/meeting-details.js:155',message:'Summary retrieved',data:{meetingId,hasSummary:!!summary.summary,summaryLength:summary.summary?.length||0,actionItemsCount:summary.actionItems?.length||0,followUpsCount:summary.followUps?.length||0,topicsCount:summary.topics?.length||0,source:summary.source},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'F'})}).catch(()=>{});
-    // #endregion
 
     // Use the correct field names from the model
     return res.json({ 
@@ -213,9 +207,6 @@ export async function getActionItems(req, res) {
     // Use the actionItems field directly from the model
     const actionItems = summary?.actionItems || [];
     
-    // #region agent log
-    fetch('http://127.0.0.1:7248/ingest/9df62f0f-78c1-44fb-821f-c3c7b9f764cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'routes/api/meeting-details.js:214',message:'Action items retrieved',data:{meetingId,hasSummary:!!summary,actionItemsCount:actionItems.length,actionItemsSample:actionItems.slice(0,3)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'F'})}).catch(()=>{});
-    // #endregion
 
     return res.json({ actionItems });
   } catch (error) {

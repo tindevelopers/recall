@@ -3,9 +3,6 @@ import db from "../../db.js";
 import { backgroundQueue } from "../../queue.js";
 
 export default async (req, res) => {
-  // #region agent log
-  fetch('http://127.0.0.1:7250/ingest/bf0206c3-6e13-4499-92a3-7fb2b7527fcf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'routes/calendar/update-bot-settings.js:6',message:'PATCH /calendar/:id/bot-settings handler entry',data:{calendarId:req.params.id,method:req.method,bodyKeys:Object.keys(req.body||{}),hasRecordVideo:'recordVideo' in req.body,hasRecordAudio:'recordAudio' in req.body,hasAutoRecordExternalEvents:'autoRecordExternalEvents' in req.body},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
-  // #endregion
   if (!req.authenticated) {
     return res.redirect("/");
   }
@@ -53,14 +50,8 @@ export default async (req, res) => {
   calendar.botAvatarUrl = botAvatarUrl.trim() || null;
 
   // Update recording settings
-  // #region agent log
-  fetch('http://127.0.0.1:7250/ingest/bf0206c3-6e13-4499-92a3-7fb2b7527fcf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'routes/calendar/update-bot-settings.js:54',message:'Recording settings BEFORE update',data:{recordVideo,recordAudio,currentRecordVideo:calendar.recordVideo,currentRecordAudio:calendar.recordAudio},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
-  // #endregion
   calendar.recordVideo = recordVideo === "on";
   calendar.recordAudio = recordAudio === "on";
-  // #region agent log
-  fetch('http://127.0.0.1:7250/ingest/bf0206c3-6e13-4499-92a3-7fb2b7527fcf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'routes/calendar/update-bot-settings.js:56',message:'Recording settings AFTER assignment, BEFORE save',data:{recordVideo:calendar.recordVideo,recordAudio:calendar.recordAudio},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
-  // #endregion
 
   // Update transcription settings
   calendar.enableTranscription = enableTranscription === "on";
@@ -82,9 +73,6 @@ export default async (req, res) => {
   calendar.autoLeaveAloneTimeoutSeconds = Math.max(10, Math.min(300, parseInt(autoLeaveAloneTimeoutSeconds, 10) || 60));
 
   await calendar.save();
-  // #region agent log
-  fetch('http://127.0.0.1:7250/ingest/bf0206c3-6e13-4499-92a3-7fb2b7527fcf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'routes/calendar/update-bot-settings.js:75',message:'Bot settings saved successfully',data:{calendarId:calendar.id,recordVideo:calendar.recordVideo,recordAudio:calendar.recordAudio,autoRecordExternalEvents:calendar.autoRecordExternalEvents,autoRecordInternalEvents:calendar.autoRecordInternalEvents},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
-  // #endregion
 
   res.cookie(
     "notice",
