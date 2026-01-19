@@ -31,9 +31,7 @@
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
                 </svg>
                 <% if (meeting.startTime) { %>
-                  <%= new Date(meeting.startTime).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' }) %>
-                  at
-                  <%= new Date(meeting.startTime).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) %>
+                  <span class="local-datetime" data-iso="<%= new Date(meeting.startTime).toISOString() %>" data-format="full"></span>
                 <% } else { %>
                   Date unknown
                 <% } %>
@@ -341,6 +339,16 @@
 
                 <!-- Transcript Tab -->
                 <div id="content-transcript" class="tab-content hidden">
+                  <% 
+                    const speakerPalette = ['indigo','blue','purple','emerald','amber','rose'];
+                    const speakerClass = (name) => {
+                      const str = name || 'Speaker';
+                      let hash = 0;
+                      for (let i = 0; i < str.length; i++) { hash = (hash << 5) - hash + str.charCodeAt(i); hash |= 0; }
+                      const idx = Math.abs(hash) % speakerPalette.length;
+                      return speakerPalette[idx];
+                    };
+                  %>
                   <% if (meeting.transcript && meeting.transcript.length > 0) { %>
                     <div class="max-h-96 overflow-y-auto">
                       <div class="space-y-4">
@@ -353,7 +361,8 @@
                           <div class="<%= showSpeaker ? 'pt-3 border-t border-gray-100' : '' %>">
                             <% if (showSpeaker) { %>
                               <div class="flex items-center mb-1">
-                                <span class="inline-flex items-center rounded-full bg-indigo-100 px-2.5 py-0.5 text-xs font-medium text-indigo-800">
+                                <% const color = speakerClass(chunk.speaker); %>
+                                <span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium bg-<%= color %>-100 text-<%= color %>-800">
                                   <svg class="mr-1 h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
                                   </svg>
@@ -366,7 +375,7 @@
                                 <% } %>
                               </div>
                             <% } %>
-                            <p class="text-sm text-gray-700 pl-4">
+                            <p class="text-sm text-gray-700 pl-4 text-left">
                               <%= chunk.text %>
                             </p>
                           </div>
@@ -656,6 +665,19 @@
                     <span id="enrich-btn-text">Re-generate Summary</span>
                   </button>
                 <% } %>
+                <% if (meeting.artifactId) { %>
+                  <button
+                    type="button"
+                    onclick="publishToNotion('<%= meeting.artifactId %>')"
+                    id="publish-btn"
+                    class="w-full inline-flex items-center justify-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-indigo-600 shadow-sm ring-1 ring-inset ring-indigo-200 hover:bg-indigo-50"
+                  >
+                    <svg class="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 8h10M7 12h4m-9 7h18a2 2 0 002-2V7a2 2 0 00-2-2H2a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
+                    </svg>
+                    <span id="publish-btn-text">Publish to Notion</span>
+                  </button>
+                <% } %>
                 <a href="/meetings" class="w-full inline-flex items-center justify-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50">
                   <svg class="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
@@ -679,6 +701,34 @@
 </div>
 
 <script>
+  // Format all datetime elements to user's local timezone
+  document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('.local-datetime').forEach(function(el) {
+      const iso = el.getAttribute('data-iso');
+      const format = el.getAttribute('data-format');
+      if (!iso) return;
+      
+      const date = new Date(iso);
+      let formatted = '';
+      
+      if (format === 'date') {
+        formatted = date.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
+      } else if (format === 'time') {
+        formatted = date.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+      } else if (format === 'datetime') {
+        formatted = date.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' }) + 
+                    ' at ' + 
+                    date.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+      } else if (format === 'full') {
+        formatted = date.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' }) + 
+                    ' at ' + 
+                    date.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+      }
+      
+      el.textContent = formatted;
+    });
+  });
+
   // Tab switching functionality
   function switchTab(tabName) {
     // Hide all content
@@ -742,6 +792,35 @@
       setTimeout(() => {
         btnText.textContent = originalText;
       }, 3000);
+    }
+  }
+
+  // Manual publish to Notion
+  async function publishToNotion(artifactId) {
+    const btn = document.getElementById('publish-btn');
+    const btnText = document.getElementById('publish-btn-text');
+    if (!btn) return;
+    btn.disabled = true;
+    btn.classList.add('opacity-75', 'cursor-not-allowed');
+    const originalText = btnText.textContent;
+    btnText.textContent = 'Queuing...';
+
+    try {
+      const response = await fetch(`/api/meetings/${artifactId}/publish`, {
+        method: 'POST',
+      });
+      const result = await response.json();
+      if (result.success) {
+        btnText.textContent = result.action === 'publish' ? 'Publish queued' : 'Enriching then publish';
+      } else {
+        throw new Error(result.error || 'Failed to queue publish');
+      }
+    } catch (err) {
+      console.error('Publish error:', err);
+      btnText.textContent = 'Error: ' + err.message;
+      btn.disabled = false;
+      btn.classList.remove('opacity-75', 'cursor-not-allowed');
+      setTimeout(() => (btnText.textContent = originalText), 3000);
     }
   }
 

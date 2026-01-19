@@ -58,6 +58,34 @@ function getAttendeesFromEvent(event) {
 }
 
 /**
+ * Normalize participants/attendees from an artifact payload
+ */
+function getParticipantsFromArtifact(artifact) {
+  const data = artifact?.rawPayload?.data || {};
+  const participants = data.participants || data.attendees || [];
+  if (!Array.isArray(participants)) return [];
+
+  // Ensure consistent shape
+  return participants
+    .map((p) => {
+      if (!p) return null;
+      return {
+        email: p.email || p.address || p.user_email || p.userId || null,
+        name:
+          p.name ||
+          p.displayName ||
+          p.user_display_name ||
+          p.user_name ||
+          p.email ||
+          null,
+        status: p.status || p.responseStatus || null,
+        organizer: !!p.organizer,
+      };
+    })
+    .filter(Boolean);
+}
+
+/**
  * Helper to check if a transcript object has content
  * Transcript can be an array of segments or an object with a words array
  */
@@ -515,6 +543,19 @@ export default async (req, res) => {
   const PAGE_SIZE = 50;
   const page = Math.max(1, parseInt(req.query.page, 10) || 1);
   const offset = (page - 1) * PAGE_SIZE;
+  const {
+    q,
+    from,
+    to,
+    hasTranscript,
+    hasSummary,
+    hasRecording,
+    sort,
+  } = req.query;
+
+  const hasTranscriptFilter = hasTranscript === "true" ? true : hasTranscript === "false" ? false : null;
+  const hasSummaryFilter = hasSummary === "true" ? true : hasSummary === "false" ? false : null;
+  const hasRecordingFilter = hasRecording === "true" ? true : hasRecording === "false" ? false : null;
 
   const userId = req.authentication.user.id;
 
@@ -641,20 +682,37 @@ export default async (req, res) => {
     }
   }
 
+  // Build common where for time filters
+  const dateFilters = {};
+  if (from) {
+    dateFilters[Op.gte] = new Date(from);
+  }
+  if (to) {
+    dateFilters[Op.lte] = new Date(to);
+  }
+
   // Get all meeting artifacts for this user with their summaries
   let artifacts = [];
-  let artifactsCount = 0;
   try {
     const artifactResult = await db.MeetingArtifact.findAndCountAll({
       where: { userId },
+      distinct: true,
       include: [
         {
           model: db.CalendarEvent,
           required: false,
+          where:
+            Object.keys(dateFilters).length > 0
+              ? { startTime: dateFilters }
+              : undefined,
           include: [{ model: db.Calendar, required: false }],
         },
         {
           model: db.MeetingSummary,
+          required: false,
+        },
+        {
+          model: db.MeetingTranscriptChunk,
           required: false,
         },
       ],
@@ -663,14 +721,12 @@ export default async (req, res) => {
       offset,
     });
     artifacts = artifactResult.rows;
-    artifactsCount = artifactResult.count;
   } catch (error) {
     console.error(`[MEETINGS] Error fetching meeting artifacts:`, error);
   }
 
   // Also get summaries that might not have artifacts (edge case)
   let summaries = [];
-  let summariesCount = 0;
   try {
     const summaryResult = await db.MeetingSummary.findAndCountAll({
       where: { userId },
@@ -682,6 +738,10 @@ export default async (req, res) => {
         {
           model: db.CalendarEvent,
           required: false,
+          where:
+            Object.keys(dateFilters).length > 0
+              ? { startTime: dateFilters }
+              : undefined,
         },
       ],
       order: [["createdAt", "DESC"]],
@@ -689,7 +749,6 @@ export default async (req, res) => {
       offset,
     });
     summaries = summaryResult.rows;
-    summariesCount = summaryResult.count;
   } catch (error) {
     console.error(`[MEETINGS] Error fetching meeting summaries:`, error);
   }
@@ -703,34 +762,53 @@ export default async (req, res) => {
     const calendarEvent = artifact.CalendarEvent;
     const summary = artifact.MeetingSummaries?.[0] || artifact.MeetingSummary || null;
 
+    const startTime = calendarEvent?.startTime || artifact.rawPayload?.data?.start_time || artifact.createdAt;
+    const endTime = calendarEvent?.endTime || artifact.rawPayload?.data?.end_time || null;
+
+    const participants = getParticipantsFromArtifact(artifact);
+    const hasTranscriptFromPayload = hasTranscriptContent(artifact.rawPayload?.data?.transcript);
+    const hasTranscriptFromChunks =
+      Array.isArray(artifact.MeetingTranscriptChunks) && artifact.MeetingTranscriptChunks.length > 0;
+    const hasTranscriptFlag = hasTranscriptFromPayload || hasTranscriptFromChunks;
+
+    const hasRecordingFlag = !!(
+      artifact.rawPayload?.data?.video_url ||
+      artifact.rawPayload?.data?.recording_url ||
+      artifact.rawPayload?.data?.media_shortcuts?.video?.data?.download_url
+    );
+
+    const durationSeconds =
+      startTime && endTime ? Math.max(0, (new Date(endTime) - new Date(startTime)) / 1000) : null;
+
     meetingsMap.set(key, {
       id: artifact.id,
       type: "artifact",
       title: calendarEvent?.title || artifact.rawPayload?.data?.title || "Untitled Meeting",
-      startTime: calendarEvent?.startTime || artifact.rawPayload?.data?.start_time || artifact.createdAt,
-      endTime: calendarEvent?.endTime || artifact.rawPayload?.data?.end_time || null,
+      startTime,
+      endTime,
+      durationSeconds,
       status: artifact.status,
       hasSummary: !!summary,
-      hasTranscript: true, // artifacts have transcripts
-      hasRecording: !!(
-        artifact.rawPayload?.data?.video_url || 
+      hasTranscript: hasTranscriptFlag,
+      hasRecording: hasRecordingFlag,
+      transcriptStatus: hasTranscriptFlag ? "complete" : "missing",
+      summaryStatus: summary ? "complete" : "missing",
+      recordingStatus: hasRecordingFlag ? "complete" : "missing",
+      recordingUrl:
+        artifact.rawPayload?.data?.video_url ||
         artifact.rawPayload?.data?.recording_url ||
-        artifact.rawPayload?.data?.media_shortcuts?.video?.data?.download_url
-      ),
-      recordingUrl: 
-        artifact.rawPayload?.data?.video_url || 
-        artifact.rawPayload?.data?.recording_url || 
         artifact.rawPayload?.data?.media_shortcuts?.video?.data?.download_url ||
         null,
-      audioUrl: 
-        artifact.rawPayload?.data?.audio_url || 
+      audioUrl:
+        artifact.rawPayload?.data?.audio_url ||
         artifact.rawPayload?.data?.media_shortcuts?.audio?.data?.download_url ||
         null,
-      participants: artifact.rawPayload?.data?.participants || artifact.rawPayload?.data?.attendees || [],
+      participants,
       calendarEmail: calendarEvent?.Calendar?.email || null,
       platform: calendarEvent?.Calendar?.platform || null,
       summaryId: summary?.id || null,
       createdAt: artifact.createdAt,
+      syncedFromApi: !!artifact.rawPayload?.synced_from_api,
     });
   }
 
@@ -747,10 +825,17 @@ export default async (req, res) => {
       title: calendarEvent?.title || "Untitled Meeting",
       startTime: calendarEvent?.startTime || summary.createdAt,
       endTime: calendarEvent?.endTime || null,
+      durationSeconds:
+        calendarEvent?.startTime && calendarEvent?.endTime
+          ? Math.max(0, (new Date(calendarEvent.endTime) - new Date(calendarEvent.startTime)) / 1000)
+          : null,
       status: summary.status,
       hasSummary: true,
       hasTranscript: false,
       hasRecording: false,
+      transcriptStatus: "missing",
+      summaryStatus: "complete",
+      recordingStatus: "missing",
       recordingUrl: null,
       audioUrl: null,
       participants: [],
@@ -761,14 +846,46 @@ export default async (req, res) => {
     });
   }
 
-  const meetings = Array.from(meetingsMap.values()).sort(
-    (a, b) => new Date(b.startTime || b.createdAt) - new Date(a.startTime || a.createdAt)
-  );
+  // Apply filters & search
+  let meetings = Array.from(meetingsMap.values());
 
-  const totalCount = artifactsCount + summariesCount;
+  if (hasTranscriptFilter !== null) {
+    meetings = meetings.filter((m) => m.hasTranscript === hasTranscriptFilter);
+  }
+  if (hasSummaryFilter !== null) {
+    meetings = meetings.filter((m) => m.hasSummary === hasSummaryFilter);
+  }
+  if (hasRecordingFilter !== null) {
+    meetings = meetings.filter((m) => m.hasRecording === hasRecordingFilter);
+  }
+  if (q && q.trim().length > 0) {
+    const qLower = q.trim().toLowerCase();
+    meetings = meetings.filter((m) => {
+      const titleMatch = (m.title || "").toLowerCase().includes(qLower);
+      const participantsMatch = (m.participants || []).some((p) =>
+        (p.name || p.email || "").toLowerCase().includes(qLower)
+      );
+      return titleMatch || participantsMatch;
+    });
+  }
+
+  // Sorting
+  meetings.sort((a, b) => {
+    if (sort === "oldest") {
+      return new Date(a.startTime || a.createdAt) - new Date(b.startTime || b.createdAt);
+    }
+    if (sort === "duration") {
+      return (b.durationSeconds || 0) - (a.durationSeconds || 0);
+    }
+    // default newest
+    return new Date(b.startTime || b.createdAt) - new Date(a.startTime || a.createdAt);
+  });
+
+  const totalCount = meetings.length;
   const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
   const hasNext = page < totalPages;
   const hasPrev = page > 1;
+  const paginatedMeetings = meetings.slice(offset, offset + PAGE_SIZE);
 
   console.log(`[MEETINGS-DEBUG] Rendering meetings page:`, {
     userId,
@@ -787,12 +904,21 @@ export default async (req, res) => {
   return res.render("meetings.ejs", {
     notice: req.notice,
     user: req.authentication.user,
-    meetings,
+    meetings: paginatedMeetings,
     upcomingEvents,
     hasCalendars: calendars.length > 0,
     page,
     totalPages,
     hasNext,
     hasPrev,
+    filters: {
+      q: q || "",
+      from: from || "",
+      to: to || "",
+      hasTranscript: hasTranscriptFilter,
+      hasSummary: hasSummaryFilter,
+      hasRecording: hasRecordingFilter,
+      sort: sort || "newest",
+    },
   });
 };
