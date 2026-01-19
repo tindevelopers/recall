@@ -86,6 +86,83 @@ function getParticipantsFromArtifact(artifact) {
 }
 
 /**
+ * Build a participant list, preferring artifact data but falling back to calendar attendees.
+ */
+function getParticipantsForMeeting(artifact, calendarEvent) {
+  const artifactParticipants = getParticipantsFromArtifact(artifact);
+  if (artifactParticipants.length > 0) return artifactParticipants;
+  if (calendarEvent) return getAttendeesFromEvent(calendarEvent);
+  return [];
+}
+
+/**
+ * Derive a human-readable meeting title from various sources.
+ */
+function extractMeetingTitle(artifact, calendarEvent) {
+  // 1) Calendar event title
+  if (calendarEvent?.title) return calendarEvent.title;
+
+  // 2) Artifact payload title
+  if (artifact?.rawPayload?.data?.title) return artifact.rawPayload.data.title;
+
+  // 3) Bot meeting_metadata title (if present)
+  if (artifact?.rawPayload?.data?.bot_metadata?.meeting_metadata?.title) {
+    return artifact.rawPayload.data.bot_metadata.meeting_metadata.title;
+  }
+
+  // 4) Derive from meeting URL
+  const meetingUrl =
+    artifact?.rawPayload?.data?.meeting_url || calendarEvent?.meetingUrl;
+  if (meetingUrl) {
+    const urlTitle = extractTitleFromUrl(meetingUrl);
+    if (urlTitle) return urlTitle;
+  }
+
+  // 5) Build from participants
+  const participants = getParticipantsFromArtifact(artifact);
+  if (participants.length > 0) {
+    const names = participants
+      .slice(0, 2)
+      .map((p) => p.name || p.email?.split("@")[0])
+      .filter(Boolean);
+    if (names.length > 0) {
+      return `Meeting with ${names.join(" and ")}${
+        participants.length > 2 ? ` +${participants.length - 2}` : ""
+      }`;
+    }
+  }
+
+  // 6) Date-based fallback
+  const startTime =
+    calendarEvent?.startTime ||
+    artifact?.rawPayload?.data?.start_time ||
+    artifact?.createdAt;
+  if (startTime) {
+    const date = new Date(startTime);
+    return `Meeting on ${date.toLocaleDateString()}`;
+  }
+
+  return "Untitled Meeting";
+}
+
+/**
+ * Try to identify meeting platform from URL.
+ */
+function extractTitleFromUrl(url) {
+  try {
+    const urlObj = new URL(url);
+    const host = urlObj.hostname.toLowerCase();
+    if (host.includes("zoom.us")) return "Zoom Meeting";
+    if (host.includes("meet.google.com")) return "Google Meet";
+    if (host.includes("teams.microsoft.com")) return "Microsoft Teams Meeting";
+    if (host.includes("webex.com")) return "Webex Meeting";
+    return null;
+  } catch (err) {
+    return null;
+  }
+}
+
+/**
  * Helper to check if a transcript object has content
  * Transcript can be an array of segments or an object with a words array
  */
@@ -351,6 +428,12 @@ async function syncBotArtifacts(calendars, userId) {
     
     // Create the artifact
     try {
+      const computedTitle =
+        calendarEvent?.title ||
+        bot.meeting_metadata?.title ||
+        extractTitleFromUrl(bot.meeting_url) ||
+        "Meeting";
+
       const artifact = await db.MeetingArtifact.create({
         recallEventId: calendarEvent?.recallId || null,
         recallBotId: botId,
@@ -363,7 +446,7 @@ async function syncBotArtifacts(calendars, userId) {
           data: {
             bot_id: botId,
             calendar_event_id: calendarEvent?.recallId || null,
-            title: calendarEvent?.title || bot.meeting_metadata?.title || 'Meeting',
+            title: computedTitle,
             start_time: bot.join_at || bot.created_at,
             end_time: bot.updated_at,
             meeting_url: bot.meeting_url,
@@ -772,7 +855,7 @@ export default async (req, res) => {
     const startTime = calendarEvent?.startTime || artifact.rawPayload?.data?.start_time || artifact.createdAt;
     const endTime = calendarEvent?.endTime || artifact.rawPayload?.data?.end_time || null;
 
-    const participants = getParticipantsFromArtifact(artifact);
+    const participants = getParticipantsForMeeting(artifact, calendarEvent);
     const hasTranscriptFromPayload = hasTranscriptContent(artifact.rawPayload?.data?.transcript);
     const hasTranscriptFromChunks =
       Array.isArray(artifact.MeetingTranscriptChunks) && artifact.MeetingTranscriptChunks.length > 0;
@@ -785,12 +868,28 @@ export default async (req, res) => {
     );
 
     const durationSeconds =
-      startTime && endTime ? Math.max(0, (new Date(endTime) - new Date(startTime)) / 1000) : null;
+      startTime && endTime
+        ? Math.max(0, (new Date(endTime) - new Date(startTime)) / 1000)
+        : (() => {
+            // Fallback: derive from transcript chunks if available
+            if (hasTranscriptFromChunks) {
+              const times = artifact.MeetingTranscriptChunks.map((c) => c.endTimeMs || c.startTimeMs || 0);
+              const maxMs = Math.max(...times, 0);
+              if (maxMs > 0) return Math.round(maxMs / 1000);
+            }
+            // Fallback: use bot timestamps from raw payload if present
+            const rawEnd = artifact.rawPayload?.data?.end_time;
+            const rawStart = artifact.rawPayload?.data?.start_time;
+            if (rawStart && rawEnd) {
+              return Math.max(0, (new Date(rawEnd) - new Date(rawStart)) / 1000);
+            }
+            return null;
+          })();
 
     meetingsMap.set(key, {
       id: artifact.id,
       type: "artifact",
-      title: calendarEvent?.title || artifact.rawPayload?.data?.title || "Untitled Meeting",
+      title: extractMeetingTitle(artifact, calendarEvent),
       startTime,
       endTime,
       durationSeconds,
@@ -814,6 +913,10 @@ export default async (req, res) => {
       calendarEmail: calendarEvent?.Calendar?.email || null,
       platform: calendarEvent?.Calendar?.platform || null,
       summaryId: summary?.id || null,
+      meetingUrl:
+        calendarEvent?.meetingUrl ||
+        artifact.rawPayload?.data?.meeting_url ||
+        null,
       createdAt: artifact.createdAt,
       syncedFromApi: !!artifact.rawPayload?.synced_from_api,
     });
@@ -825,11 +928,16 @@ export default async (req, res) => {
     
     const calendarEvent = summary.CalendarEvent;
     const key = `summary-${summary.id}`;
+    const summaryTitle =
+      calendarEvent?.title ||
+      extractTitleFromUrl(calendarEvent?.meetingUrl || "") ||
+      "Untitled Meeting";
+    const summaryParticipants = calendarEvent ? getAttendeesFromEvent(calendarEvent) : [];
 
     meetingsMap.set(key, {
       id: summary.id,
       type: "summary",
-      title: calendarEvent?.title || "Untitled Meeting",
+      title: summaryTitle,
       startTime: calendarEvent?.startTime || summary.createdAt,
       endTime: calendarEvent?.endTime || null,
       durationSeconds:
@@ -845,9 +953,10 @@ export default async (req, res) => {
       recordingStatus: "missing",
       recordingUrl: null,
       audioUrl: null,
-      participants: [],
-      calendarEmail: null,
-      platform: null,
+      participants: summaryParticipants,
+      calendarEmail: calendarEvent?.Calendar?.email || null,
+      platform: calendarEvent?.platform || null,
+      meetingUrl: calendarEvent?.meetingUrl || null,
       summaryId: summary.id,
       createdAt: summary.createdAt,
     });
