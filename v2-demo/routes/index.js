@@ -37,6 +37,7 @@ import meetingsList from "./meetings/list.js";
 import meetingsDetail from "./meetings/detail.js";
 import meetingsUpdateTranscriptionMode from "./meetings/update-transcription-mode.js";
 import { getTranscript, getSummary, getActionItems, triggerEnrichment } from "./api/meeting-details.js";
+import refreshRecording from "./api/refresh-recording.js";
 import settingsGet from "./settings/get.js";
 
 const router = Router();
@@ -93,6 +94,7 @@ router.get("/api/meetings/:meetingId/transcript", getTranscript);
 router.get("/api/meetings/:meetingId/summary", getSummary);
 router.get("/api/meetings/:meetingId/actions", getActionItems);
 router.post("/api/meetings/enrich", triggerEnrichment);
+router.post("/api/meetings/:meetingId/refresh-recording", refreshRecording);
 
 router.get("/settings", settingsGet);
 
