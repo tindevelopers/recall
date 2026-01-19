@@ -43,12 +43,52 @@ function extractRecallIdentifiers(payload) {
 
 /**
  * Extract transcript segments from various payload shapes.
- * Recall streaming events typically have: data.words[] or data.transcript.segments[]
+ * 
+ * Recall API transcript formats:
+ * 1. Array of participant segments: [{ participant: { name: "..." }, words: [{ text: "...", start_timestamp: {...}, end_timestamp: {...} }] }]
+ * 2. Streaming events: data.words[] with { text, start_time, end_time, speaker }
+ * 3. Legacy segments: data.transcript.segments[] or data.segments[]
  */
 function extractTranscriptSegments(payload, eventType) {
   const data = payload?.data || payload;
+  
+  // Format 1: Recall API full transcript - array of participant segments with words
+  // Each item has: { participant: { name: "..." }, words: [{ text: "...", start_timestamp: {...}, end_timestamp: {...} }] }
+  const transcript = data?.transcript;
+  if (Array.isArray(transcript) && transcript.length > 0 && transcript[0]?.words) {
+    return transcript.map((segment, idx) => {
+      const words = segment.words || [];
+      const text = words.map((w) => w.text || "").join(" ");
+      
+      // Extract timestamps - they can be in { relative: number, absolute: string } format
+      const firstWord = words[0];
+      const lastWord = words[words.length - 1];
+      
+      let startTimeMs = null;
+      if (firstWord?.start_timestamp) {
+        if (typeof firstWord.start_timestamp.relative === 'number') {
+          startTimeMs = firstWord.start_timestamp.relative * 1000;
+        } else if (typeof firstWord.start_timestamp === 'number') {
+          startTimeMs = firstWord.start_timestamp * 1000;
+        }
+      }
+      
+      let endTimeMs = null;
+      if (lastWord?.end_timestamp) {
+        if (typeof lastWord.end_timestamp.relative === 'number') {
+          endTimeMs = lastWord.end_timestamp.relative * 1000;
+        } else if (typeof lastWord.end_timestamp === 'number') {
+          endTimeMs = lastWord.end_timestamp * 1000;
+        }
+      }
+      
+      const speaker = segment.participant?.name || segment.speaker || null;
+      
+      return { text, startTimeMs, endTimeMs, speaker, sequence: idx };
+    }).filter(s => s.text && s.text.trim().length > 0);
+  }
 
-  // Streaming events often use `words` array with { text, start_time, end_time, speaker }
+  // Format 2: Streaming events often use `words` array with { text, start_time, end_time, speaker }
   if (Array.isArray(data?.words) && data.words.length > 0) {
     // Combine words into a single segment for this chunk
     const words = data.words;
@@ -63,7 +103,7 @@ function extractTranscriptSegments(payload, eventType) {
     return [{ text, startTimeMs, endTimeMs, speaker, sequence: 0 }];
   }
 
-  // Full transcript segments array
+  // Format 3: Legacy segments array
   const segments =
     data?.transcript?.segments ||
     data?.segments ||
@@ -182,6 +222,16 @@ export default async (req, res) => {
     }
 
     // Merge bot data into the payload if we fetched it
+    // Extract video and audio URLs from media_shortcuts
+    let videoUrl = null;
+    let audioUrl = null;
+    if (botData?.recordings?.[0]?.media_shortcuts) {
+      const shortcuts = botData.recordings[0].media_shortcuts;
+      videoUrl = shortcuts.video?.data?.download_url || null;
+      audioUrl = shortcuts.audio?.data?.download_url || null;
+      console.log(`[RECALL-NOTES] Extracted media URLs: video=${videoUrl ? 'present' : 'N/A'}, audio=${audioUrl ? 'present' : 'N/A'}`);
+    }
+    
     const enrichedPayload = botData ? {
       ...rawPayload,
       data: {
@@ -189,6 +239,10 @@ export default async (req, res) => {
         bot: botData,
         recordings: botData.recordings,
         media_shortcuts: botData.recordings?.[0]?.media_shortcuts,
+        // Store video/audio URLs at the top level for easy access
+        video_url: videoUrl,
+        audio_url: audioUrl,
+        recording_url: videoUrl, // Alias for compatibility
       },
     } : rawPayload;
 

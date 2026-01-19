@@ -97,9 +97,16 @@ export default async (req, res) => {
     calendarEmail: calendarEvent?.Calendar?.email || null,
     platform: calendarEvent?.platform || null,
     
-    // Recording URLs
-    videoUrl: artifact?.rawPayload?.data?.video_url || artifact?.rawPayload?.data?.recording_url || null,
-    audioUrl: artifact?.rawPayload?.data?.audio_url || null,
+    // Recording URLs - check multiple locations including media_shortcuts
+    videoUrl: 
+      artifact?.rawPayload?.data?.video_url || 
+      artifact?.rawPayload?.data?.recording_url || 
+      artifact?.rawPayload?.data?.media_shortcuts?.video?.data?.download_url ||
+      null,
+    audioUrl: 
+      artifact?.rawPayload?.data?.audio_url || 
+      artifact?.rawPayload?.data?.media_shortcuts?.audio?.data?.download_url ||
+      null,
     
     // Summary data
     summary: summary?.summary || null,

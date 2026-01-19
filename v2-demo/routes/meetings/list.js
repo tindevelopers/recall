@@ -137,7 +137,7 @@ async function syncBotArtifacts(calendars, userId) {
     
     if (existingArtifact) {
       // Check if the existing artifact has transcript chunks - if not, try to create them
-      const existingChunks = await db.MeetingTranscriptChunk.count({
+      let existingChunks = await db.MeetingTranscriptChunk.count({
         where: { meetingArtifactId: existingArtifact.id }
       });
       
@@ -168,14 +168,69 @@ async function syncBotArtifacts(calendars, userId) {
         }
       }
       
-      // Create transcript chunks if we have transcript but no chunks
+      // Create transcript chunks if we have transcript but no chunks (or only empty chunks)
+      // Check if existing chunks have empty text (bug from previous version)
+      let hasEmptyChunks = false;
+      if (existingChunks > 0 && existingChunks < 5) {
+        const sampleChunks = await db.MeetingTranscriptChunk.findAll({
+          where: { meetingArtifactId: existingArtifact.id },
+          limit: 3,
+        });
+        hasEmptyChunks = sampleChunks.every(c => !c.text || c.text.trim().length === 0);
+        if (hasEmptyChunks) {
+          console.log(`[MEETINGS] Found ${existingChunks} empty transcript chunks for artifact ${existingArtifact.id}, will re-create`);
+          await db.MeetingTranscriptChunk.destroy({ where: { meetingArtifactId: existingArtifact.id } });
+          existingChunks = 0;
+        }
+      }
+      
       if (existingChunks === 0 && hasTranscriptContent(transcript)) {
         console.log(`[MEETINGS] Creating transcript chunks for existing artifact ${existingArtifact.id}`);
         try {
           let chunksToCreate = [];
           
-          if (Array.isArray(transcript)) {
-            // Direct array format - each item is a transcript segment
+          if (Array.isArray(transcript) && transcript.length > 0 && transcript[0]?.words) {
+            // Recall API format: array of participant segments with words array
+            // [{ participant: { name: "..." }, words: [{ text: "...", start_timestamp: {...}, end_timestamp: {...} }] }]
+            chunksToCreate = transcript.map((segment, idx) => {
+              const words = segment.words || [];
+              const text = words.map((w) => w.text || "").join(" ");
+              
+              // Extract timestamps - they can be in { relative: number, absolute: string } format
+              const firstWord = words[0];
+              const lastWord = words[words.length - 1];
+              
+              let startTimeMs = 0;
+              if (firstWord?.start_timestamp) {
+                if (typeof firstWord.start_timestamp.relative === 'number') {
+                  startTimeMs = firstWord.start_timestamp.relative * 1000;
+                } else if (typeof firstWord.start_timestamp === 'number') {
+                  startTimeMs = firstWord.start_timestamp * 1000;
+                }
+              }
+              
+              let endTimeMs = 0;
+              if (lastWord?.end_timestamp) {
+                if (typeof lastWord.end_timestamp.relative === 'number') {
+                  endTimeMs = lastWord.end_timestamp.relative * 1000;
+                } else if (typeof lastWord.end_timestamp === 'number') {
+                  endTimeMs = lastWord.end_timestamp * 1000;
+                }
+              }
+              
+              return {
+                meetingArtifactId: existingArtifact.id,
+                userId: userId,
+                calendarEventId: existingArtifact.calendarEventId || null,
+                sequence: idx,
+                speaker: segment.participant?.name || segment.speaker || 'Speaker',
+                text: text,
+                startTimeMs: startTimeMs,
+                endTimeMs: endTimeMs,
+              };
+            }).filter(chunk => chunk.text && chunk.text.trim().length > 0);
+          } else if (Array.isArray(transcript)) {
+            // Legacy direct array format - each item has text directly
             chunksToCreate = transcript.map((segment, idx) => ({
               meetingArtifactId: existingArtifact.id,
               userId: userId,
@@ -185,7 +240,7 @@ async function syncBotArtifacts(calendars, userId) {
               text: segment.text || segment.word || '',
               startTimeMs: segment.start_timestamp || segment.start_time || 0,
               endTimeMs: segment.end_timestamp || segment.end_time || 0,
-            }));
+            })).filter(chunk => chunk.text && chunk.text.trim().length > 0);
           } else if (transcript.words && Array.isArray(transcript.words)) {
             // Object format with words array
             chunksToCreate = transcript.words.map((word, idx) => ({
@@ -197,7 +252,7 @@ async function syncBotArtifacts(calendars, userId) {
               text: word.word || word.text || '',
               startTimeMs: word.start_timestamp || 0,
               endTimeMs: word.end_timestamp || 0,
-            }));
+            })).filter(chunk => chunk.text && chunk.text.trim().length > 0);
           } else if (transcript.results && Array.isArray(transcript.results)) {
             // Object format with results array
             chunksToCreate = transcript.results.map((result, idx) => ({
@@ -209,7 +264,7 @@ async function syncBotArtifacts(calendars, userId) {
               text: result.text || result.transcript || '',
               startTimeMs: result.start_timestamp || 0,
               endTimeMs: result.end_timestamp || 0,
-            }));
+            })).filter(chunk => chunk.text && chunk.text.trim().length > 0);
           }
           
           if (chunksToCreate.length > 0) {
@@ -295,8 +350,48 @@ async function syncBotArtifacts(calendars, userId) {
         try {
           let chunksToCreate = [];
           
-          if (Array.isArray(transcript)) {
-            // Direct array format - each item is a transcript segment
+          if (Array.isArray(transcript) && transcript.length > 0 && transcript[0]?.words) {
+            // Recall API format: array of participant segments with words array
+            // [{ participant: { name: "..." }, words: [{ text: "...", start_timestamp: {...}, end_timestamp: {...} }] }]
+            chunksToCreate = transcript.map((segment, idx) => {
+              const words = segment.words || [];
+              const text = words.map((w) => w.text || "").join(" ");
+              
+              // Extract timestamps - they can be in { relative: number, absolute: string } format
+              const firstWord = words[0];
+              const lastWord = words[words.length - 1];
+              
+              let startTimeMs = 0;
+              if (firstWord?.start_timestamp) {
+                if (typeof firstWord.start_timestamp.relative === 'number') {
+                  startTimeMs = firstWord.start_timestamp.relative * 1000;
+                } else if (typeof firstWord.start_timestamp === 'number') {
+                  startTimeMs = firstWord.start_timestamp * 1000;
+                }
+              }
+              
+              let endTimeMs = 0;
+              if (lastWord?.end_timestamp) {
+                if (typeof lastWord.end_timestamp.relative === 'number') {
+                  endTimeMs = lastWord.end_timestamp.relative * 1000;
+                } else if (typeof lastWord.end_timestamp === 'number') {
+                  endTimeMs = lastWord.end_timestamp * 1000;
+                }
+              }
+              
+              return {
+                meetingArtifactId: artifact.id,
+                userId: userId,
+                calendarEventId: calendarEvent?.id || null,
+                sequence: idx,
+                speaker: segment.participant?.name || segment.speaker || 'Speaker',
+                text: text,
+                startTimeMs: startTimeMs,
+                endTimeMs: endTimeMs,
+              };
+            }).filter(chunk => chunk.text && chunk.text.trim().length > 0);
+          } else if (Array.isArray(transcript)) {
+            // Legacy direct array format - each item has text directly
             chunksToCreate = transcript.map((segment, idx) => ({
               meetingArtifactId: artifact.id,
               userId: userId,
@@ -306,7 +401,7 @@ async function syncBotArtifacts(calendars, userId) {
               text: segment.text || segment.word || '',
               startTimeMs: segment.start_timestamp || segment.start_time || 0,
               endTimeMs: segment.end_timestamp || segment.end_time || 0,
-            }));
+            })).filter(chunk => chunk.text && chunk.text.trim().length > 0);
           } else if (transcript.words && Array.isArray(transcript.words)) {
             // Object format with words array
             chunksToCreate = transcript.words.map((word, idx) => ({
@@ -318,7 +413,7 @@ async function syncBotArtifacts(calendars, userId) {
               text: word.word || word.text || '',
               startTimeMs: word.start_timestamp || 0,
               endTimeMs: word.end_timestamp || 0,
-            }));
+            })).filter(chunk => chunk.text && chunk.text.trim().length > 0);
           } else if (transcript.results && Array.isArray(transcript.results)) {
             // Object format with results array
             chunksToCreate = transcript.results.map((result, idx) => ({
@@ -330,7 +425,7 @@ async function syncBotArtifacts(calendars, userId) {
               text: result.text || result.transcript || '',
               startTimeMs: result.start_timestamp || 0,
               endTimeMs: result.end_timestamp || 0,
-            }));
+            })).filter(chunk => chunk.text && chunk.text.trim().length > 0);
           }
           
           if (chunksToCreate.length > 0) {
@@ -392,22 +487,13 @@ async function syncCalendarEvents(calendar) {
       // Queue bot scheduling for events that should be recorded
       // Use Promise.allSettled to avoid blocking if Redis is unavailable
       const eventsToSchedule = dbEvents.filter(event => event.shouldRecordAutomatic || event.shouldRecordManual);
-      // #region agent log
-      fetch('http://127.0.0.1:7250/ingest/bf0206c3-6e13-4499-92a3-7fb2b7527fcf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'routes/meetings/list.js:335',message:'Queueing bot scheduling jobs',data:{calendarId:calendar.id,eventsToScheduleCount:eventsToSchedule.length,eventIds:eventsToSchedule.map(e=>e.recallId)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'G'})}).catch(()=>{});
-      // #endregion
       const queuePromises = eventsToSchedule.map(event => 
         backgroundQueue.add("calendarevent.update_bot_schedule", {
           calendarId: calendar.id,
           recallEventId: event.recallId,
         }).then(() => {
-          // #region agent log
-          fetch('http://127.0.0.1:7250/ingest/bf0206c3-6e13-4499-92a3-7fb2b7527fcf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'routes/meetings/list.js:341',message:'Bot scheduling job queued successfully',data:{recallEventId:event.recallId,eventId:event.id},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'G'})}).catch(()=>{});
-          // #endregion
         }).catch(err => {
           console.warn(`[MEETINGS] Queue add failed (Redis unavailable?):`, err.message);
-          // #region agent log
-          fetch('http://127.0.0.1:7250/ingest/bf0206c3-6e13-4499-92a3-7fb2b7527fcf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'routes/meetings/list.js:345',message:'Bot scheduling job queue failed',data:{recallEventId:event.recallId,errorMessage:err.message},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'G'})}).catch(()=>{});
-          // #endregion
         })
       );
       // Don't await - let these run in background
@@ -422,9 +508,6 @@ async function syncCalendarEvents(calendar) {
 }
 
 export default async (req, res) => {
-  // #region agent log
-  fetch('http://127.0.0.1:7250/ingest/bf0206c3-6e13-4499-92a3-7fb2b7527fcf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'meetings/list.js:354',message:'Route handler started',data:{userId:req.authentication?.user?.id},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-  // #endregion
   if (!req.authenticated) {
     return res.redirect("/sign-in");
   }
@@ -449,9 +532,6 @@ export default async (req, res) => {
   }
   
   console.log(`[MEETINGS] Found ${calendars.length} calendars for user ${userId}`);
-  // #region agent log
-  fetch('http://127.0.0.1:7250/ingest/bf0206c3-6e13-4499-92a3-7fb2b7527fcf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'meetings/list.js:378',message:'Calendars fetched',data:{calendarCount:calendars.length,hasCalendars:calendars.length>0},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-  // #endregion
 
   // On-demand sync: fetch latest events from Recall.ai before showing meetings
   // This ensures we have fresh data even if webhooks are delayed/dropped
@@ -484,9 +564,6 @@ export default async (req, res) => {
         include: [{ model: db.Calendar }],
         limit: 200, // Get more events to filter in memory
       });
-      // #region agent log
-      fetch('http://127.0.0.1:7250/ingest/bf0206c3-6e13-4499-92a3-7fb2b7527fcf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'meetings/list.js:410',message:'All events fetched from DB',data:{totalEvents:allEvents.length,now:now.toISOString()},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-      // #endregion
     } catch (error) {
       console.error(`[MEETINGS] Error fetching calendar events:`, error);
       // Continue with empty events array
@@ -503,17 +580,6 @@ export default async (req, res) => {
       }
     });
     
-    // #region agent log
-    const pastEvents = allEvents.filter(event => {
-      try {
-        const startTime = event.startTime;
-        return startTime && new Date(startTime) <= now;
-      } catch (error) {
-        return false;
-      }
-    });
-    fetch('http://127.0.0.1:7250/ingest/bf0206c3-6e13-4499-92a3-7fb2b7527fcf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'meetings/list.js:431',message:'Events filtered',data:{totalEvents:allEvents.length,futureEvents:futureEvents.length,pastEvents:pastEvents.length,now:now.toISOString()},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-    // #endregion
     
     // Sort by start time
     futureEvents.sort((a, b) => {
@@ -548,9 +614,7 @@ export default async (req, res) => {
       // Get attendees for display
       const attendees = getAttendeesFromEvent(event);
       
-      // #region agent log
-      fetch('http://127.0.0.1:7250/ingest/bf0206c3-6e13-4499-92a3-7fb2b7527fcf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'meetings/list.js:upcomingEvent',message:'Event details for upcoming',data:{eventId:event.id,title:event.title,shouldRecordAutomatic:event.shouldRecordAutomatic,shouldRecordManual:event.shouldRecordManual,hasBots,botsCount:event.bots?.length||0,recordStatus,hasMeetingUrl:!!event.meetingUrl,meetingUrl:event.meetingUrl,attendeesCount:attendees.length,calendarAutoRecordExternal:event.Calendar?.autoRecordExternalEvents,calendarAutoRecordInternal:event.Calendar?.autoRecordInternalEvents},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'ABCD'})}).catch(()=>{});
-      // #endregion
+      
       
       upcomingEvents.push({
         id: event.id,
@@ -575,9 +639,6 @@ export default async (req, res) => {
 
   // Get all meeting artifacts for this user with their summaries
   let artifacts = [];
-  // #region agent log
-  fetch('http://127.0.0.1:7250/ingest/bf0206c3-6e13-4499-92a3-7fb2b7527fcf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'meetings/list.js:463',message:'Before artifacts query',data:{userId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-  // #endregion
   try {
     artifacts = await db.MeetingArtifact.findAll({
       where: { userId },
@@ -594,14 +655,8 @@ export default async (req, res) => {
       ],
       order: [["createdAt", "DESC"]],
     });
-    // #region agent log
-    fetch('http://127.0.0.1:7250/ingest/bf0206c3-6e13-4499-92a3-7fb2b7527fcf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'meetings/list.js:480',message:'Artifacts query completed',data:{artifactCount:artifacts.length,artifactIds:artifacts.map(a=>a.id)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-    // #endregion
   } catch (error) {
     console.error(`[MEETINGS] Error fetching meeting artifacts:`, error);
-    // #region agent log
-    fetch('http://127.0.0.1:7250/ingest/bf0206c3-6e13-4499-92a3-7fb2b7527fcf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'meetings/list.js:482',message:'Artifacts query error',data:{error:error.message,stack:error.stack},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-    // #endregion
   }
 
   // Also get summaries that might not have artifacts (edge case)
@@ -629,16 +684,9 @@ export default async (req, res) => {
   const meetingsMap = new Map();
 
   // Add artifacts
-  // #region agent log
-  fetch('http://127.0.0.1:7250/ingest/bf0206c3-6e13-4499-92a3-7fb2b7527fcf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'meetings/list.js:509',message:'Processing artifacts',data:{artifactCount:artifacts.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
-  // #endregion
   for (const artifact of artifacts) {
     const key = artifact.id;
     const calendarEvent = artifact.CalendarEvent;
-    // #region agent log
-    const summaryCheck = artifact.MeetingSummaries?.[0] || artifact.MeetingSummary || null;
-    fetch('http://127.0.0.1:7250/ingest/bf0206c3-6e13-4499-92a3-7fb2b7527fcf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'meetings/list.js:513',message:'Artifact summary check',data:{artifactId:artifact.id,hasMeetingSummaries:!!artifact.MeetingSummaries,hasMeetingSummary:!!artifact.MeetingSummary,summaryKeys:Object.keys(artifact).filter(k=>k.toLowerCase().includes('summary'))},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'F'})}).catch(()=>{});
-    // #endregion
     const summary = artifact.MeetingSummaries?.[0] || artifact.MeetingSummary || null;
 
     meetingsMap.set(key, {
@@ -650,9 +698,20 @@ export default async (req, res) => {
       status: artifact.status,
       hasSummary: !!summary,
       hasTranscript: true, // artifacts have transcripts
-      hasRecording: !!(artifact.rawPayload?.data?.video_url || artifact.rawPayload?.data?.recording_url),
-      recordingUrl: artifact.rawPayload?.data?.video_url || artifact.rawPayload?.data?.recording_url || null,
-      audioUrl: artifact.rawPayload?.data?.audio_url || null,
+      hasRecording: !!(
+        artifact.rawPayload?.data?.video_url || 
+        artifact.rawPayload?.data?.recording_url ||
+        artifact.rawPayload?.data?.media_shortcuts?.video?.data?.download_url
+      ),
+      recordingUrl: 
+        artifact.rawPayload?.data?.video_url || 
+        artifact.rawPayload?.data?.recording_url || 
+        artifact.rawPayload?.data?.media_shortcuts?.video?.data?.download_url ||
+        null,
+      audioUrl: 
+        artifact.rawPayload?.data?.audio_url || 
+        artifact.rawPayload?.data?.media_shortcuts?.audio?.data?.download_url ||
+        null,
       participants: artifact.rawPayload?.data?.participants || artifact.rawPayload?.data?.attendees || [],
       calendarEmail: calendarEvent?.Calendar?.email || null,
       platform: calendarEvent?.Calendar?.platform || null,
@@ -692,23 +751,6 @@ export default async (req, res) => {
     (a, b) => new Date(b.startTime || b.createdAt) - new Date(a.startTime || a.createdAt)
   );
   
-  // #region agent log
-  const pastMeetingsInFinal = meetings.filter(m => {
-    try {
-      return m.startTime && new Date(m.startTime) <= now;
-    } catch {
-      return false;
-    }
-  });
-  const futureMeetingsInFinal = meetings.filter(m => {
-    try {
-      return m.startTime && new Date(m.startTime) > now;
-    } catch {
-      return false;
-    }
-  });
-  fetch('http://127.0.0.1:7250/ingest/bf0206c3-6e13-4499-92a3-7fb2b7527fcf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'meetings/list.js:599',message:'Final meetings array',data:{meetingsCount:meetings.length,pastMeetings:pastMeetingsInFinal.length,futureMeetings:futureMeetingsInFinal.length,meetings:meetings.slice(0,5).map(m=>({id:m.id,title:m.title,type:m.type,startTime:m.startTime})),upcomingEventsCount:upcomingEvents.length,hasCalendars:calendars.length>0,now:now.toISOString()},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
-  // #endregion
   
   console.log(`[MEETINGS-DEBUG] Rendering meetings page:`, {
     userId,
@@ -721,9 +763,6 @@ export default async (req, res) => {
     meetingsSample: meetings.slice(0, 3).map(m => ({ id: m.id, title: m.title, type: m.type })),
   });
 
-  // #region agent log
-  fetch('http://127.0.0.1:7250/ingest/bf0206c3-6e13-4499-92a3-7fb2b7527fcf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'meetings/list.js:617',message:'Rendering view with data',data:{meetingsCount:meetings.length,meetingsIsArray:Array.isArray(meetings),upcomingEventsCount:upcomingEvents.length,hasCalendars:calendars.length>0,meetingsSample:meetings.slice(0,3).map(m=>({id:m.id,title:m.title,type:m.type,startTime:m.startTime}))},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
-  // #endregion
   
   return res.render("meetings.ejs", {
     notice: req.notice,
