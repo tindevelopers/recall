@@ -1,12 +1,21 @@
-import React, { Fragment, useState, useEffect } from "react";
+import React, {
+  Fragment,
+  useState,
+  useEffect,
+  useMemo,
+  useCallback,
+} from "react";
 import classNames from "classnames";
 import { Switch } from "@headlessui/react";
 import { format as formatDate } from "date-fns";
-import ReactTooltip from "react-tooltip";
 
 import type { UseRecallCalendarState } from "../hooks/useRecallCalendar";
-import type { Preferences } from "../hooks/useRecallCalendar/models";
+import type {
+  Preferences,
+  CalendarMeeting,
+} from "../hooks/useRecallCalendar/models";
 import Loaders from "../Loaders";
+import { track } from "../../../../utils/telemetry";
 
 interface IUpcomingMeetingsProps {
   recallCalendar: UseRecallCalendarState;
@@ -22,30 +31,49 @@ export default function UpcomingMeetings({
     useState(false);
   const [showSettings, setShowSettings] = useState<boolean>(false);
 
-  const filteredMeetings = (meetings.data || []).filter((m) => {
-    return !showOnlyRecordableMeetings || m.platform;
-  });
-  
-  // #region agent log
+  const meetingsData = meetings.data || [];
+
+  const filteredMeetings = useMemo(
+    () =>
+      meetingsData.filter((m) => !showOnlyRecordableMeetings || m.platform),
+    [meetingsData, showOnlyRecordableMeetings]
+  );
+
+  const meetingStats = useMemo(() => {
+    const now = Date.now();
+    let past = 0;
+    let future = 0;
+    for (const m of meetingsData) {
+      if (!m.start_time) continue;
+      const start = new Date(m.start_time).getTime();
+      if (!Number.isFinite(start)) continue;
+      if (start <= now) past += 1;
+      else future += 1;
+    }
+    return {
+      totalMeetings: meetingsData.length,
+      pastMeetings: past,
+      futureMeetings: future,
+      filteredMeetings: filteredMeetings.length,
+      showOnlyRecordableMeetings,
+    };
+  }, [meetingsData, filteredMeetings.length, showOnlyRecordableMeetings]);
+
   useEffect(() => {
-    const now = new Date();
-    const pastMeetings = (meetings.data || []).filter(m => {
-      try {
-        return m.start_time && new Date(m.start_time) <= now;
-      } catch {
-        return false;
-      }
-    });
-    const futureMeetings = (meetings.data || []).filter(m => {
-      try {
-        return m.start_time && new Date(m.start_time) > now;
-      } catch {
-        return false;
-      }
-    });
-    fetch('http://127.0.0.1:7248/ingest/9df62f0f-78c1-44fb-821f-c3c7b9f764cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'client/src/containers/Home/RecallCalendar/UpcomingMeetings/index.tsx:25',message:'Meetings displayed in UI',data:{totalMeetings:meetings.data?.length||0,pastMeetings:pastMeetings.length,futureMeetings:futureMeetings.length,filteredMeetings:filteredMeetings.length,showOnlyRecordableMeetings},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-  }, [meetings.data, filteredMeetings.length, showOnlyRecordableMeetings]);
-  // #endregion
+    track("meetings.list_rendered", meetingStats);
+  }, [meetingStats]);
+
+  const nowTs = useMemo(
+    () => Date.now(),
+    [meetingsData, showOnlyRecordableMeetings]
+  );
+
+  const handleToggleRecording = useCallback(
+    (meetingId: string, value: boolean) => {
+      recallCalendar.updateMeeting(meetingId, value);
+    },
+    [recallCalendar]
+  );
 
   return (
     <div className="flex flex-col pb-5">
@@ -149,111 +177,14 @@ export default function UpcomingMeetings({
           ) : (
             <Fragment>
               <ol className="mt-5 space-y-4 text-sm leading-6">
-                {filteredMeetings.map((meeting, index) => {
-                  const now = new Date();
-                  const start = new Date(meeting.start_time);
-                  const end = new Date(meeting.end_time);
-                  const meetingTime = `${formatDate(
-                    start,
-                    "do MMM"
-                  )} · ${formatDate(start, "hh:mm a")} - ${formatDate(
-                    end,
-                    "hh:mm a"
-                  )}`;
-
-                  const isOngoing = start.getTime() <= now.getTime();
-
-                  return (
-                    <li
-                      key={meeting.id}
-                      className="flex flex-col px-3 py-3 mx-4 border border-gray-200 rounded-md"
-                    >
-                      <div className="flex items-start">
-                        <div className="flex flex-col flex-1">
-                          <p className="font-medium text-gray-900 text">
-                            {meeting.title}
-                          </p>
-                          <div className="flex mt-1">
-                            <div className="flex items-center text-xs text-gray-500">
-                              <svg
-                                xmlns="http://www.w3.org/2000/svg"
-                                className="flex-shrink-0 mr-1.5 h-4 w-4 text-gray-400"
-                                viewBox="0 0 20 20"
-                                fill="currentColor"
-                              >
-                                <path
-                                  fillRule="evenodd"
-                                  d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z"
-                                  clipRule="evenodd"
-                                />
-                              </svg>
-                              <p>{meetingTime}</p>
-                            </div>
-                          </div>
-                          <div className="flex items-center mt-2">
-                            <span className="mr-2 capitalize inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
-                              {meeting.calendar_platform}
-                            </span>
-                            {isOngoing ? (
-                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                                <svg
-                                  className="-ml-0.5 mr-1 h-2 w-2 text-green-600"
-                                  fill="currentColor"
-                                  viewBox="0 0 8 8"
-                                >
-                                  <circle cx={4} cy={4} r={3} />
-                                </svg>
-                                Ongoing
-                              </span>
-                            ) : (
-                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
-                                Upcoming
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                        <div className="flex flex-col items-end ml-auto">
-                          <Switch.Group
-                            as="div"
-                            data-tip={meeting.will_record_reason}
-                            data-place="bottom"
-                            data-effect="solid"
-                            data-padding="5px 8px"
-                            className="flex flex-col items-end"
-                          >
-                            <Switch
-                              checked={meeting.will_record}
-                              onChange={(value: boolean) => {
-                                recallCalendar.updateMeeting(meeting.id, value);
-                              }}
-                              className={classNames(
-                                meeting.will_record
-                                  ? "bg-green-600"
-                                  : "bg-gray-200",
-                                "relative inline-flex flex-shrink-0 h-4 w-8 border-2 border-transparent rounded-full cursor-pointer transition-colors ease-in-out duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
-                              )}
-                            >
-                              <span
-                                aria-hidden="true"
-                                className={classNames(
-                                  meeting.will_record
-                                    ? "translate-x-4"
-                                    : "translate-x-0",
-                                  "pointer-events-none inline-block h-3 w-3 rounded-full bg-white shadow transform ring-0 transition ease-in-out duration-200"
-                                )}
-                              />
-                            </Switch>
-                            <Switch.Label as="span" className="">
-                              <span className="text-xs font-medium text-gray-900">
-                                Record call?
-                              </span>
-                            </Switch.Label>
-                          </Switch.Group>
-                        </div>
-                      </div>
-                    </li>
-                  );
-                })}
+                {filteredMeetings.map((meeting) => (
+                  <MeetingRow
+                    key={meeting.id}
+                    meeting={meeting}
+                    nowTs={nowTs}
+                    onToggleRecording={handleToggleRecording}
+                  />
+                ))}
               </ol>
               <div className="px-4 mt-4 text-xs text-center text-gray-500">
                 All your meetings in the next 14 days are loaded.
@@ -283,10 +214,116 @@ export default function UpcomingMeetings({
           />
         </div>
       )}
-      <ReactTooltip />
     </div>
   );
 }
+
+type MeetingRowProps = {
+  meeting: CalendarMeeting;
+  nowTs: number;
+  onToggleRecording: (id: string, value: boolean) => void;
+};
+
+const MeetingRow = React.memo(function MeetingRow({
+  meeting,
+  nowTs,
+  onToggleRecording,
+}: MeetingRowProps) {
+  const start = useMemo(() => new Date(meeting.start_time), [meeting.start_time]);
+  const end = useMemo(() => new Date(meeting.end_time), [meeting.end_time]);
+
+  const meetingTime = useMemo(() => {
+    try {
+      return `${formatDate(start, "do MMM")} · ${formatDate(
+        start,
+        "hh:mm a"
+      )} - ${formatDate(end, "hh:mm a")}`;
+    } catch {
+      return "";
+    }
+  }, [start, end]);
+
+  const isOngoing = useMemo(() => {
+    const startMs = start.getTime();
+    return Number.isFinite(startMs) && startMs <= nowTs;
+  }, [start, nowTs]);
+
+  const tooltipText = meeting.will_record_reason || undefined;
+
+  return (
+    <li className="flex flex-col px-3 py-3 mx-4 border border-gray-200 rounded-md">
+      <div className="flex items-start">
+        <div className="flex flex-col flex-1">
+          <p className="font-medium text-gray-900 text">{meeting.title}</p>
+          <div className="flex mt-1">
+            <div className="flex items-center text-xs text-gray-500">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                className="flex-shrink-0 mr-1.5 h-4 w-4 text-gray-400"
+                viewBox="0 0 20 20"
+                fill="currentColor"
+              >
+                <path
+                  fillRule="evenodd"
+                  d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z"
+                  clipRule="evenodd"
+                />
+              </svg>
+              <p>{meetingTime}</p>
+            </div>
+          </div>
+          <div className="flex items-center mt-2">
+            <span className="mr-2 capitalize inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+              {meeting.calendar_platform}
+            </span>
+            {isOngoing ? (
+              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                <svg
+                  className="-ml-0.5 mr-1 h-2 w-2 text-green-600"
+                  fill="currentColor"
+                  viewBox="0 0 8 8"
+                >
+                  <circle cx={4} cy={4} r={3} />
+                </svg>
+                Ongoing
+              </span>
+            ) : (
+              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                Upcoming
+              </span>
+            )}
+          </div>
+        </div>
+        <div className="flex flex-col items-end ml-auto">
+          <Switch.Group as="div" className="flex flex-col items-end">
+            <Switch
+              title={tooltipText}
+              checked={meeting.will_record}
+              onChange={(value: boolean) => onToggleRecording(meeting.id, value)}
+              className={classNames(
+                meeting.will_record ? "bg-green-600" : "bg-gray-200",
+                "relative inline-flex flex-shrink-0 h-4 w-8 border-2 border-transparent rounded-full cursor-pointer transition-colors ease-in-out duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+              )}
+            >
+              <span
+                aria-hidden="true"
+                className={classNames(
+                  meeting.will_record ? "translate-x-4" : "translate-x-0",
+                  "pointer-events-none inline-block h-3 w-3 rounded-full bg-white shadow transform ring-0 transition ease-in-out duration-200"
+                )}
+              />
+            </Switch>
+            <Switch.Label as="span" className="">
+              <span className="text-xs font-medium text-gray-900">
+                Record call?
+              </span>
+            </Switch.Label>
+          </Switch.Group>
+        </div>
+      </div>
+    </li>
+  );
+});
 
 interface ISettingsFormProps {
   preferences: Preferences;

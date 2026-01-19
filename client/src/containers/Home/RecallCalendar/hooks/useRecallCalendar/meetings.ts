@@ -1,5 +1,6 @@
 import type { CalendarMeeting } from "./models";
 import { makeRequest, buildUrl } from "./api";
+import { track } from "../../../../../utils/telemetry";
 
 export enum MeetingsActionKind {
   FETCH_START = "FETCH_START",
@@ -92,32 +93,16 @@ export async function fetchMeetings({
       url: buildUrl("meetings/"),
       method: "GET",
     });
+    const meetings = Array.isArray(response) ? response : [];
 
-    // #region agent log
-    const now = new Date();
-    const pastMeetings = (response || []).filter(m => {
-      try {
-        return m.start_time && new Date(m.start_time) <= now;
-      } catch {
-        return false;
-      }
+    track("meetings.api_received", {
+      totalMeetings: meetings.length,
     });
-    const futureMeetings = (response || []).filter(m => {
-      try {
-        return m.start_time && new Date(m.start_time) > now;
-      } catch {
-        return false;
-      }
-    });
-    fetch('http://127.0.0.1:7248/ingest/9df62f0f-78c1-44fb-821f-c3c7b9f764cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'client/src/containers/Home/RecallCalendar/hooks/useRecallCalendar/meetings.ts:90',message:'Meetings API response received',data:{totalMeetings:response?.length||0,pastMeetings:pastMeetings.length,futureMeetings:futureMeetings.length,now:now.toISOString()},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-    // #endregion
 
-    if (response?.length) {
-      meetingsDispatch({
-        type: MeetingsActionKind.FETCH_SUCCESS,
-        meetings: response,
-      });
-    }
+    meetingsDispatch({
+      type: MeetingsActionKind.FETCH_SUCCESS,
+      meetings,
+    });
   } catch (err) {
     meetingsDispatch({
       type: MeetingsActionKind.FETCH_ERROR,
@@ -139,12 +124,12 @@ export async function refreshMeetings({
       method: "POST",
     });
 
-    if (response?.length) {
-      meetingsDispatch({
-        type: MeetingsActionKind.REFRESH_SUCCESS,
-        meetings: response,
-      });
-    }
+    const meetings = Array.isArray(response) ? response : [];
+
+    meetingsDispatch({
+      type: MeetingsActionKind.REFRESH_SUCCESS,
+      meetings,
+    });
   } catch (err) {
     meetingsDispatch({
       type: MeetingsActionKind.REFRESH_ERROR,

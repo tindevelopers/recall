@@ -1,4 +1,4 @@
-import { useState, useReducer, useEffect } from "react";
+import { useState, useReducer, useEffect, useRef } from "react";
 
 import {
   tokenReducer,
@@ -57,6 +57,7 @@ export default function useRecallCalendar(
     meetingsReducer,
     MEETINGS_INITIAL_STATE
   );
+  const connectIntervalRef = useRef<number | null>(null);
 
   useEffect(() => {
     async function initialize() {
@@ -90,6 +91,12 @@ export default function useRecallCalendar(
     }
 
     initialize();
+    return () => {
+      if (connectIntervalRef.current) {
+        clearInterval(connectIntervalRef.current);
+        connectIntervalRef.current = null;
+      }
+    };
   }, []);
 
   return {
@@ -140,6 +147,11 @@ export default function useRecallCalendar(
     },
 
     connectCalendar: (platform: CalendarPlatform): void => {
+      if (connectIntervalRef.current) {
+        clearInterval(connectIntervalRef.current);
+        connectIntervalRef.current = null;
+      }
+
       let redirectUri;
       let oAuthUrl;
       if (platform === CalendarPlatform.GOOGLE) {
@@ -166,7 +178,7 @@ export default function useRecallCalendar(
 
       window.open(oAuthUrl);
 
-      const intervalId = setInterval(async () => {
+      const intervalId = window.setInterval(async () => {
         const user = await fetchUser({
           authToken: token.data,
           userDispatch,
@@ -180,12 +192,14 @@ export default function useRecallCalendar(
           )[0]?.connected
         ) {
           clearInterval(intervalId);
+          connectIntervalRef.current = null;
           fetchMeetings({
             meetingsDispatch,
             authToken: token.data,
           });
         }
       }, 2000);
+      connectIntervalRef.current = intervalId;
     },
   };
 }
