@@ -25,12 +25,24 @@ export function buildBotConfig({ calendar, event, publicUrl }) {
     }
   }
 
-  // Recording config
+  // Recording config - specify output media types
+  // Recall.ai requires explicit media type specifications, not just video/audio booleans
   botConfig.recording_config = {};
 
   if (calendar) {
-    botConfig.recording_config.video = calendar.recordVideo !== false;
-    botConfig.recording_config.audio = calendar.recordAudio !== false;
+    // Request video recording in MP4 format (mixed view of all participants)
+    if (calendar.recordVideo !== false) {
+      botConfig.recording_config.video_mixed_mp4 = {};
+    }
+    
+    // Request audio recording in MP3 format (mixed audio of all participants)
+    if (calendar.recordAudio !== false) {
+      botConfig.recording_config.audio_mixed_mp3 = {};
+    }
+  } else {
+    // Default: request both video and audio if no calendar settings
+    botConfig.recording_config.video_mixed_mp4 = {};
+    botConfig.recording_config.audio_mixed_mp3 = {};
   }
 
   // Transcription config

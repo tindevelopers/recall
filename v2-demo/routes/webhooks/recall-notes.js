@@ -18,15 +18,27 @@ import Recall from "../../services/recall/index.js";
 
 function extractRecallIdentifiers(payload) {
   const data = payload?.data || payload;
-  return {
-    recallEventId:
-      data?.calendar_event_id ||
-      data?.event_id ||
-      data?.meeting_id ||
-      data?.id ||
-      null,
-    recallBotId: data?.bot_id || data?.botId || payload?.bot_id || null,
-  };
+  
+  // Bot status change webhooks have a different structure
+  // They typically have: { event: "bot.status_change", data: { bot_id: "...", status: {...} } }
+  const recallBotId = 
+    data?.bot_id || 
+    data?.botId || 
+    payload?.bot_id || 
+    payload?.botId ||
+    // For status change events, the bot_id might be at the top level
+    (payload?.event === "bot.status_change" ? payload?.data?.bot_id : null) ||
+    null;
+    
+  const recallEventId =
+    data?.calendar_event_id ||
+    data?.event_id ||
+    data?.meeting_id ||
+    // Don't use data.id as it might be the bot_id in status change events
+    (data?.id && data?.id !== recallBotId ? data.id : null) ||
+    null;
+    
+  return { recallEventId, recallBotId };
 }
 
 /**
@@ -88,12 +100,19 @@ export default async (req, res) => {
     `[RECALL-NOTES] Received webhook: event=${event}, recallEventId=${recallEventId}, recallBotId=${recallBotId}`
   );
   console.log(`[RECALL-NOTES] Payload keys: ${Object.keys(rawPayload).join(", ")}`);
+  console.log(`[RECALL-NOTES] Full payload: ${JSON.stringify(rawPayload).substring(0, 1000)}`);
   
   // Log recording and transcription data presence for debugging
   const data = rawPayload?.data || rawPayload;
   const hasRecording = !!(data?.video_url || data?.recording_url || data?.videoUrl || data?.recordingUrl);
   const hasTranscript = !!(data?.transcript?.segments || data?.transcript_segments || data?.segments || data?.words);
   console.log(`[RECALL-NOTES] Recording data present: ${hasRecording}, Transcript data present: ${hasTranscript}`);
+  
+  // For bot.status_change events, log the status details
+  if (event === "bot.status_change") {
+    const status = data?.status || rawPayload?.status;
+    console.log(`[RECALL-NOTES] Bot status change: code=${status?.code}, sub_code=${status?.sub_code}, message=${status?.message}`);
+  }
   
   if (hasRecording) {
     console.log(`[RECALL-NOTES] Recording URLs: video=${data?.video_url || data?.videoUrl || 'N/A'}, audio=${data?.audio_url || data?.audioUrl || 'N/A'}`);
@@ -106,7 +125,27 @@ export default async (req, res) => {
   }
 
   try {
+    // For bot.status_change with "done" status, we need to fetch the bot data from Recall API
+    // to get the recording URLs and transcript
+    let botData = null;
+    const statusCode = data?.status?.code || rawPayload?.status?.code;
+    if (event === "bot.status_change" && statusCode === "done" && recallBotId) {
+      console.log(`[RECALL-NOTES] Bot ${recallBotId} is done, fetching bot data from Recall API...`);
+      try {
+        // Small delay to ensure media is ready
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        botData = await Recall.getBot(recallBotId);
+        console.log(`[RECALL-NOTES] Fetched bot data: recordings=${botData?.recordings?.length || 0}, status=${botData?.status?.code}`);
+        if (botData?.recordings?.length > 0) {
+          console.log(`[RECALL-NOTES] Recording media_shortcuts: ${JSON.stringify(botData.recordings[0]?.media_shortcuts || {}).substring(0, 500)}`);
+        }
+      } catch (fetchErr) {
+        console.error(`[RECALL-NOTES] Failed to fetch bot data: ${fetchErr.message}`);
+      }
+    }
+    
     // Find associated calendar event (if any)
+    // First try by recallEventId, then by recallBotId if we have bot data
     let calendarEvent = null;
     if (recallEventId) {
       calendarEvent = await db.CalendarEvent.findOne({
@@ -114,32 +153,62 @@ export default async (req, res) => {
         include: [{ model: db.Calendar }],
       });
     }
+    
+    // If no calendar event found by recallEventId, try to find by bot's calendar_event_id
+    if (!calendarEvent && botData?.calendar_event_id) {
+      calendarEvent = await db.CalendarEvent.findOne({
+        where: { recallId: botData.calendar_event_id },
+        include: [{ model: db.Calendar }],
+      });
+      console.log(`[RECALL-NOTES] Found calendar event by bot's calendar_event_id: ${calendarEvent?.id || 'not found'}`);
+    }
 
     // Find or create MeetingArtifact
+    // Try to find by recallEventId first, then by recallBotId
     let artifact = null;
-    if (recallEventId) {
+    const effectiveRecallEventId = recallEventId || botData?.calendar_event_id;
+    
+    if (effectiveRecallEventId) {
       artifact = await db.MeetingArtifact.findOne({
-        where: { recallEventId },
+        where: { recallEventId: effectiveRecallEventId },
+      });
+    }
+    
+    // If not found by event ID, try by bot ID
+    if (!artifact && recallBotId) {
+      artifact = await db.MeetingArtifact.findOne({
+        where: { recallBotId },
       });
     }
 
+    // Merge bot data into the payload if we fetched it
+    const enrichedPayload = botData ? {
+      ...rawPayload,
+      data: {
+        ...rawPayload?.data,
+        bot: botData,
+        recordings: botData.recordings,
+        media_shortcuts: botData.recordings?.[0]?.media_shortcuts,
+      },
+    } : rawPayload;
+
     const artifactDefaults = {
-      recallEventId,
+      recallEventId: effectiveRecallEventId,
       recallBotId,
       calendarEventId: calendarEvent?.id || null,
       userId: calendarEvent?.Calendar?.userId || calendarEvent?.userId || null,
       eventType: event,
-      status: "received",
+      status: statusCode === "done" ? "completed" : "received",
     };
 
     if (artifact) {
       // Merge payloads to preserve all data across multiple webhook calls
       const mergedPayload = {
         ...artifact.rawPayload,
-        ...rawPayload,
+        ...enrichedPayload,
         data: {
           ...artifact.rawPayload?.data,
-          ...rawPayload?.data,
+          ...enrichedPayload?.data,
         },
       };
       await artifact.update({
@@ -151,7 +220,7 @@ export default async (req, res) => {
       artifact = await db.MeetingArtifact.create({
         id: uuidv4(),
         ...artifactDefaults,
-        rawPayload,
+        rawPayload: enrichedPayload,
       });
       console.log(`[RECALL-NOTES] Created new artifact ${artifact.id}`);
     }
