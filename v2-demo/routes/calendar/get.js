@@ -10,7 +10,16 @@ export default async (req, res) => {
         userId: req.authentication.user.id,
       },
     });
+    
+    // Check if calendar exists and is not disconnected
     if (calendar) {
+      const status = calendar.status || calendar.recallData?.status;
+      if (status === "disconnected") {
+        // Calendar was disconnected/deleted, return 404
+        return res.render("404.ejs", {
+          notice: req.notice,
+        });
+      }
       const [webhooks, events] = await Promise.all([
         calendar.getCalendarWebhooks({
           order: [["receivedAt", "DESC"]],

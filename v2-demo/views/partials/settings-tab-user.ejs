@@ -32,8 +32,15 @@
   <div class="space-y-4">
     <div class="flex items-center justify-between">
       <h3 class="text-lg font-semibold text-gray-900">Connected Calendars</h3>
+      <% 
+        // Count only connected calendars
+        const connectedCalendars = calendars.filter(function(cal) {
+          const status = cal.status || cal.recallData?.status;
+          return status === 'connected';
+        });
+      %>
       <span class="inline-flex items-center rounded-full bg-indigo-100 px-3 py-1 text-xs font-medium text-indigo-700">
-        <%= calendars.length %> connected
+        <%= connectedCalendars.length %> connected
       </span>
     </div>
     

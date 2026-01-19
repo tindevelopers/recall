@@ -7,10 +7,16 @@ export default async (req, res) => {
 
   const userId = req.authentication.user.id;
 
-  // Get all calendars for the user
-  const calendars = await db.Calendar.findAll({
+  // Get all calendars for the user, filtering out disconnected ones
+  const allCalendars = await db.Calendar.findAll({
     where: { userId },
     order: [["createdAt", "ASC"]],
+  });
+  
+  // Filter out disconnected calendars - they shouldn't be displayed
+  const calendars = allCalendars.filter((calendar) => {
+    const status = calendar.status || calendar.recallData?.status;
+    return status !== "disconnected" && status !== null && status !== undefined;
   });
 
   // If no calendars, render settings page with empty state
