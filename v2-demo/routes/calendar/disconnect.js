@@ -2,6 +2,7 @@ import { generateNotice } from "../utils.js";
 import db from "../../db.js";
 import Recall from '../../services/recall/index.js'
 
+// Disconnect calendar route - removes calendar from Recall API but keeps local record for reconnection
 export default async (req, res) => {
   if (!req.authenticated) {
     return res.redirect("/");
