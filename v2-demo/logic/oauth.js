@@ -25,7 +25,7 @@ export function buildMicrosoftOutlookOAuthUrl(state) {
     redirect_uri: process.env.PUBLIC_URL + "/oauth-callback/microsoft-outlook",
     response_type: "code",
     scope: buildMicrosoftOutlookOAuthScopes().join(" "),
-    // prompt: "consent",
+    prompt: "consent", // Force re-authorization to ensure fresh OAuth flow
     state: JSON.stringify(state),
   };
 

@@ -109,13 +109,33 @@ export default async (req, res) => {
     } else {
       // Idempotency: if a calendar already exists for this user+platform, treat this as a reconnect.
       // (The dashboard "Connect" button historically didn't include calendarId in state, which caused duplicates.)
+      // But don't reuse disconnected calendars - they should be treated as new connections
       const existing = await db.Calendar.findOne({
         where: { userId, platform: "google_calendar" },
         order: [["updatedAt", "DESC"]],
       });
 
+      // Only reuse existing calendar if it's actually connected (not disconnected)
+      let calendarToReuse = existing;
       if (existing) {
-        localCalendar = existing;
+        const existingStatus = existing.status || existing.recallData?.status;
+        if (existingStatus === "disconnected") {
+          console.log(`Existing calendar ${existing.id} is disconnected, creating new calendar instead`);
+          // Delete the disconnected calendar and create a new one
+          try {
+            if (existing.recallId) {
+              await Recall.deleteCalendar(existing.recallId).catch(() => {});
+            }
+          } catch (err) {
+            // Ignore errors deleting from Recall
+          }
+          await existing.destroy();
+          calendarToReuse = null; // Force new calendar creation
+        }
+      }
+
+      if (calendarToReuse && calendarToReuse.recallId) {
+        localCalendar = calendarToReuse;
         try {
           recallCalendar = await Recall.updateCalendar({
             id: localCalendar.recallId,
