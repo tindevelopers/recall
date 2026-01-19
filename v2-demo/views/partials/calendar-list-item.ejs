@@ -31,7 +31,7 @@
           </svg>
           Settings
         </a>
-        <% if (calendar.status === 'connected') { %>
+        <% if (calendar.recallId && calendar.status !== 'disconnected') { %>
           <form method="post" action="/calendar/<%= calendar.id %>/disconnect" class="inline">
             <button 
               type="submit" 
