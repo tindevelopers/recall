@@ -1,5 +1,5 @@
 # Dockerfile optimized for Railway deployment
-# Railway builds from the v2-demo directory, so paths are relative
+# Railway builds from the recall directory, so paths are relative
 
 FROM node:19
 

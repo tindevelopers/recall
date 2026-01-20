@@ -1,6 +1,6 @@
-# Railway configuration for v2-demo worker service
+# Railway configuration for recall worker service
 # This file should be used when deploying the worker service
-# Set Root Directory to: v2-demo (or use this file path)
+# Set Root Directory to: recall (or use this file path)
 
 [build]
 builder = "dockerfile"

@@ -2,7 +2,7 @@
 # Start worker with proper logging
 set -e
 
-echo "🚀 Starting v2-demo worker locally..."
+echo "🚀 Starting recall worker locally..."
 echo ""
 
 # Check Redis

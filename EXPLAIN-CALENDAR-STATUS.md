@@ -31,7 +31,7 @@ This is **expected behavior** because:
 ### How It Gets Updated
 
 Once Recall finishes processing, it sends a webhook to your application:
-- **Webhook URL**: `https://recall-v2-demo-production.up.railway.app/webhooks/recall-calendar-updates`
+- **Webhook URL**: `https://recall-recall-production.up.railway.app/webhooks/recall-calendar-updates`
 - **Event**: `calendar.update`
 
 Your application then:
@@ -56,13 +56,13 @@ You need to create a worker service in Railway:
 1. **In Railway Dashboard:**
    - Go to your project
    - Click **"+ New"** → **"Empty Service"** (or duplicate your main service)
-   - Name it: `v2-demo-worker` (or similar)
+   - Name it: `recall-worker` (or similar)
    - Set **Start Command**: `npm run start:worker`
    - Make sure it has the same environment variables as the main service
 
 2. **Verify Worker is Running:**
    ```bash
-   railway logs --service v2-demo-worker --tail 50
+   railway logs --service recall-worker --tail 50
    ```
 
    You should see:
@@ -88,7 +88,7 @@ You need to create a worker service in Railway:
 **If calendar stays "connecting":**
 - Check if worker service exists and is running
 - Check worker logs for errors
-- Verify webhook URL is accessible: `https://recall-v2-demo-production.up.railway.app/webhooks/recall-calendar-updates`
+- Verify webhook URL is accessible: `https://recall-recall-production.up.railway.app/webhooks/recall-calendar-updates`
 - Check if Redis is working (worker needs Redis)
 
 **If email stays null:**

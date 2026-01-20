@@ -22,8 +22,8 @@ import { fileURLToPath } from "url";
 import { dirname, join } from "path";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
-config({ path: join(__dirname, "v2-demo", ".env") });
-import db from "./v2-demo/db.js";
+config({ path: join(__dirname, "recall", ".env") });
+import db from "./recall/db.js";
 try {
   await db.connect();
   const event = await db.CalendarEvent.findOne({
@@ -132,5 +132,5 @@ else
     echo "   https://us-west-2.recall.ai/dashboard/explorer/bot"
     echo ""
     echo "Or check server logs for bot scheduling:"
-    echo "   tail -f /tmp/v2-demo-server.log | grep BOT_CONFIG"
+    echo "   tail -f /tmp/recall-server.log | grep BOT_CONFIG"
 fi

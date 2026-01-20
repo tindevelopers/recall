@@ -30,7 +30,7 @@ if [ -z "$SERVICE_NAME" ]; then
     echo "⚠️  No service linked. Link to worker service:"
     echo "   railway service <worker-service-name>"
     echo ""
-    echo "Common worker service names: worker, v2-demo-worker, recall-worker"
+    echo "Common worker service names: worker, recall-worker"
     exit 1
 fi
 

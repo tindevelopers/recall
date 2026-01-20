@@ -11,7 +11,7 @@ Transcription isn't working because the worker service is sleeping (serverless m
 ### Step 1: Open Railway Dashboard
 1. Go to [railway.app](https://railway.app)
 2. Navigate to your project
-3. Click on your **worker service** (usually named `v2-demo-worker` or similar)
+3. Click on your **worker service** (usually named `recall-worker` or similar)
 
 ### Step 2: Disable Sleep Mode
 1. Click the **"Settings"** tab

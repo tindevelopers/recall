@@ -59,7 +59,7 @@ telemetryLog("INFO", "Worker startup initiated", {
   platform: process.platform,
 });
 
-console.log("🚀 Starting v2-demo worker...");
+console.log("🚀 Starting recall worker...");
 console.log(`📋 Environment: ${process.env.NODE_ENV || 'development'}`);
 console.log(`🔗 Redis URL: ${process.env.REDIS_URL ? process.env.REDIS_URL.replace(/:[^:@]+@/, ':****@') : 'NOT SET'}`);
 console.log(`💾 Database: ${process.env.DATABASE_URL ? 'PostgreSQL (configured)' : 'NOT SET (DATABASE_URL required)'}`);

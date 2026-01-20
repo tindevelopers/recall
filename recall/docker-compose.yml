@@ -1,6 +1,7 @@
 version: '3.1'
 services:
-  calv2-demo-app:
+  calrecall-app:
+    platform: linux/amd64
     build: 
       context: .
       dockerfile: Dockerfile
@@ -11,14 +12,12 @@ services:
       - .:/app
       - /app/node_modules
     depends_on:
-      - calv2-demo-redis
+      - calrecall-redis
     environment:
-      - REDIS_URL=redis://calv2-demo-redis:6379
-      - NODE_ENV=development
-    env_file:
-      - .env
+      - REDIS_URL=redis://calrecall-redis:6379
   
-  calv2-demo-worker:
+  calrecall-worker:
+    platform: linux/amd64
     build: 
       context: .
       dockerfile: Dockerfile    
@@ -27,14 +26,12 @@ services:
       - .:/app
       - /app/node_modules
     depends_on:
-      - calv2-demo-redis
+      - calrecall-redis
     environment:
-      - REDIS_URL=redis://calv2-demo-redis:6379
-      - NODE_ENV=development
-    env_file:
-      - .env
+      - REDIS_URL=redis://calrecall-redis:6379
     
-  calv2-demo-redis:
+  calrecall-redis:
+    platform: linux/amd64
     image: redis:6.2    
-    ports:
-      - "6379:6379"
+    expose:
+      - 6379

@@ -21,7 +21,7 @@ You're seeing "The OAuth client was not found" error because Google OAuth creden
    - Application type: **Web application**
    - Name: `Recall V2 Demo` (or any name)
    - Authorized redirect URIs: 
-     - `https://recall-v2-demo-production.up.railway.app/oauth-callback/google-calendar`
+     - `https://recall-recall-production.up.railway.app/oauth-callback/google-calendar`
    - Click **Create**
 7. Copy the **Client ID** and **Client Secret**
 
@@ -30,8 +30,8 @@ You're seeing "The OAuth client was not found" error because Google OAuth creden
 Run these commands:
 
 ```bash
-railway variables --set "GOOGLE_CALENDAR_OAUTH_CLIENT_ID=your-client-id-here" --service recall-v2-demo
-railway variables --set "GOOGLE_CALENDAR_OAUTH_CLIENT_SECRET=your-client-secret-here" --service recall-v2-demo
+railway variables --set "GOOGLE_CALENDAR_OAUTH_CLIENT_ID=your-client-id-here" --service recall-recall
+railway variables --set "GOOGLE_CALENDAR_OAUTH_CLIENT_SECRET=your-client-secret-here" --service recall-recall
 ```
 
 Replace `your-client-id-here` and `your-client-secret-here` with the actual values from Google Cloud Console.
@@ -39,7 +39,7 @@ Replace `your-client-id-here` and `your-client-secret-here` with the actual valu
 ### Step 3: Verify Redirect URI is Added
 
 Make sure you added this redirect URI in Google Cloud Console:
-- `https://recall-v2-demo-production.up.railway.app/oauth-callback/google-calendar`
+- `https://recall-recall-production.up.railway.app/oauth-callback/google-calendar`
 
 **Important:** The URI must match exactly (no trailing slash, correct protocol).
 
@@ -64,7 +64,7 @@ Try connecting Google Calendar again. The error should be resolved.
 
 **Error: "redirect_uri_mismatch"**
 - Verify the redirect URI in Google Cloud Console matches exactly:
-  - `https://recall-v2-demo-production.up.railway.app/oauth-callback/google-calendar`
+  - `https://recall-recall-production.up.railway.app/oauth-callback/google-calendar`
 - No trailing slash, correct protocol (https://)
 
 

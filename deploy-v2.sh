@@ -1,5 +1,5 @@
 #!/bin/bash
-# Quick deployment script for v2-demo
+# Quick deployment script for recall
 
 echo "🚂 Deploying V2 Demo to Railway"
 echo "================================"

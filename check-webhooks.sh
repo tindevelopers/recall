@@ -1,7 +1,7 @@
 #!/bin/bash
 # Script to check webhook configuration for a calendar
 
-DOMAIN="https://recall-v2-demo-production.up.railway.app"
+DOMAIN="https://recall-recall-production.up.railway.app"
 
 echo "🔍 Webhook Debug Tool"
 echo "===================="

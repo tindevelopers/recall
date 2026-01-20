@@ -1,11 +1,11 @@
 [build]
 builder = "dockerfile"
-dockerfilePath = "v2-demo/Dockerfile"
+dockerfilePath = "recall/Dockerfile"
 
 [deploy]
 # Start command removed - set individually per service in Railway dashboard:
-# - Main service (recall-v2-demo): npm start
-# - Worker service (v2-demo-worker): npm run start:worker
+# - Main service (recall): npm start
+# - Worker service (recall-worker): npm run start:worker
 # Healthcheck removed - set individually per service:
 # - Main service: Enable healthcheck with path "/"
 # - Worker service: Disable healthcheck (workers don't serve HTTP)

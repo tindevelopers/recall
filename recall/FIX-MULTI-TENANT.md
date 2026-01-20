@@ -23,14 +23,14 @@ Error: "Application is not configured as a multi-tenant application. Usage of th
 - Wait a few minutes before testing
 
 ### Step 4: Test Again
-1. Go back to your app: https://recall-v2-demo-production.up.railway.app
+1. Go back to your app: https://recall-recall-production.up.railway.app
 2. Click **Connect** for Microsoft Outlook
 3. Sign in with your Microsoft account
 4. It should work now!
 
 ## Why This Happens
 
-The v2-demo application uses the `/common` endpoint which supports:
+The recall application uses the `/common` endpoint which supports:
 - Users from any organization
 - Personal Microsoft accounts
 - Multiple tenants

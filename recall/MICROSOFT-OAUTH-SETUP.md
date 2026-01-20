@@ -12,7 +12,7 @@
      - ❌ Do NOT select "Accounts in this organizational directory only" (Single-tenant)
    - **Redirect URI**: 
      - Platform: **Web**
-     - URI: `https://recall-v2-demo-production.up.railway.app/oauth-callback/microsoft-outlook`
+     - URI: `https://recall-recall-production.up.railway.app/oauth-callback/microsoft-outlook`
 5. Click **Register**
 
 **⚠️ CRITICAL**: If you already created the app as single-tenant, you need to change it:
@@ -71,7 +71,7 @@ Or set them in Railway dashboard:
 
 Make sure the redirect URI in Azure matches exactly:
 ```
-https://recall-v2-demo-production.up.railway.app/oauth-callback/microsoft-outlook
+https://recall-recall-production.up.railway.app/oauth-callback/microsoft-outlook
 ```
 
 ## Step 6: Redeploy (if needed)
@@ -89,7 +89,7 @@ railway up
 - Check for typos in the client ID
 
 **Error: Invalid redirect URI**
-- Ensure redirect URI in Azure matches exactly: `https://recall-v2-demo-production.up.railway.app/oauth-callback/microsoft-outlook`
+- Ensure redirect URI in Azure matches exactly: `https://recall-recall-production.up.railway.app/oauth-callback/microsoft-outlook`
 - No trailing slash
 - Must be HTTPS (not HTTP)
 

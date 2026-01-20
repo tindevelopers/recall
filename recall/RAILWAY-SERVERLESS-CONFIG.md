@@ -32,7 +32,7 @@ For transcription to work reliably, the worker **MUST** be available when:
 
 1. **Go to Railway Dashboard**
    - Navigate to your project
-   - Click on your **worker service** (e.g., `v2-demo-worker`)
+   - Click on your **worker service** (e.g., `recall-worker`)
 
 2. **Open Service Settings**
    - Click **"Settings"** tab
@@ -54,10 +54,10 @@ For transcription to work reliably, the worker **MUST** be available when:
 railway link
 
 # Set service to always-on (disable sleeping)
-railway variables set RAILWAY_SLEEP=false --service v2-demo-worker
+railway variables set RAILWAY_SLEEP=false --service recall-worker
 
 # Or use Railway's compute settings
-railway service update --service v2-demo-worker --sleep=false
+railway service update --service recall-worker --sleep=false
 ```
 
 #### Option 3: Via railway.toml
@@ -84,7 +84,7 @@ sleep = false
 
 2. **Check Logs**
    ```bash
-   railway logs --service v2-demo-worker --tail 50
+   railway logs --service recall-worker --tail 50
    ```
    - Should see continuous activity or heartbeat logs
    - No "waking up" or "cold start" messages
@@ -108,7 +108,7 @@ If you need serverless for cost reasons, you can implement a wake-up mechanism:
 
 #### 1. Add Wake-Up Endpoint to Worker
 
-Create `v2-demo/routes/wake.js`:
+Create `recall/routes/wake.js`:
 
 ```javascript
 export default async (req, res) => {
@@ -123,7 +123,7 @@ export default async (req, res) => {
 
 #### 2. Wake Worker Before Meetings
 
-Modify `v2-demo/worker/processors/calendar-event-update-bot-schedule.js`:
+Modify `recall/worker/processors/calendar-event-update-bot-schedule.js`:
 
 ```javascript
 // At the start of the processor
@@ -147,7 +147,7 @@ export default async (job) => {
 
 #### 3. Wake Worker on Webhook
 
-Modify `v2-demo/routes/webhooks/recall-calendar-updates.js`:
+Modify `recall/routes/webhooks/recall-calendar-updates.js`:
 
 ```javascript
 async function wakeWorker() {
@@ -217,7 +217,7 @@ CRON_WAKE_URL=https://your-worker.up.railway.app/wake
 
 2. **Check Environment Variables**
    ```bash
-   railway variables --service v2-demo-worker
+   railway variables --service recall-worker
    ```
    - Look for `RAILWAY_SLEEP=false` or similar
 

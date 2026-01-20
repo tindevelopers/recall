@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Helper script to start v2-demo locally
+# Helper script to start recall locally
 # This will check prerequisites and start both server and worker
 
 set -e
@@ -42,7 +42,7 @@ if [ ! -d "node_modules" ]; then
 fi
 
 echo ""
-echo "🚀 Starting v2-demo..."
+echo "🚀 Starting recall..."
 echo ""
 echo "📌 You need TWO terminal windows:"
 echo ""

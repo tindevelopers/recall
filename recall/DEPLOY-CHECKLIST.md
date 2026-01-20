@@ -1,6 +1,6 @@
 # V2 Demo Deployment Checklist
 
-Quick checklist for deploying v2-demo to Railway.
+Quick checklist for deploying recall to Railway.
 
 ## Pre-Deployment
 
@@ -31,12 +31,12 @@ Quick checklist for deploying v2-demo to Railway.
 ### 3. Deploy Main Application
 - [ ] Click "+ New" → "GitHub Repo" → Select repo
 - [ ] Railway detects `railway.toml` automatically
-- [ ] Set Root Directory: Leave as root (uses `dockerfilePath: v2-demo/Dockerfile`)
+- [ ] Set Root Directory: Leave as root (uses `dockerfilePath: recall/Dockerfile`)
 - [ ] Verify Start Command: `npm start`
 
 ### 4. Deploy Worker Service
 - [ ] Duplicate the main application service
-- [ ] Rename to "v2-demo-worker"
+- [ ] Rename to "recall-worker"
 - [ ] Change Start Command to: `npm run start:worker`
 - [ ] Use same environment variables as main service
 

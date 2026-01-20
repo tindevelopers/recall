@@ -10,18 +10,18 @@ echo ""
 
 # Check if project is linked
 if ! railway status &> /dev/null; then
-    echo "❌ Project not linked. Run: railway link --project recall-v2-demo"
+    echo "❌ Project not linked. Run: railway link --project recall"
     exit 1
 fi
 
-echo "✅ Project linked: recall-v2-demo"
+echo "✅ Project linked: recall"
 echo ""
 
 # Try to deploy - Railway will prompt for service if needed
 echo "📤 Deploying latest code..."
 echo ""
 echo "Note: If multiple services exist, Railway will prompt you to select one."
-echo "Common service names: web, api, main, v2-demo"
+echo "Common service names: web, api, main, recall"
 echo ""
 
 railway up

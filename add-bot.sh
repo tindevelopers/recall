@@ -32,4 +32,4 @@ if [ -z "$REMOTE_DB_URL" ]; then
     REMOTE_DB_URL="postgresql://127.0.0.1:5432/recall_v2_demo"
 fi
 
-cd v2-demo && DATABASE_URL="$REMOTE_DB_URL" node test-add-bot.js "$RECALL_EVENT_ID"
+cd recall && DATABASE_URL="$REMOTE_DB_URL" node test-add-bot.js "$RECALL_EVENT_ID"

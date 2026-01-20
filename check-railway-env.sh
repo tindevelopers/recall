@@ -9,11 +9,11 @@ echo ""
 
 # Check if project is linked
 if ! railway status &> /dev/null; then
-    echo "❌ Project not linked. Run: railway link --project recall-v2-demo"
+    echo "❌ Project not linked. Run: railway link --project recall"
     exit 1
 fi
 
-echo "✅ Project: recall-v2-demo"
+echo "✅ Project: recall"
 echo ""
 
 # Check for services
@@ -65,7 +65,7 @@ else
     echo "⚠️  No service linked. Link to a service first:"
     echo "   railway service <service-name>"
     echo ""
-    echo "Common service names: web, api, main, v2-demo"
+    echo "Common service names: web, api, main, recall"
 fi
 
 echo ""

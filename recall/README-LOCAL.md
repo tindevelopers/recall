@@ -1,6 +1,6 @@
 # Running V2 Demo Locally
 
-This guide will help you set up and run the v2-demo application on your localhost.
+This guide will help you set up and run the recall application on your localhost.
 
 ## Prerequisites
 
@@ -17,7 +17,7 @@ This guide will help you set up and run the v2-demo application on your localhos
 ### Option 1: Automated Setup (Recommended)
 
 ```bash
-cd v2-demo
+cd recall
 ./setup-local.sh    # Creates .env file with defaults
 # Edit .env and add your RECALL_API_KEY and SECRET
 npm install
@@ -29,7 +29,7 @@ npm install
 ### 1. Install Dependencies
 
 ```bash
-cd v2-demo
+cd recall
 npm install
 ```
 

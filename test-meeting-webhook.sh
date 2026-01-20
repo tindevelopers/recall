@@ -29,9 +29,9 @@ import { fileURLToPath } from "url";
 import { dirname, join } from "path";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
-// Try to load .env file from v2-demo directory
-config({ path: join(__dirname, "v2-demo", ".env") });
-import db from "./v2-demo/db.js";
+// Try to load .env file from recall directory
+config({ path: join(__dirname, "recall", ".env") });
+import db from "./recall/db.js";
 try {
   await db.connect();
   const event = await db.CalendarEvent.findOne({

@@ -22,16 +22,16 @@ Once you know your region, update the environment variable:
 
 ```bash
 # For us-east-1
-railway variables --set "RECALL_API_HOST=https://us-east-1.recall.ai" --service recall-v2-demo
+railway variables --set "RECALL_API_HOST=https://us-east-1.recall.ai" --service recall-recall
 
 # For us-west-2
-railway variables --set "RECALL_API_HOST=https://us-west-2.recall.ai" --service recall-v2-demo
+railway variables --set "RECALL_API_HOST=https://us-west-2.recall.ai" --service recall-recall
 
 # For eu-central-1
-railway variables --set "RECALL_API_HOST=https://eu-central-1.recall.ai" --service recall-v2-demo
+railway variables --set "RECALL_API_HOST=https://eu-central-1.recall.ai" --service recall-recall
 
 # For ap-northeast-1
-railway variables --set "RECALL_API_HOST=https://ap-northeast-1.recall.ai" --service recall-v2-demo
+railway variables --set "RECALL_API_HOST=https://ap-northeast-1.recall.ai" --service recall-recall
 ```
 
 ### Step 3: Redeploy

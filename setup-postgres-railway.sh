@@ -10,10 +10,10 @@ echo ""
 # Check if project is linked
 if ! railway status &> /dev/null; then
     echo "❌ Project not linked. Linking now..."
-    railway link --project recall-v2-demo
+    railway link --project recall
 fi
 
-echo "✅ Project linked: recall-v2-demo"
+echo "✅ Project linked: recall"
 echo ""
 
 # Check if PostgreSQL already exists

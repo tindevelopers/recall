@@ -4,7 +4,7 @@
   "description": "Recall Calendar Integration Demo",
   "private": true,
   "scripts": {
-    "start": "cd v2-demo && npm start"
+    "start": "cd recall && npm start"
   },
   "engines": {
     "node": ">=19.0.0"

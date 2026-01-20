@@ -1,6 +1,6 @@
 # Railway CLI Deployment - Step by Step
 
-Follow these steps to deploy v2-demo using Railway CLI.
+Follow these steps to deploy recall using Railway CLI.
 
 ## Step 1: Login to Railway
 
@@ -63,7 +63,7 @@ railway up
 ```
 
 This will:
-- Build the Docker image using `v2-demo/Dockerfile`
+- Build the Docker image using `recall/Dockerfile`
 - Deploy to Railway
 - Start the application
 
@@ -86,7 +86,7 @@ The worker needs to run separately:
 1. Go to Railway dashboard
 2. In your project, click **"+ New"** → **"Empty Service"**
 3. Or duplicate the main service
-4. Set the **Root Directory** to: `v2-demo` (or leave root if using railway.toml)
+4. Set the **Root Directory** to: `recall` (or leave root if using railway.toml)
 5. Set **Start Command** to: `npm run start:worker`
 6. Make sure it has the same environment variables as the main service
 
@@ -132,7 +132,7 @@ railway domain
 
 **Build fails:**
 - Check `railway.toml` is in root directory
-- Verify `dockerfilePath: v2-demo/Dockerfile` is correct
+- Verify `dockerfilePath: recall/Dockerfile` is correct
 - Check Dockerfile paths are correct
 
 **App won't start:**

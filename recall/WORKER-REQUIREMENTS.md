@@ -27,13 +27,13 @@
 
 1. **Check Worker Service Status**:
    - Go to Railway dashboard
-   - Find the "v2-demo-worker" service (or your worker service name)
+   - Find the "recall-worker" service (or your worker service name)
    - Verify it shows "Running" status
    - Check logs for errors
 
 2. **Check Worker Logs**:
    ```bash
-   railway logs --service v2-demo-worker
+   railway logs --service recall-worker
    ```
    
    Look for:

@@ -1,6 +1,6 @@
 # V2 Demo Deployment Guide
 
-This guide covers deploying the v2-demo application to Railway (or other platforms).
+This guide covers deploying the recall application to Railway (or other platforms).
 
 ## Railway Deployment
 
@@ -34,7 +34,7 @@ Railway is configured via `railway.toml` in the root directory. V2-demo requires
 2. Railway will detect `railway.toml` automatically
 3. Configure the service:
    - **Root Directory**: Leave as root (Railway will use dockerfilePath)
-   - **Dockerfile Path**: `v2-demo/Dockerfile` (from railway.toml)
+   - **Dockerfile Path**: `recall/Dockerfile` (from railway.toml)
    - **Start Command**: `npm start` (from railway.toml)
 
 ### Step 4: Add Worker Service
@@ -44,7 +44,7 @@ The worker needs to run separately. You have two options:
 #### Option A: Duplicate Service (Recommended)
 
 1. In Railway, duplicate the main application service
-2. Rename it to "v2-demo-worker"
+2. Rename it to "recall-worker"
 3. Change the **Start Command** to: `npm run start:worker` (or `npm run dev:worker` for dev)
 4. Use the same environment variables as the main service
 5. **⚠️ IMPORTANT: Disable Serverless/Sleep Mode**
@@ -108,7 +108,7 @@ MICROSOFT_OUTLOOK_OAUTH_CLIENT_SECRET=<your-microsoft-client-secret>
 If deploying with Docker Compose:
 
 ```bash
-cd v2-demo
+cd recall
 docker compose up -d
 ```
 

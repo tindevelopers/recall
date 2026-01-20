@@ -1,10 +1,10 @@
 #!/bin/bash
 
-# Setup script for running v2-demo locally
+# Setup script for running recall locally
 
 set -e
 
-echo "🚀 Setting up v2-demo for localhost..."
+echo "🚀 Setting up recall for localhost..."
 
 # Check if .env already exists
 if [ -f .env ]; then

@@ -13,7 +13,7 @@ cd /Users/gene/Projects/recall
 railway service <service-name>
 ```
 
-Common service names: `web`, `api`, `main`, `v2-demo`, or check Railway dashboard.
+Common service names: `web`, `api`, `main`, `recall`, or check Railway dashboard.
 
 ### 2. Check Environment Variables
 
@@ -66,7 +66,7 @@ railway logs --tail 100
 
 **Fix:**
 1. Go to Railway dashboard: https://railway.app
-2. Open your project: `recall-v2-demo`
+2. Open your project: `recall-recall`
 3. Click **"+ New"** → **"Database"** → **"Add PostgreSQL"**
 4. Railway automatically creates `DATABASE_URL`
 5. Redeploy your service
@@ -107,7 +107,7 @@ railway logs --tail 100
 ### Step 1: Check if PostgreSQL Service Exists
 
 1. Go to Railway dashboard
-2. Open project: `recall-v2-demo`
+2. Open project: `recall-recall`
 3. Look for a PostgreSQL service in the services list
 4. If missing → Add it (see Issue 1 Fix)
 

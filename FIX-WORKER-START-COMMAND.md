@@ -16,8 +16,8 @@ Railway CLI doesn't support setting start commands directly. You must use the da
 
 1. **Go to Railway Dashboard:**
    - Open: https://railway.app
-   - Navigate to project: `recall-v2-demo`
-   - Click on service: `v2-demo-worker`
+   - Navigate to project: `recall-recall`
+   - Click on service: `recall-worker`
 
 2. **Update Start Command:**
    - Go to **Settings** → **Deploy**
@@ -28,7 +28,7 @@ Railway CLI doesn't support setting start commands directly. You must use the da
 
 3. **Verify:**
    - Wait for deployment to complete
-   - Check logs: `railway logs --service v2-demo-worker --tail 50`
+   - Check logs: `railway logs --service recall-worker --tail 50`
    - You should see: `node worker/index.js` (not `node index.js`)
    - You should NOT see: "Server ready at http://0.0.0.0:3003"
 
@@ -60,7 +60,7 @@ Once the worker is running correctly:
 After updating the start command, test with:
 
 ```bash
-railway logs --service v2-demo-worker --tail 20
+railway logs --service recall-worker --tail 20
 ```
 
 Look for job processing messages when webhooks arrive.

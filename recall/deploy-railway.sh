@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Railway CLI Deployment Script for V2 Demo
-# This script helps deploy v2-demo to Railway
+# This script helps deploy recall to Railway
 
 set -e
 

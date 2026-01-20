@@ -12,7 +12,7 @@ This error typically means one of these issues:
 1. Go to Azure Portal → Your App Registration → **Authentication**
 2. Check the redirect URI is exactly:
    ```
-   https://recall-v2-demo-production.up.railway.app/oauth-callback/microsoft-outlook
+   https://recall-recall-production.up.railway.app/oauth-callback/microsoft-outlook
    ```
 3. Make sure:
    - No trailing slash
@@ -38,7 +38,7 @@ This error typically means one of these issues:
 
 **Check**: Look at the browser URL when redirected back. It should look like:
 ```
-https://recall-v2-demo-production.up.railway.app/oauth-callback/microsoft-outlook?code=...&state=...
+https://recall-recall-production.up.railway.app/oauth-callback/microsoft-outlook?code=...&state=...
 ```
 
 If the `code` parameter is missing, check:
@@ -75,7 +75,7 @@ If the `code` parameter is missing, check:
 ### Fix 1: Update Redirect URI in Azure
 1. Azure Portal → App Registration → Authentication
 2. Remove old redirect URI
-3. Add new one: `https://recall-v2-demo-production.up.railway.app/oauth-callback/microsoft-outlook`
+3. Add new one: `https://recall-recall-production.up.railway.app/oauth-callback/microsoft-outlook`
 4. Save
 
 ### Fix 2: Verify Environment Variables

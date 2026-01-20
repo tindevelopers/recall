@@ -49,7 +49,7 @@ Look for:
 If CLI doesn't work, use the dashboard:
 
 1. Go to https://railway.app
-2. Open project: **recall-v2-demo**
+2. Open project: **recall**
 3. Click **"+ New"** → **"Database"** → **"Add PostgreSQL"**
 4. Railway automatically creates `DATABASE_URL` environment variable
 5. Redeploy your application

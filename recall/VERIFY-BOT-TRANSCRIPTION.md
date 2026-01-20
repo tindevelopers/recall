@@ -85,7 +85,7 @@ After a bot joins a meeting:
 Run the test script to verify configuration logic:
 
 ```bash
-cd v2-demo
+cd recall
 node test-bot-transcription-config.js
 ```
 
@@ -140,10 +140,10 @@ If `transcription` is not in bot config when it should be:
 
 ## 📋 Code Locations
 
-- **Bot config builder**: `v2-demo/worker/processors/calendar-event-update-bot-schedule.js` (lines 34-45)
-- **Settings UI**: `v2-demo/views/partials/calendar-bot-settings-card.ejs`
-- **Settings handler**: `v2-demo/routes/calendar/update-bot-settings.js`
-- **Test script**: `v2-demo/test-bot-transcription-config.js`
+- **Bot config builder**: `recall/worker/processors/calendar-event-update-bot-schedule.js` (lines 34-45)
+- **Settings UI**: `recall/views/partials/calendar-bot-settings-card.ejs`
+- **Settings handler**: `recall/routes/calendar/update-bot-settings.js`
+- **Test script**: `recall/test-bot-transcription-config.js`
 
 ## ✅ Expected Behavior
 
