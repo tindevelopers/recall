@@ -33,13 +33,13 @@ export default async (req, res) => {
 
   // Get the selected calendar (from query param or default to first)
   const calendarId = req.query.calendarId || calendars[0].id;
-  const calendar = calendars.find((c) => c.id === parseInt(calendarId)) || calendars[0];
+  // Note: calendar.id is a UUID string, not an integer
+  const calendar = calendars.find((c) => c.id === calendarId) || calendars[0];
 
-  // Get webhooks for the selected calendar
-  const webhooks = await db.CalendarWebhook.findAll({
+  // Get webhook count for the selected calendar (for badge display)
+  // Actual webhooks are loaded via API with pagination for faster page load
+  const webhookCount = await db.CalendarWebhook.count({
     where: { calendarId: calendar.id },
-    order: [["receivedAt", "DESC"]],
-    limit: 50,
   });
 
   // Get Notion destination if connected (if model exists)
@@ -55,7 +55,7 @@ export default async (req, res) => {
     user: req.authentication.user,
     calendars,
     calendar,
-    webhooks,
+    webhookCount,
     notionDestination,
   });
 };

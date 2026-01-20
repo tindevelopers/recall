@@ -5,6 +5,11 @@ import { backgroundQueue } from "../../queue.js";
 import { telemetryEvent } from "../../utils/telemetry.js";
 const { sequelize } = db;
 
+// Cache for sync operations - avoid hitting Recall API on every page load
+// Key: `sync-${userId}`, Value: { lastSyncTime: Date, inProgress: boolean }
+const syncCache = new Map();
+const SYNC_THROTTLE_MS = 5 * 60 * 1000; // 5 minutes - only sync if last sync was > 5 min ago
+
 // Generic/placeholder titles we should ignore when deriving a display name
 function isGenericMeetingTitle(title) {
   if (!title) return true;
@@ -696,6 +701,10 @@ async function syncCalendarEvents(calendar) {
 }
 
 export default async (req, res) => {
+  // #region agent log
+  const perfStart = Date.now();
+  const perfTimings = {};
+  // #endregion
   if (!req.authenticated) {
     return res.redirect("/sign-in");
   }
@@ -742,20 +751,51 @@ export default async (req, res) => {
 
   // On-demand sync: fetch latest events from Recall.ai before showing meetings
   // This ensures we have fresh data even if webhooks are delayed/dropped
-  if (calendars.length > 0) {
+  // OPTIMIZATION: Throttle sync to avoid hitting Recall API on every page load
+  // #region agent log
+  perfTimings.calendarsFetched = Date.now() - perfStart;
+  // #endregion
+  const syncCacheKey = `sync-${userId}`;
+  const cachedSync = syncCache.get(syncCacheKey);
+  const now = Date.now();
+  const shouldSync = !cachedSync || (now - cachedSync.lastSyncTime > SYNC_THROTTLE_MS);
+  
+  // #region agent log
+  perfTimings.syncSkipped = !shouldSync;
+  perfTimings.syncCacheAge = cachedSync ? now - cachedSync.lastSyncTime : null;
+  // #endregion
+  
+  if (calendars.length > 0 && shouldSync) {
+    // Mark sync as in progress to prevent concurrent syncs
+    syncCache.set(syncCacheKey, { lastSyncTime: now, inProgress: true });
+    
     const syncStartTime = Date.now();
     await Promise.all(calendars.map(cal => syncCalendarEvents(cal)));
+    // #region agent log
+    perfTimings.syncCalendarEvents = Date.now() - syncStartTime;
+    // #endregion
     console.log(`[MEETINGS] On-demand sync completed in ${Date.now() - syncStartTime}ms`);
     
     // Sync bot artifacts for past events (fallback for missing webhooks)
     const botSyncStartTime = Date.now();
     await syncBotArtifacts(calendars, userId);
+    // #region agent log
+    perfTimings.syncBotArtifacts = Date.now() - botSyncStartTime;
+    // #endregion
     console.log(`[MEETINGS] Bot artifact sync completed in ${Date.now() - botSyncStartTime}ms`);
+    
+    // Update cache with completion time
+    syncCache.set(syncCacheKey, { lastSyncTime: Date.now(), inProgress: false });
+  } else if (calendars.length > 0) {
+    console.log(`[MEETINGS] Skipping sync - last sync was ${Math.round((now - (cachedSync?.lastSyncTime || 0)) / 1000)}s ago`);
   }
 
   // Get upcoming events from all calendars (future events only)
-  const now = new Date();
+  const nowDate = new Date();
   const upcomingEvents = [];
+  // #region agent log
+  const upcomingStart = Date.now();
+  // #endregion
   
   if (calendars.length > 0) {
     const calendarIds = calendars.map(c => c.id);
@@ -771,6 +811,9 @@ export default async (req, res) => {
         include: [{ model: db.Calendar }],
         limit: 200, // Get more events to filter in memory
       });
+      // #region agent log
+      perfTimings.fetchUpcomingEvents = Date.now() - upcomingStart;
+      // #endregion
     } catch (error) {
       console.error(`[MEETINGS] Error fetching calendar events:`, error);
       // Continue with empty events array
@@ -780,7 +823,7 @@ export default async (req, res) => {
     const futureEvents = allEvents.filter(event => {
       try {
         const startTime = event.startTime;
-        return startTime && new Date(startTime) > now;
+        return startTime && new Date(startTime) > nowDate;
       } catch (error) {
         console.error(`[MEETINGS] Error parsing start time for event ${event.id}:`, error);
         return false;
@@ -856,6 +899,9 @@ export default async (req, res) => {
 
   // Get all meeting artifacts for this user with their summaries
   let artifacts = [];
+  // #region agent log
+  const artifactsStart = Date.now();
+  // #endregion
   try {
     // OPTIMIZATION: Don't include MeetingTranscriptChunk - it can have thousands of rows per artifact
     // Instead, we'll check for transcript existence separately using a count query
@@ -905,6 +951,9 @@ export default async (req, res) => {
         artifact.hasTranscriptChunks = (chunkCountMap.get(artifact.id) || 0) > 0;
       });
     }
+    // #region agent log
+    perfTimings.fetchArtifacts = Date.now() - artifactsStart;
+    // #endregion
   } catch (error) {
     console.error(`[MEETINGS] Error fetching meeting artifacts:`, error);
   }
@@ -941,6 +990,9 @@ export default async (req, res) => {
   // Fetch ALL calendar events for this user (we already have them from upcomingEvents query, 
   // but we need past events too) and build a map by thread_id
   let calendarEventsByThreadId = new Map();
+  // #region agent log
+  const threadMatchStart = Date.now();
+  // #endregion
   if (artifactThreadIds.size > 0 && calendars.length > 0) {
     try {
       const calendarIds = calendars.map(c => c.id);
@@ -955,6 +1007,9 @@ export default async (req, res) => {
           calendarEventsByThreadId.set(threadId, event);
         }
       }
+      // #region agent log
+      perfTimings.threadIdMatching = Date.now() - threadMatchStart;
+      // #endregion
     } catch (e) {
       console.error(`[MEETINGS] Error fetching calendar events for thread matching:`, e);
     }
@@ -962,6 +1017,9 @@ export default async (req, res) => {
 
   // Also get summaries that might not have artifacts (edge case)
   let summaries = [];
+  // #region agent log
+  const summariesStart = Date.now();
+  // #endregion
   try {
     const summaryResult = await db.MeetingSummary.findAndCountAll({
       where: { userId },
@@ -984,6 +1042,9 @@ export default async (req, res) => {
       offset,
     });
     summaries = summaryResult.rows;
+    // #region agent log
+    perfTimings.fetchSummaries = Date.now() - summariesStart;
+    // #endregion
   } catch (error) {
     console.error(`[MEETINGS] Error fetching meeting summaries:`, error);
   }
@@ -1220,6 +1281,11 @@ export default async (req, res) => {
   const totalTimeFormatted = totalHours > 0 
     ? `${totalHours}h ${totalMinutes}m`
     : `${totalMinutes}m`;
+
+  // #region agent log
+  perfTimings.totalBeforeRender = Date.now() - perfStart;
+  fetch('http://127.0.0.1:7250/ingest/bf0206c3-6e13-4499-92a3-7fb2b7527fcf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'routes/meetings/list.js:performance',message:'Performance timings',data:{hypothesisId:'PERF',timings:perfTimings,calendarsCount:calendars.length,artifactsCount:artifacts.length,summariesCount:summaries.length,meetingsCount:meetings.length},timestamp:Date.now(),sessionId:'debug-session',runId:'perf-1'})}).catch(()=>{});
+  // #endregion
 
   console.log(`[MEETINGS-DEBUG] Rendering meetings page:`, {
     userId,

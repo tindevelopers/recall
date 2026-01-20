@@ -40,6 +40,7 @@ import { getTranscript, getSummary, getActionItems, triggerEnrichment } from "./
 import refreshRecording from "./api/refresh-recording.js";
 import publishMeeting from "./api/publish-meeting.js";
 import settingsGet from "./settings/get.js";
+import apiWebhooks from "./api/webhooks.js";
 
 const router = Router();
 
@@ -97,6 +98,8 @@ router.get("/api/meetings/:meetingId/actions", getActionItems);
 router.post("/api/meetings/enrich", triggerEnrichment);
 router.post("/api/meetings/:meetingId/refresh-recording", refreshRecording);
 router.post("/api/meetings/:meetingId/publish", publishMeeting);
+
+router.get("/api/webhooks", apiWebhooks);
 
 router.get("/settings", settingsGet);
 
