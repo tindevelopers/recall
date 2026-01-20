@@ -840,6 +840,7 @@ export default async (req, res) => {
         bots: event.bots || [],  // Add bots for display
         shouldRecordAutomatic: event.shouldRecordAutomatic || false,  // Auto-record status
         shouldRecordManual: event.shouldRecordManual || false,  // Manual record status
+        description: getDescriptionFromEvent(event),  // Add description for merging with past meetings
       });
     }
   }
@@ -938,6 +939,14 @@ export default async (req, res) => {
 
   // Build a unified list of meetings
   const meetingsMap = new Map();
+  
+  // Create a map of upcoming events by recallEventId for merging with past meetings
+  const upcomingEventsByRecallId = new Map();
+  for (const event of upcomingEvents) {
+    if (event.recallEventId) {
+      upcomingEventsByRecallId.set(event.recallEventId, event);
+    }
+  }
 
   // Add artifacts
   for (const artifact of artifacts) {
@@ -983,10 +992,33 @@ export default async (req, res) => {
       return null;
     })();
 
+    // Try to merge with upcoming event data if available (for better title/description)
+    const matchingUpcomingEvent = calendarEvent?.recallId 
+      ? upcomingEventsByRecallId.get(calendarEvent.recallId) 
+      : null;
+    
+    // Use upcoming event title if available and better, otherwise use extracted title
+    let finalTitle = extractMeetingTitle(artifact, calendarEvent);
+    if (matchingUpcomingEvent?.title && !isGenericMeetingTitle(matchingUpcomingEvent.title)) {
+      finalTitle = matchingUpcomingEvent.title;
+    }
+    
+    // Use upcoming event description if available, otherwise use artifact/event description
+    let finalDescription = getDescriptionFromArtifact(artifact) || getDescriptionFromEvent(calendarEvent);
+    if (matchingUpcomingEvent?.description) {
+      finalDescription = matchingUpcomingEvent.description;
+    }
+    
+    // Merge participants from upcoming event if available (they may be more complete)
+    let finalParticipants = participants;
+    if (matchingUpcomingEvent?.attendees && matchingUpcomingEvent.attendees.length > 0) {
+      finalParticipants = matchingUpcomingEvent.attendees;
+    }
+
     meetingsMap.set(key, {
       id: artifact.id,
       type: "artifact",
-      title: extractMeetingTitle(artifact, calendarEvent),
+      title: finalTitle,
       startTime,
       endTime,
       durationSeconds,
@@ -1007,8 +1039,8 @@ export default async (req, res) => {
         artifact.rawPayload?.data?.audio_url ||
         artifact.rawPayload?.data?.media_shortcuts?.audio?.data?.download_url ||
         null,
-      participants,
-      description: getDescriptionFromArtifact(artifact) || getDescriptionFromEvent(calendarEvent),
+      participants: finalParticipants,
+      description: finalDescription,
       organizer: calendarEvent ? getAttendeesFromEvent(calendarEvent).find(a => a.organizer) : null,
       calendarEmail: calendarEvent?.Calendar?.email || null,
       platform: calendarEvent?.Calendar?.platform || null,

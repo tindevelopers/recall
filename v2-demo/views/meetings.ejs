@@ -362,29 +362,7 @@
                           </div>
                               <div class="flex-1 min-w-0 space-y-1">
                                 <div class="flex items-center space-x-2">
-                                  <% 
-                                    const rawTitle = meeting.title || '';
-                                    const genericTitles = ['meeting','untitled meeting','untitled'];
-                                    const isGeneric = genericTitles.includes(rawTitle.trim().toLowerCase());
-                                    let displayTitle = rawTitle;
-                                    if (!displayTitle || isGeneric) {
-                                      if (meeting.participants && meeting.participants.length > 0) {
-                                        const names = meeting.participants
-                                          .slice(0, 2)
-                                          .map(p => (p.name || (p.email ? p.email.split('@')[0] : '') || '').trim())
-                                          .filter(Boolean);
-                                        if (names.length > 0) {
-                                          displayTitle = `Meeting with ${names.join(' and ')}${meeting.participants.length > 2 ? ` +${meeting.participants.length - 2}` : ''}`;
-                                        }
-                                      }
-                                    }
-                                    if ((!displayTitle || isGeneric) && meeting.startTime) {
-                                      const d = new Date(meeting.startTime);
-                                      displayTitle = `Meeting on ${d.toLocaleDateString()}`;
-                                    }
-                                    if (!displayTitle) displayTitle = 'Meeting';
-                                  %>
-                                  <h4 class="text-base font-semibold text-gray-900 truncate"><%= displayTitle %></h4>
+                                  <h4 class="text-base font-semibold text-gray-900 truncate"><%= meeting.title || 'Meeting' %></h4>
                                   <% if (meeting.platform) { %>
                                     <span class="inline-flex items-center rounded-full bg-gray-100 px-2 py-0.5 text-xxs font-medium text-gray-700 ring-1 ring-inset ring-gray-200">
                                       <%= meeting.platform === 'google_calendar' ? 'Google' : meeting.platform === 'microsoft_outlook' ? 'Outlook' : 'Meeting' %>
