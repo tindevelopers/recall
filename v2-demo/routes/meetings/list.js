@@ -18,6 +18,22 @@ function isGenericMeetingTitle(title) {
 }
 
 /**
+ * Extract description from a calendar event
+ */
+function getDescriptionFromEvent(event) {
+  if (!event) return null;
+  const raw = event?.recallData?.raw || {};
+  
+  if (event.platform === "google_calendar") {
+    return raw["description"] || null;
+  } else if (event.platform === "microsoft_outlook") {
+    return raw["body"]?.content || raw["bodyPreview"] || null;
+  }
+  
+  return null;
+}
+
+/**
  * Extract attendees from a calendar event for display
  */
 function getAttendeesFromEvent(event) {
@@ -674,12 +690,14 @@ export default async (req, res) => {
     hasTranscript,
     hasSummary,
     hasRecording,
+    hasRecallRecording,
     sort,
   } = req.query;
 
   const hasTranscriptFilter = hasTranscript === "true" ? true : hasTranscript === "false" ? false : null;
   const hasSummaryFilter = hasSummary === "true" ? true : hasSummary === "false" ? false : null;
   const hasRecordingFilter = hasRecording === "true" ? true : hasRecording === "false" ? false : null;
+  const hasRecallRecordingFilter = hasRecallRecording === "true" ? true : hasRecallRecording === "false" ? false : null;
 
   const userId = req.authentication.user.id;
 
@@ -900,6 +918,9 @@ export default async (req, res) => {
       artifact.rawPayload?.data?.recording_url ||
       artifact.rawPayload?.data?.media_shortcuts?.video?.data?.download_url
     );
+    
+    // Check if this is a Recall recording (has artifact with recording) vs platform recording
+    const hasRecallRecordingFlag = hasRecordingFlag && !!artifact.recallBotId;
 
     const durationSeconds =
       startTime && endTime
@@ -931,6 +952,7 @@ export default async (req, res) => {
       hasSummary: !!summary,
       hasTranscript: hasTranscriptFlag,
       hasRecording: hasRecordingFlag,
+      hasRecallRecording: hasRecallRecordingFlag,
       transcriptStatus: hasTranscriptFlag ? "complete" : "missing",
       summaryStatus: summary ? "complete" : "missing",
       recordingStatus: hasRecordingFlag ? "complete" : "missing",
@@ -944,6 +966,8 @@ export default async (req, res) => {
         artifact.rawPayload?.data?.media_shortcuts?.audio?.data?.download_url ||
         null,
       participants,
+      description: getDescriptionFromEvent(calendarEvent),
+      organizer: calendarEvent ? getAttendeesFromEvent(calendarEvent).find(a => a.organizer) : null,
       calendarEmail: calendarEvent?.Calendar?.email || null,
       platform: calendarEvent?.Calendar?.platform || null,
       summaryId: summary?.id || null,
@@ -983,12 +1007,15 @@ export default async (req, res) => {
       hasSummary: true,
       hasTranscript: false,
       hasRecording: false,
+      hasRecallRecording: false,
       transcriptStatus: "missing",
       summaryStatus: "complete",
       recordingStatus: "missing",
       recordingUrl: null,
       audioUrl: null,
       participants: summaryParticipants,
+      description: getDescriptionFromEvent(calendarEvent),
+      organizer: calendarEvent ? getAttendeesFromEvent(calendarEvent).find(a => a.organizer) : null,
       calendarEmail: calendarEvent?.Calendar?.email || null,
       platform: calendarEvent?.platform || null,
       meetingUrl: normalizeMeetingUrl(calendarEvent?.meetingUrl || null),
@@ -1008,6 +1035,13 @@ export default async (req, res) => {
   }
   if (hasRecordingFilter !== null) {
     meetings = meetings.filter((m) => m.hasRecording === hasRecordingFilter);
+  }
+  // Filter to exclude meetings without Recall recordings (but allow platform recordings)
+  if (hasRecallRecordingFilter === true) {
+    meetings = meetings.filter((m) => m.hasRecallRecording === true);
+  } else if (hasRecallRecordingFilter === false) {
+    // If explicitly set to false, show only meetings without Recall recordings
+    meetings = meetings.filter((m) => m.hasRecallRecording !== true);
   }
   if (q && q.trim().length > 0) {
     const qLower = q.trim().toLowerCase();
@@ -1037,6 +1071,18 @@ export default async (req, res) => {
   const hasNext = page < totalPages;
   const hasPrev = page > 1;
   const paginatedMeetings = meetings.slice(offset, offset + PAGE_SIZE);
+  
+  // Calculate total time for all meetings (in seconds)
+  const totalTimeSeconds = meetings.reduce((sum, m) => {
+    return sum + (m.durationSeconds || 0);
+  }, 0);
+  
+  // Format total time
+  const totalHours = Math.floor(totalTimeSeconds / 3600);
+  const totalMinutes = Math.floor((totalTimeSeconds % 3600) / 60);
+  const totalTimeFormatted = totalHours > 0 
+    ? `${totalHours}h ${totalMinutes}m`
+    : `${totalMinutes}m`;
 
   console.log(`[MEETINGS-DEBUG] Rendering meetings page:`, {
     userId,
@@ -1062,6 +1108,8 @@ export default async (req, res) => {
     totalPages,
     hasNext,
     hasPrev,
+    totalTimeSeconds,
+    totalTimeFormatted,
     filters: {
       q: q || "",
       from: from || "",
@@ -1069,6 +1117,7 @@ export default async (req, res) => {
       hasTranscript: hasTranscriptFilter,
       hasSummary: hasSummaryFilter,
       hasRecording: hasRecordingFilter,
+      hasRecallRecording: hasRecallRecordingFilter,
       sort: sort || "newest",
     },
   });
