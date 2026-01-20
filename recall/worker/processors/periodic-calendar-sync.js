@@ -17,6 +17,10 @@ import { backgroundQueue } from "../../queue.js";
 export default async (job) => {
   console.log(`[PERIODIC-SYNC] Starting periodic calendar sync...`);
   
+  // #region agent log
+  fetch('http://127.0.0.1:7250/ingest/bf0206c3-6e13-4499-92a3-7fb2b7527fcf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'worker/processors/periodic-calendar-sync.js:start',message:'Periodic sync started',data:{timestamp:new Date().toISOString()},timestamp:Date.now(),sessionId:'debug-session',runId:'sync-1',hypothesisId:'D'})}).catch(()=>{});
+  // #endregion
+  
   try {
     // Get all connected calendars
     const calendars = await db.Calendar.findAll({
@@ -26,6 +30,10 @@ export default async (job) => {
     });
 
     console.log(`[PERIODIC-SYNC] Found ${calendars.length} connected calendar(s)`);
+    
+    // #region agent log
+    fetch('http://127.0.0.1:7250/ingest/bf0206c3-6e13-4499-92a3-7fb2b7527fcf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'worker/processors/periodic-calendar-sync.js:calendars_found',message:'Calendars found for sync',data:{calendarsCount:calendars.length,calendarEmails:calendars.map(c=>({id:c.id,email:c.email,recallId:c.recallId,status:c.status})),hasGeneCalendar:calendars.some(c=>c.email&&c.email.includes('gene@tin.info'))},timestamp:Date.now(),sessionId:'debug-session',runId:'sync-1',hypothesisId:'A'})}).catch(()=>{});
+    // #endregion
 
     if (calendars.length === 0) {
       console.log(`[PERIODIC-SYNC] No connected calendars found, skipping sync`);
@@ -40,14 +48,34 @@ export default async (job) => {
 
     for (const calendar of calendars) {
       try {
+        const isGeneCalendar = calendar.email && calendar.email.includes('gene@tin.info');
+        
+        // #region agent log
+        if (isGeneCalendar) {
+          fetch('http://127.0.0.1:7250/ingest/bf0206c3-6e13-4499-92a3-7fb2b7527fcf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'worker/processors/periodic-calendar-sync.js:gene_calendar_found',message:'Gene calendar found in periodic sync',data:{calendarId:calendar.id,email:calendar.email,recallId:calendar.recallId,status:calendar.status,lastUpdatedTimestamp:lastUpdatedTimestamp.toISOString()},timestamp:Date.now(),sessionId:'debug-session',runId:'sync-1',hypothesisId:'A'})}).catch(()=>{});
+        }
+        // #endregion
+        
         console.log(
           `[PERIODIC-SYNC] Syncing calendar ${calendar.id} (${calendar.email || calendar.platform}) since ${lastUpdatedTimestamp.toISOString()}`
         );
+
+        // #region agent log
+        if (isGeneCalendar) {
+          fetch('http://127.0.0.1:7250/ingest/bf0206c3-6e13-4499-92a3-7fb2b7527fcf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'worker/processors/periodic-calendar-sync.js:before_fetch',message:'Before fetching events from Recall API',data:{calendarId:calendar.id,recallId:calendar.recallId,lastUpdatedTimestamp:lastUpdatedTimestamp.toISOString()},timestamp:Date.now(),sessionId:'debug-session',runId:'sync-1',hypothesisId:'E'})}).catch(()=>{});
+        }
+        // #endregion
 
         const events = await Recall.fetchCalendarEvents({
           id: calendar.recallId,
           lastUpdatedTimestamp: lastUpdatedTimestamp.toISOString(),
         });
+
+        // #region agent log
+        if (isGeneCalendar) {
+          fetch('http://127.0.0.1:7250/ingest/bf0206c3-6e13-4499-92a3-7fb2b7527fcf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'worker/processors/periodic-calendar-sync.js:after_fetch',message:'After fetching events from Recall API',data:{calendarId:calendar.id,eventsCount:events.length,eventIds:events.slice(0,5).map(e=>e.id),eventTitles:events.slice(0,5).map(e=>e.title||e.raw?.subject||'Untitled')},timestamp:Date.now(),sessionId:'debug-session',runId:'sync-1',hypothesisId:'E'})}).catch(()=>{});
+        }
+        // #endregion
 
         console.log(
           `[PERIODIC-SYNC] Found ${events.length} event(s) for calendar ${calendar.id}`
@@ -75,6 +103,12 @@ export default async (job) => {
             });
             eventsUpserted.push(event);
             
+            // #region agent log
+            if (isGeneCalendar && created) {
+              fetch('http://127.0.0.1:7250/ingest/bf0206c3-6e13-4499-92a3-7fb2b7527fcf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'worker/processors/periodic-calendar-sync.js:event_created',message:'New event created in database',data:{eventId:event.id,recallEventId:event.id,title:event.title||event.raw?.subject||'Untitled',startTime:event.start_time,calendarId:calendar.id},timestamp:Date.now(),sessionId:'debug-session',runId:'sync-1',hypothesisId:'E'})}).catch(()=>{});
+            }
+            // #endregion
+            
             if (created) {
               console.log(
                 `[PERIODIC-SYNC] ✅ Created new event: ${event.title || "Untitled"} (${event.id})`
@@ -88,6 +122,12 @@ export default async (job) => {
         console.log(
           `[PERIODIC-SYNC] Synced calendar ${calendar.id}: ${eventsUpserted.length} upserted, ${eventsDeleted.length} deleted`
         );
+        
+        // #region agent log
+        if (isGeneCalendar) {
+          fetch('http://127.0.0.1:7250/ingest/bf0206c3-6e13-4499-92a3-7fb2b7527fcf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'worker/processors/periodic-calendar-sync.js:sync_complete',message:'Calendar sync completed',data:{calendarId:calendar.id,eventsUpserted:eventsUpserted.length,eventsDeleted:eventsDeleted.length,totalEventsFromRecall:events.length},timestamp:Date.now(),sessionId:'debug-session',runId:'sync-1',hypothesisId:'D'})}).catch(()=>{});
+        }
+        // #endregion
 
         // Update auto-record status for ALL synced events (not just new ones)
         // This ensures events that were synced before but never had auto-record run get processed
@@ -136,6 +176,13 @@ export default async (job) => {
           `[PERIODIC-SYNC] Error syncing calendar ${calendar.id}:`,
           error.message
         );
+        
+        // #region agent log
+        if (calendar.email && calendar.email.includes('gene@tin.info')) {
+          fetch('http://127.0.0.1:7250/ingest/bf0206c3-6e13-4499-92a3-7fb2b7527fcf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'worker/processors/periodic-calendar-sync.js:sync_error',message:'Error syncing gene calendar',data:{calendarId:calendar.id,errorMessage:error.message,errorStack:error.stack,recallId:calendar.recallId},timestamp:Date.now(),sessionId:'debug-session',runId:'sync-1',hypothesisId:'E'})}).catch(()=>{});
+        }
+        // #endregion
+        
         // Continue with other calendars even if one fails
       }
     }

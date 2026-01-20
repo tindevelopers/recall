@@ -53,6 +53,11 @@ export default async (req, res) => {
 
     // verify calendar exists on our end
     const calendar = await db.Calendar.findOne({ where: { recallId } });
+    
+    // #region agent log
+    fetch('http://127.0.0.1:7250/ingest/bf0206c3-6e13-4499-92a3-7fb2b7527fcf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'routes/webhooks/recall-calendar-updates.js:calendar_lookup',message:'Calendar lookup by recallId',data:{recallId,found:!!calendar,calendarId:calendar?.id,email:calendar?.email,isGeneCalendar:calendar?.email&&calendar.email.includes('gene@tin.info')},timestamp:Date.now(),sessionId:'debug-session',runId:'webhook-1',hypothesisId:'B'})}).catch(()=>{});
+    // #endregion
+    
     if (!calendar) {
       console.warn(
         `[WEBHOOK] Could not find calendar with recall_id: ${recallId}. Ignoring webhook.`
@@ -62,6 +67,12 @@ export default async (req, res) => {
     }
 
     console.log(`[WEBHOOK] Found calendar: id=${calendar.id}, platform=${calendar.platform}, email=${calendar.email}`);
+    
+    // #region agent log
+    if (calendar.email && calendar.email.includes('gene@tin.info')) {
+      fetch('http://127.0.0.1:7250/ingest/bf0206c3-6e13-4499-92a3-7fb2b7527fcf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'routes/webhooks/recall-calendar-updates.js:gene_webhook',message:'Webhook received for gene calendar',data:{event,calendarId:calendar.id,recallId,email:calendar.email,status:calendar.status},timestamp:Date.now(),sessionId:'debug-session',runId:'webhook-1',hypothesisId:'B'})}).catch(()=>{});
+    }
+    // #endregion
 
     // Save webhook synchronously to ensure it's recorded even if worker isn't running
     try {

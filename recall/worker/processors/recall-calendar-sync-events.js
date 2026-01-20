@@ -4,13 +4,27 @@ import { backgroundQueue } from "../../queue.js";
 
 export default async (job) => {
   const { calendarId, recallId, lastUpdatedTimestamp } = job.data;
+  
+  // #region agent log
+  fetch('http://127.0.0.1:7250/ingest/bf0206c3-6e13-4499-92a3-7fb2b7527fcf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'worker/processors/recall-calendar-sync-events.js:job_start',message:'Sync events job started',data:{calendarId,recallId,lastUpdatedTimestamp},timestamp:Date.now(),sessionId:'debug-session',runId:'sync-job-1',hypothesisId:'C'})}).catch(()=>{});
+  // #endregion
+  
   console.log(
     `INFO: Sync events for calendar ${calendarId}(recall_id: ${recallId}) since ${lastUpdatedTimestamp}`
   );
+  
+  // #region agent log
+  fetch('http://127.0.0.1:7250/ingest/bf0206c3-6e13-4499-92a3-7fb2b7527fcf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'worker/processors/recall-calendar-sync-events.js:before_fetch',message:'Before fetching events from Recall API',data:{calendarId,recallId,lastUpdatedTimestamp},timestamp:Date.now(),sessionId:'debug-session',runId:'sync-job-1',hypothesisId:'E'})}).catch(()=>{});
+  // #endregion
+  
   const events = await Recall.fetchCalendarEvents({
     id: recallId,
     lastUpdatedTimestamp,
   });
+  
+  // #region agent log
+  fetch('http://127.0.0.1:7250/ingest/bf0206c3-6e13-4499-92a3-7fb2b7527fcf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'worker/processors/recall-calendar-sync-events.js:after_fetch',message:'After fetching events from Recall API',data:{calendarId,recallId,eventsCount:events.length,eventIds:events.slice(0,3).map(e=>e.id)},timestamp:Date.now(),sessionId:'debug-session',runId:'sync-job-1',hypothesisId:'E'})}).catch(()=>{});
+  // #endregion
 
   let eventsUpserted = [];
   let eventsDeleted = [];
@@ -38,6 +52,10 @@ export default async (job) => {
   console.log(
     `INFO: Synced (upsert: ${eventsUpserted.length}, delete: ${eventsDeleted.length}) calendar events for calendar(${calendarId})`
   );
+  
+  // #region agent log
+  fetch('http://127.0.0.1:7250/ingest/bf0206c3-6e13-4499-92a3-7fb2b7527fcf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'worker/processors/recall-calendar-sync-events.js:sync_complete',message:'Sync events job completed',data:{calendarId,recallId,eventsUpserted:eventsUpserted.length,eventsDeleted:eventsDeleted.length,totalEventsFromRecall:events.length},timestamp:Date.now(),sessionId:'debug-session',runId:'sync-job-1',hypothesisId:'C'})}).catch(()=>{});
+  // #endregion
 
   // update auto record status of the latest synced events
   await backgroundQueue.add("calendarevents.update_autorecord", {

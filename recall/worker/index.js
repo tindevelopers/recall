@@ -139,6 +139,11 @@ telemetryLog("INFO", "All job processors registered", {
 backgroundQueue.on("ready", async () => {
   console.log("✅ Redis connection established - Queue is ready");
   console.log("🎯 Worker is now listening for jobs...");
+  
+  // #region agent log
+  fetch('http://127.0.0.1:7250/ingest/bf0206c3-6e13-4499-92a3-7fb2b7527fcf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'worker/index.js:redis_ready',message:'Redis queue ready - periodic sync can be scheduled',data:{redisUrl:process.env.REDIS_URL?'configured':'not-set'},timestamp:Date.now(),sessionId:'debug-session',runId:'worker-start',hypothesisId:'C'})}).catch(()=>{});
+  // #endregion
+  
   telemetryLog("INFO", "Redis queue ready", {
     queueName: backgroundQueue.name,
     redisUrl: process.env.REDIS_URL ? "configured" : "not-set",
@@ -188,6 +193,11 @@ backgroundQueue.on("ready", async () => {
 
 backgroundQueue.on("error", (error) => {
   console.error("❌ Queue error:", error);
+  
+  // #region agent log
+  fetch('http://127.0.0.1:7250/ingest/bf0206c3-6e13-4499-92a3-7fb2b7527fcf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'worker/index.js:redis_error',message:'Redis connection error - periodic sync cannot run',data:{errorMessage:error.message,errorCode:error.code,isConnectionRefused:error.code==='ECONNREFUSED'},timestamp:Date.now(),sessionId:'debug-session',runId:'worker-start',hypothesisId:'C'})}).catch(()=>{});
+  // #endregion
+  
   telemetryLog("ERROR", "Queue error", {
     error: error.message,
     code: error.code,
