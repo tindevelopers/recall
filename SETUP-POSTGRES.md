@@ -85,3 +85,4 @@ Once PostgreSQL is added:
 - Verify `NODE_ENV=production` is set (enables SSL)
 - Ensure PostgreSQL service is running in Railway dashboard
 
+

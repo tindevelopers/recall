@@ -95,3 +95,4 @@ You need to create a worker service in Railway:
 - Same as above - worker needs to process the webhook
 - Check Recall API to see if calendar has email: `railway logs | grep "platform_email"`
 
+

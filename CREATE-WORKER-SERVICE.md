@@ -103,3 +103,4 @@ railway logs --tail 100 | grep -i "webhook\|calendar.update"
 - Check if webhooks are being received: `railway logs --tail 100 | grep webhook`
 - Verify worker is processing jobs: `railway logs --service v2-demo-worker --tail 50`
 
+

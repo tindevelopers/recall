@@ -62,3 +62,4 @@ echo "4. Verify worker is running:"
 echo "   railway logs --service v2-demo-worker --tail 50"
 echo ""
 
+

@@ -85,3 +85,4 @@ echo ""
 echo "4. View logs to see database connection:"
 echo "   railway logs --tail 100"
 
+

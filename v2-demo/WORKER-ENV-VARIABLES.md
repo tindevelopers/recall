@@ -171,3 +171,4 @@ railway variables set OPENAI_API_KEY=your-openai-key-here
 - All environment variables should be set for **both** the main app service and worker service
 - Worker service uses the same environment variables as the main app service
 
+

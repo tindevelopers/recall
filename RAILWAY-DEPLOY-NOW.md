@@ -98,3 +98,4 @@ railway domain
 - Verify all environment variables are set: `railway variables`
 - Ensure PostgreSQL and Redis services exist in Railway dashboard
 
+

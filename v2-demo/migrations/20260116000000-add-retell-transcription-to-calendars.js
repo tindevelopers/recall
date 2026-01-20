@@ -14,3 +14,4 @@ export const down = async ({ context: { queryInterface } }) => {
   await queryInterface.removeColumn("calendars", "useRetellTranscription");
 };
 
+

@@ -171,3 +171,4 @@ Run this to check everything:
    The app will log detailed error messages if connection fails.
    Check logs for specific error details.
 
+

@@ -32,3 +32,4 @@ echo ""
 echo "Check status: railway status"
 echo "View logs: railway logs"
 
+
