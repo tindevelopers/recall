@@ -72,6 +72,10 @@ export default {
     );
     
     try {
+      // #region agent log
+      fetch('http://127.0.0.1:7250/ingest/bf0206c3-6e13-4499-92a3-7fb2b7527fcf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'services/recall/index.js:api_request_start',message:'Starting Recall API request to schedule bot',data:{calendarEventId:id,deduplicationKey:deduplicationKey,botConfigKeys:Object.keys(botConfig||{}),hasJoinAt:!!botConfig?.join_at,hasRecordingConfig:!!botConfig?.recording_config,hasStatusCallback:!!botConfig?.status_callback_url},timestamp:Date.now(),sessionId:'debug-session',runId:'bot-schedule',hypothesisId:'A'})}).catch(()=>{});
+      // #endregion
+      
       const result = await client.request({
         path: `/api/v2/calendar-events/${id}/bot/`,
         method: "POST",
@@ -84,6 +88,10 @@ export default {
       const botIds = Array.isArray(result?.bots)
         ? result.bots.map((b) => b?.id).filter(Boolean)
         : [];
+
+      // #region agent log
+      fetch('http://127.0.0.1:7250/ingest/bf0206c3-6e13-4499-92a3-7fb2b7527fcf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'services/recall/index.js:api_request_success',message:'Recall API request succeeded',data:{calendarEventId:id,hasResult:!!result,resultKeys:result?Object.keys(result):[],botCount:botIds.length,botIds:botIds},timestamp:Date.now(),sessionId:'debug-session',runId:'bot-schedule',hypothesisId:'A'})}).catch(()=>{});
+      // #endregion
 
       await telemetryEvent(
         "Recall.addBotToCalendarEvent.success",
@@ -98,6 +106,10 @@ export default {
 
       return result;
     } catch (err) {
+      // #region agent log
+      fetch('http://127.0.0.1:7250/ingest/bf0206c3-6e13-4499-92a3-7fb2b7527fcf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'services/recall/index.js:api_request_failed',message:'Recall API request failed',data:{calendarEventId:id,errorMessage:err?.message,errorStatus:err?.res?.status,hasErrorBody:!!err?.body,errorBodyPreview:err?.body?.substring(0,500)},timestamp:Date.now(),sessionId:'debug-session',runId:'bot-schedule',hypothesisId:'A'})}).catch(()=>{});
+      // #endregion
+      
       await telemetryEvent(
         "Recall.addBotToCalendarEvent.failure",
         {

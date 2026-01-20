@@ -55,6 +55,11 @@ class RecallApi {
 
     if (res.status > 299) {
       const body = await res.text();
+      
+      // #region agent log
+      fetch('http://127.0.0.1:7250/ingest/bf0206c3-6e13-4499-92a3-7fb2b7527fcf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'services/recall/api-client.js:http_error',message:'HTTP error from Recall API',data:{method:method,path:path||url,status:res.status,statusText:res.statusText,bodyPreview:body.substring(0,500),bodyLength:body.length},timestamp:Date.now(),sessionId:'debug-session',runId:'bot-schedule',hypothesisId:'A'})}).catch(()=>{});
+      // #endregion
+      
       const err = new Error(
         `${method} request failed with status ${res.status}, response body: \n\n${res.status < 500 ? body : res.status}`
       );

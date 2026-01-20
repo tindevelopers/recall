@@ -33,11 +33,16 @@ function initializeDatabase() {
   console.log(`INFO: Configuring PostgreSQL database`);
   console.log(`   Host: ${url.hostname}, Database: ${url.pathname.substring(1)}`);
 
+  // Enable SSL for Railway PostgreSQL (hostnames contain railway.app or proxy.rlwy.net)
+  // Also enable SSL in production environments
+  const isRailwayDatabase = url.hostname.includes('railway.app') || url.hostname.includes('proxy.rlwy.net');
+  const shouldUseSSL = process.env.NODE_ENV === "production" || isRailwayDatabase;
+  
   sequelize = new Sequelize(process.env.DATABASE_URL, {
     dialect: "postgres",
     logging: false,
     dialectOptions: {
-      ssl: process.env.NODE_ENV === "production" ? {
+      ssl: shouldUseSSL ? {
         require: true,
         rejectUnauthorized: false
       } : false
