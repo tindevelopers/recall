@@ -136,6 +136,76 @@ telemetryLog("INFO", "All job processors registered", {
   totalProcessors: processors.length,
 });
 
+// Function to schedule periodic sync (extracted so it can be called from multiple places)
+async function schedulePeriodicSync() {
+  try {
+    // Check if Redis is connected by trying to ping
+    const redisClient = backgroundQueue.client;
+    if (!redisClient) {
+      console.warn("⚠️  Redis client not available, retrying in 5 seconds...");
+      setTimeout(schedulePeriodicSync, 5000);
+      return;
+    }
+
+    // Try to ping Redis to verify connection
+    try {
+      await new Promise((resolve, reject) => {
+        redisClient.ping((err, result) => {
+          if (err) {
+            reject(err);
+          } else {
+            resolve(result);
+          }
+        });
+      });
+      console.log("✅ Redis connection verified via ping");
+    } catch (pingError) {
+      console.warn(`⚠️  Redis ping failed: ${pingError.message}, retrying in 5 seconds...`);
+      setTimeout(schedulePeriodicSync, 5000);
+      return;
+    }
+
+    // Remove any existing periodic sync jobs to avoid duplicates
+    const existingJobs = await backgroundQueue.getRepeatableJobs();
+    for (const job of existingJobs) {
+      if (job.name === "periodic.calendar.sync") {
+        await backgroundQueue.removeRepeatableByKey(job.key);
+        console.log(`🗑️  Removed existing periodic sync job: ${job.key}`);
+      }
+    }
+
+    // Add new periodic sync job (every 2 minutes for faster event detection)
+    // Note: Recall.ai webhooks can be unreliable, so periodic sync is essential
+    await backgroundQueue.add(
+      "periodic.calendar.sync",
+      {},
+      {
+        repeat: {
+          every: 2 * 60 * 1000, // 2 minutes in milliseconds
+        },
+        jobId: "periodic-calendar-sync", // Unique ID to prevent duplicates
+      }
+    );
+
+    console.log("⏰ Scheduled periodic calendar sync (every 2 minutes)");
+    telemetryLog("INFO", "Periodic sync scheduled", {
+      intervalMinutes: 2,
+    });
+
+    // Run initial sync immediately (don't wait 2 minutes)
+    await backgroundQueue.add("periodic.calendar.sync", {}, { jobId: "periodic-calendar-sync-initial" });
+    console.log("🔄 Triggered initial calendar sync");
+  } catch (error) {
+    console.error("❌ Failed to schedule periodic sync:", error);
+    telemetryLog("ERROR", "Failed to schedule periodic sync", {
+      error: error.message,
+      stack: error.stack,
+    });
+    // Retry after 10 seconds if scheduling failed
+    setTimeout(schedulePeriodicSync, 10000);
+  }
+}
+
 backgroundQueue.on("ready", async () => {
   console.log("✅ Redis connection established - Queue is ready");
   console.log("🎯 Worker is now listening for jobs...");
@@ -167,47 +237,37 @@ backgroundQueue.on("ready", async () => {
     console.warn(`⚠️  Could not verify database connection: ${error.message}`);
   }
 
-  // Schedule periodic calendar sync job (runs every 5 minutes)
-  // This catches events that weren't picked up by webhooks
-  try {
-    // Remove any existing periodic sync jobs to avoid duplicates
-    const existingJobs = await backgroundQueue.getRepeatableJobs();
-    for (const job of existingJobs) {
-      if (job.name === "periodic.calendar.sync") {
-        await backgroundQueue.removeRepeatableByKey(job.key);
-        console.log(`🗑️  Removed existing periodic sync job: ${job.key}`);
-      }
-    }
-
-    // Add new periodic sync job (every 2 minutes for faster event detection)
-    // Note: Recall.ai webhooks can be unreliable, so periodic sync is essential
-    await backgroundQueue.add(
-      "periodic.calendar.sync",
-      {},
-      {
-        repeat: {
-          every: 2 * 60 * 1000, // 2 minutes in milliseconds
-        },
-        jobId: "periodic-calendar-sync", // Unique ID to prevent duplicates
-      }
-    );
-
-    console.log("⏰ Scheduled periodic calendar sync (every 2 minutes)");
-    telemetryLog("INFO", "Periodic sync scheduled", {
-      intervalMinutes: 2,
-    });
-
-    // Run initial sync immediately (don't wait 5 minutes)
-    await backgroundQueue.add("periodic.calendar.sync", {}, { jobId: "periodic-calendar-sync-initial" });
-    console.log("🔄 Triggered initial calendar sync");
-  } catch (error) {
-    console.error("❌ Failed to schedule periodic sync:", error);
-    telemetryLog("ERROR", "Failed to schedule periodic sync", {
-      error: error.message,
-      stack: error.stack,
-    });
-  }
+  // Schedule periodic sync when ready event fires
+  await schedulePeriodicSync();
 });
+
+// FALLBACK: Schedule periodic sync even if "ready" event doesn't fire
+// This ensures sync is scheduled even if the ready event is delayed or doesn't fire
+// Wait 3 seconds after startup to allow Redis connection to establish
+setTimeout(async () => {
+  try {
+    // Check if periodic sync is already scheduled
+    const existingJobs = await backgroundQueue.getRepeatableJobs();
+    const hasPeriodicSync = existingJobs.some(job => job.name === "periodic.calendar.sync");
+    
+    if (!hasPeriodicSync) {
+      console.log("⚠️  Periodic sync not scheduled via 'ready' event, scheduling via fallback...");
+      await schedulePeriodicSync();
+    } else {
+      console.log("✅ Periodic sync already scheduled (via ready event)");
+    }
+  } catch (error) {
+    console.error("❌ Fallback periodic sync scheduling failed:", error.message);
+    // Retry after 10 seconds
+    setTimeout(async () => {
+      try {
+        await schedulePeriodicSync();
+      } catch (retryError) {
+        console.error("❌ Fallback retry also failed:", retryError.message);
+      }
+    }, 10000);
+  }
+}, 3000);
 
 backgroundQueue.on("error", (error) => {
   console.error("❌ Queue error:", error);
