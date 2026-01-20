@@ -259,23 +259,6 @@
                     meetingsSample: meetings && meetings.length > 0 ? meetings.slice(0, 3) : []
                   });
                 </script>
-                <!-- Total Time and Stats -->
-                <% if (typeof totalTimeFormatted !== 'undefined' && totalTimeFormatted) { %>
-                  <div class="mb-4 p-3 bg-indigo-50 border border-indigo-200 rounded-lg">
-                    <div class="flex items-center justify-between text-sm">
-                      <div class="flex items-center space-x-4">
-                        <div>
-                          <span class="text-gray-600">Total Meeting Time:</span>
-                          <span class="ml-2 font-semibold text-indigo-700"><%= totalTimeFormatted %></span>
-                        </div>
-                        <div>
-                          <span class="text-gray-600">Total Meetings:</span>
-                          <span class="ml-2 font-semibold text-indigo-700"><%= typeof meetings !== 'undefined' && meetings ? meetings.length : 0 %></span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                <% } %>
                 <% if (totalPages && totalPages > 1) { %>
                   <div class="flex items-center justify-between mb-4">
                     <div class="text-xs text-gray-500">

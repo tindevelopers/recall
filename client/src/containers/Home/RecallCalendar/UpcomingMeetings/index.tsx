@@ -176,6 +176,17 @@ export default function UpcomingMeetings({
             </span>
           ) : (
             <Fragment>
+              {/* #region agent log */}
+              {(() => {
+                const renderListStartTime = Date.now();
+                fetch('http://127.0.0.1:7250/ingest/bf0206c3-6e13-4499-92a3-7fb2b7527fcf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'UpcomingMeetings/index.tsx:180',message:'Rendering meetings list START',data:{hypothesisId:'C',meetingCount:filteredMeetings.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1'})}).catch(()=>{});
+                setTimeout(() => {
+                  const renderListEndTime = Date.now();
+                  fetch('http://127.0.0.1:7250/ingest/bf0206c3-6e13-4499-92a3-7fb2b7527fcf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'UpcomingMeetings/index.tsx:180',message:'Rendering meetings list END',data:{hypothesisId:'C',renderTimeMs:renderListEndTime-renderListStartTime,meetingCount:filteredMeetings.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1'})}).catch(()=>{});
+                }, 0);
+                return null;
+              })()}
+              {/* #endregion */}
               <ol className="mt-5 space-y-4 text-sm leading-6">
                 {filteredMeetings.map((meeting) => (
                   <MeetingRow

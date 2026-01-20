@@ -34,6 +34,26 @@ function getDescriptionFromEvent(event) {
 }
 
 /**
+ * Extract description from an artifact
+ */
+function getDescriptionFromArtifact(artifact) {
+  if (!artifact) return null;
+  const data = artifact?.rawPayload?.data || {};
+  
+  // Check artifact data for description
+  if (data.description) {
+    return data.description;
+  }
+  
+  // Check bot metadata
+  if (data.bot_metadata?.meeting_metadata?.description) {
+    return data.bot_metadata.meeting_metadata.description;
+  }
+  
+  return null;
+}
+
+/**
  * Extract attendees from a calendar event for display
  */
 function getAttendeesFromEvent(event) {
@@ -836,6 +856,8 @@ export default async (req, res) => {
   // Get all meeting artifacts for this user with their summaries
   let artifacts = [];
   try {
+    // OPTIMIZATION: Don't include MeetingTranscriptChunk - it can have thousands of rows per artifact
+    // Instead, we'll check for transcript existence separately using a count query
     const artifactResult = await db.MeetingArtifact.findAndCountAll({
       where: { userId },
       distinct: true,
@@ -853,16 +875,35 @@ export default async (req, res) => {
           model: db.MeetingSummary,
           required: false,
         },
-        {
-          model: db.MeetingTranscriptChunk,
-          required: false,
-        },
+        // REMOVED: MeetingTranscriptChunk - causes N+1 query and loads thousands of rows
+        // We'll check for transcript existence separately below
       ],
       order: [["createdAt", "DESC"]],
       limit: PAGE_SIZE,
       offset,
     });
     artifacts = artifactResult.rows;
+    
+    // Check for transcript chunks existence in batch (much faster than loading all chunks)
+    if (artifacts.length > 0) {
+      const artifactIds = artifacts.map(a => a.id);
+      const chunkCounts = await db.MeetingTranscriptChunk.findAll({
+        attributes: [
+          'meetingArtifactId',
+          [db.sequelize.fn('COUNT', db.sequelize.col('id')), 'chunkCount']
+        ],
+        where: { meetingArtifactId: { [Op.in]: artifactIds } },
+        group: ['meetingArtifactId'],
+        raw: true,
+      });
+      const chunkCountMap = new Map(
+        chunkCounts.map(c => [c.meetingArtifactId, parseInt(c.chunkCount) || 0])
+      );
+      // Attach chunk count to each artifact
+      artifacts.forEach(artifact => {
+        artifact.hasTranscriptChunks = (chunkCountMap.get(artifact.id) || 0) > 0;
+      });
+    }
   } catch (error) {
     console.error(`[MEETINGS] Error fetching meeting artifacts:`, error);
   }
@@ -904,13 +945,16 @@ export default async (req, res) => {
     const calendarEvent = artifact.CalendarEvent;
     const summary = artifact.MeetingSummaries?.[0] || artifact.MeetingSummary || null;
 
-    const startTime = calendarEvent?.startTime || artifact.rawPayload?.data?.start_time || artifact.createdAt;
-    const endTime = calendarEvent?.endTime || artifact.rawPayload?.data?.end_time || null;
+    // Prioritize artifact data for start/end times
+    const artifactStartTime = artifact.rawPayload?.data?.start_time;
+    const artifactEndTime = artifact.rawPayload?.data?.end_time;
+    const startTime = artifactStartTime || calendarEvent?.startTime || artifact.createdAt;
+    const endTime = artifactEndTime || calendarEvent?.endTime || null;
 
     const participants = getParticipantsForMeeting(artifact, calendarEvent);
     const hasTranscriptFromPayload = hasTranscriptContent(artifact.rawPayload?.data?.transcript);
-    const hasTranscriptFromChunks =
-      Array.isArray(artifact.MeetingTranscriptChunks) && artifact.MeetingTranscriptChunks.length > 0;
+    // Use the pre-computed chunk count instead of loading all chunks
+    const hasTranscriptFromChunks = artifact.hasTranscriptChunks || false;
     const hasTranscriptFlag = hasTranscriptFromPayload || hasTranscriptFromChunks;
 
     const hasRecordingFlag = !!(
@@ -922,24 +966,22 @@ export default async (req, res) => {
     // Check if this is a Recall recording (has artifact with recording) vs platform recording
     const hasRecallRecordingFlag = hasRecordingFlag && !!artifact.recallBotId;
 
-    const durationSeconds =
-      startTime && endTime
-        ? Math.max(0, (new Date(endTime) - new Date(startTime)) / 1000)
-        : (() => {
-            // Fallback: derive from transcript chunks if available
-            if (hasTranscriptFromChunks) {
-              const times = artifact.MeetingTranscriptChunks.map((c) => c.endTimeMs || c.startTimeMs || 0);
-              const maxMs = Math.max(...times, 0);
-              if (maxMs > 0) return Math.round(maxMs / 1000);
-            }
-            // Fallback: use bot timestamps from raw payload if present
-            const rawEnd = artifact.rawPayload?.data?.end_time;
-            const rawStart = artifact.rawPayload?.data?.start_time;
-            if (rawStart && rawEnd) {
-              return Math.max(0, (new Date(rawEnd) - new Date(rawStart)) / 1000);
-            }
-            return null;
-          })();
+    // Calculate duration from artifacts first, then fallback to calendar event times
+    const durationSeconds = (() => {
+      // First priority: use artifact start/end times
+      if (artifactStartTime && artifactEndTime) {
+        return Math.max(0, (new Date(artifactEndTime) - new Date(artifactStartTime)) / 1000);
+      }
+      // Second priority: use calendar event times
+      if (startTime && endTime) {
+        return Math.max(0, (new Date(endTime) - new Date(startTime)) / 1000);
+      }
+      // Check for duration directly in artifact data
+      if (artifact.rawPayload?.data?.duration_seconds) {
+        return artifact.rawPayload.data.duration_seconds;
+      }
+      return null;
+    })();
 
     meetingsMap.set(key, {
       id: artifact.id,
@@ -966,7 +1008,7 @@ export default async (req, res) => {
         artifact.rawPayload?.data?.media_shortcuts?.audio?.data?.download_url ||
         null,
       participants,
-      description: getDescriptionFromEvent(calendarEvent),
+      description: getDescriptionFromArtifact(artifact) || getDescriptionFromEvent(calendarEvent),
       organizer: calendarEvent ? getAttendeesFromEvent(calendarEvent).find(a => a.organizer) : null,
       calendarEmail: calendarEvent?.Calendar?.email || null,
       platform: calendarEvent?.Calendar?.platform || null,
@@ -1096,7 +1138,6 @@ export default async (req, res) => {
     page,
     totalPages,
   });
-
   
   return res.render("meetings.ejs", {
     notice: req.notice,
