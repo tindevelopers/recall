@@ -418,13 +418,6 @@
                                   </div>
                                 <% } %>
 
-                                <!-- Description -->
-                                <% if (meeting.description) { %>
-                                  <div class="mt-2 text-xs text-gray-600 line-clamp-2">
-                                    <%= typeof meeting.description === 'string' ? meeting.description.replace(/<[^>]*>/g, '').substring(0, 200) : '' %><%= typeof meeting.description === 'string' && meeting.description.length > 200 ? '...' : '' %>
-                                  </div>
-                                <% } %>
-
                                 <!-- Participants -->
                                 <% if (meeting.participants && meeting.participants.length > 0) { %>
                                   <div class="mt-2 flex flex-wrap gap-2 items-center text-xs text-gray-600">
