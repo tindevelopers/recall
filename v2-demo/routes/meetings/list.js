@@ -909,6 +909,57 @@ export default async (req, res) => {
     console.error(`[MEETINGS] Error fetching meeting artifacts:`, error);
   }
 
+  // Match artifacts to calendar events by meeting URL thread_id
+  // Runtime evidence: artifacts have rawPayload.data.meeting_url.thread_id that matches calendar event meetingUrl
+  // Example: artifact thread_id "19:meeting_OGVkYjIxM2YtYWUwNy00OTdmLWFhNzItZWI0MDVlZDdkYTY3@thread.v2"
+  //          matches calendar event meetingUrl containing that same thread_id
+  
+  // Extract thread_id from artifact meeting_url objects
+  const extractThreadId = (meetingUrl) => {
+    if (!meetingUrl) return null;
+    // If it's an object with thread_id property (from artifact payload)
+    if (typeof meetingUrl === 'object' && meetingUrl.thread_id) {
+      return meetingUrl.thread_id;
+    }
+    // If it's a string URL, extract thread_id from it
+    if (typeof meetingUrl === 'string') {
+      const match = meetingUrl.match(/19:meeting_[^/@]+@thread\.v2/);
+      return match ? match[0] : null;
+    }
+    return null;
+  };
+  
+  // Build a map of artifact thread_ids
+  const artifactThreadIds = new Set();
+  for (const artifact of artifacts) {
+    const threadId = extractThreadId(artifact.rawPayload?.data?.meeting_url);
+    if (threadId) {
+      artifactThreadIds.add(threadId);
+    }
+  }
+  
+  // Fetch ALL calendar events for this user (we already have them from upcomingEvents query, 
+  // but we need past events too) and build a map by thread_id
+  let calendarEventsByThreadId = new Map();
+  if (artifactThreadIds.size > 0 && calendars.length > 0) {
+    try {
+      const calendarIds = calendars.map(c => c.id);
+      const allCalendarEvents = await db.CalendarEvent.findAll({
+        where: { calendarId: { [Op.in]: calendarIds } },
+        include: [{ model: db.Calendar, required: false }],
+      });
+      
+      for (const event of allCalendarEvents) {
+        const threadId = extractThreadId(event.meetingUrl);
+        if (threadId) {
+          calendarEventsByThreadId.set(threadId, event);
+        }
+      }
+    } catch (e) {
+      console.error(`[MEETINGS] Error fetching calendar events for thread matching:`, e);
+    }
+  }
+
   // Also get summaries that might not have artifacts (edge case)
   let summaries = [];
   try {
@@ -951,7 +1002,12 @@ export default async (req, res) => {
   // Add artifacts
   for (const artifact of artifacts) {
     const key = artifact.id;
-    const calendarEvent = artifact.CalendarEvent;
+    
+    // Try to find matching calendar event by thread_id from meeting URL
+    const artifactThreadId = extractThreadId(artifact.rawPayload?.data?.meeting_url);
+    const calendarEvent =
+      artifact.CalendarEvent ||
+      (artifactThreadId ? calendarEventsByThreadId.get(artifactThreadId) : null);
     const summary = artifact.MeetingSummaries?.[0] || artifact.MeetingSummary || null;
 
     // Prioritize artifact data for start/end times
@@ -992,9 +1048,16 @@ export default async (req, res) => {
       return null;
     })();
 
-    // Try to merge with upcoming event data if available (for better title/description)
-    const matchingUpcomingEvent = calendarEvent?.recallId 
-      ? upcomingEventsByRecallId.get(calendarEvent.recallId) 
+    // Try to merge with upcoming event data if available (for better participants/description)
+    // Note: artifacts may not have CalendarEvent loaded; prefer recall id from CalendarEvent, fallback to artifact rawPayload.
+    const recallEventIdForMerge =
+      calendarEvent?.recallId ||
+      artifact.recallEventId ||
+      artifact.rawPayload?.data?.recall_event_id ||
+      artifact.rawPayload?.data?.calendar_event_id ||
+      null;
+    const matchingUpcomingEvent = recallEventIdForMerge
+      ? upcomingEventsByRecallId.get(recallEventIdForMerge)
       : null;
     
     // Use upcoming event title if available and better, otherwise use extracted title

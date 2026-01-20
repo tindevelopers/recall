@@ -86,27 +86,13 @@ export async function fetchMeetings({
   meetingsDispatch,
   authToken,
 }: FetchMeetingsArgs) {
-  // #region agent log
-  const fetchStartTime = Date.now();
-  fetch('http://127.0.0.1:7250/ingest/bf0206c3-6e13-4499-92a3-7fb2b7527fcf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'meetings.ts:89',message:'fetchMeetings START',data:{hypothesisId:'A'},timestamp:Date.now(),sessionId:'debug-session',runId:'run1'})}).catch(()=>{});
-  // #endregion
   meetingsDispatch({ type: MeetingsActionKind.FETCH_START });
   try {
-    // #region agent log
-    const apiRequestStartTime = Date.now();
-    fetch('http://127.0.0.1:7250/ingest/bf0206c3-6e13-4499-92a3-7fb2b7527fcf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'meetings.ts:93',message:'API request START',data:{hypothesisId:'B',url:buildUrl("meetings/")},timestamp:Date.now(),sessionId:'debug-session',runId:'run1'})}).catch(()=>{});
-    // #endregion
     const response = await makeRequest<CalendarMeeting[]>({
       token: authToken,
       url: buildUrl("meetings/"),
       method: "GET",
     });
-    // #region agent log
-    const apiRequestEndTime = Date.now();
-    const apiResponseTime = apiRequestEndTime - apiRequestStartTime;
-    const responseSize = JSON.stringify(response).length;
-    fetch('http://127.0.0.1:7250/ingest/bf0206c3-6e13-4499-92a3-7fb2b7527fcf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'meetings.ts:96',message:'API request END',data:{hypothesisId:'B',responseTimeMs:apiResponseTime,responseSizeBytes:responseSize,meetingCount:Array.isArray(response)?response.length:0},timestamp:Date.now(),sessionId:'debug-session',runId:'run1'})}).catch(()=>{});
-    // #endregion
     const meetings = Array.isArray(response) ? response : [];
 
     track("meetings.api_received", {
@@ -117,17 +103,7 @@ export async function fetchMeetings({
       type: MeetingsActionKind.FETCH_SUCCESS,
       meetings,
     });
-    // #region agent log
-    const fetchEndTime = Date.now();
-    const totalFetchTime = fetchEndTime - fetchStartTime;
-    fetch('http://127.0.0.1:7250/ingest/bf0206c3-6e13-4499-92a3-7fb2b7527fcf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'meetings.ts:105',message:'fetchMeetings SUCCESS',data:{hypothesisId:'A',totalTimeMs:totalFetchTime,meetingCount:meetings.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1'})}).catch(()=>{});
-    // #endregion
   } catch (err) {
-    // #region agent log
-    const fetchEndTime = Date.now();
-    const totalFetchTime = fetchEndTime - fetchStartTime;
-    fetch('http://127.0.0.1:7250/ingest/bf0206c3-6e13-4499-92a3-7fb2b7527fcf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'meetings.ts:109',message:'fetchMeetings ERROR',data:{hypothesisId:'A',totalTimeMs:totalFetchTime,error:err instanceof Error?err.message:String(err)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1'})}).catch(()=>{});
-    // #endregion
     meetingsDispatch({
       type: MeetingsActionKind.FETCH_ERROR,
       error: err as Error,
