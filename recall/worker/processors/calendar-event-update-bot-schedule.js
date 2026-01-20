@@ -29,6 +29,12 @@ export default async (job) => {
     { location: "worker/processors/calendar-event-update-bot-schedule.js:event_loaded" }
   );
 
+  // If event not found, log and return (event may not be synced yet)
+  if (!event) {
+    console.warn(`[BOT_CONFIG] Event not found for recallEventId ${recallEventId} - event may not be synced yet`);
+    return;
+  }
+
   let updatedEventFromRecall = null;
   if (
     (event.shouldRecordAutomatic || event.shouldRecordManual) &&

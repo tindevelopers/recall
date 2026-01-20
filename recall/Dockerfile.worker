@@ -1,17 +1,19 @@
 # Dockerfile for the WORKER service - BUILD ID: worker-v2
+# This Dockerfile assumes Railway builds from the ROOT directory
+# and copies files from the recall/ subdirectory (same as main Dockerfile)
 FROM node:20-alpine
 RUN echo "=== Building WORKER service using Dockerfile.worker ==="
 
 WORKDIR /app
 
-# Copy package files
-COPY package*.json ./
+# Copy package files from recall subdirectory (building from root)
+COPY recall/package.json recall/package-lock.json ./
 
 # Install dependencies
-RUN npm ci --only=production
+RUN npm ci --only=production || npm install --production
 
-# Copy application code
-COPY . .
+# Copy application code from recall subdirectory (building from root)
+COPY recall/ .
 
 # Run the worker
 CMD ["npm", "run", "start:worker"]

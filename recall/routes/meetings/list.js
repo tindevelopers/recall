@@ -701,6 +701,9 @@ async function syncCalendarEvents(calendar) {
 }
 
 export default async (req, res) => {
+  // #region agent log
+  const perfStart = Date.now();
+  // #endregion
   if (!req.authenticated) {
     return res.redirect("/sign-in");
   }
@@ -745,31 +748,43 @@ export default async (req, res) => {
   
   console.log(`[MEETINGS] Found ${calendars.length} calendars for user ${userId}`);
 
-  // On-demand sync: fetch latest events from Recall.ai before showing meetings
-  // This ensures we have fresh data even if webhooks are delayed/dropped
-  // OPTIMIZATION: Throttle sync to avoid hitting Recall API on every page load
+  // On-demand sync: fetch latest events from Recall.ai
+  // OPTIMIZATION: Run sync in BACKGROUND (non-blocking) to return page instantly
+  // Data will be fresh on next page load; user can also click "Refresh" button
   const syncCacheKey = `sync-${userId}`;
   const cachedSync = syncCache.get(syncCacheKey);
   const now = Date.now();
   const shouldSync = !cachedSync || (now - cachedSync.lastSyncTime > SYNC_THROTTLE_MS);
+  const syncInProgress = cachedSync?.inProgress || false;
   
-  if (calendars.length > 0 && shouldSync) {
+  // Track sync status for UI
+  let lastSyncAge = cachedSync ? Math.round((now - cachedSync.lastSyncTime) / 1000) : null;
+  
+  if (calendars.length > 0 && shouldSync && !syncInProgress) {
     // Mark sync as in progress to prevent concurrent syncs
     syncCache.set(syncCacheKey, { lastSyncTime: now, inProgress: true });
     
-    const syncStartTime = Date.now();
-    await Promise.all(calendars.map(cal => syncCalendarEvents(cal)));
-    console.log(`[MEETINGS] On-demand sync completed in ${Date.now() - syncStartTime}ms`);
+    // Run sync in background - DON'T await, let page render immediately
+    (async () => {
+      try {
+        const syncStartTime = Date.now();
+        await Promise.all(calendars.map(cal => syncCalendarEvents(cal)));
+        console.log(`[MEETINGS] Background sync completed in ${Date.now() - syncStartTime}ms`);
+        
+        const botSyncStartTime = Date.now();
+        await syncBotArtifacts(calendars, userId);
+        console.log(`[MEETINGS] Background bot sync completed in ${Date.now() - botSyncStartTime}ms`);
+        
+        syncCache.set(syncCacheKey, { lastSyncTime: Date.now(), inProgress: false });
+      } catch (err) {
+        console.error(`[MEETINGS] Background sync error:`, err);
+        syncCache.set(syncCacheKey, { lastSyncTime: now, inProgress: false });
+      }
+    })();
     
-    // Sync bot artifacts for past events (fallback for missing webhooks)
-    const botSyncStartTime = Date.now();
-    await syncBotArtifacts(calendars, userId);
-    console.log(`[MEETINGS] Bot artifact sync completed in ${Date.now() - botSyncStartTime}ms`);
-    
-    // Update cache with completion time
-    syncCache.set(syncCacheKey, { lastSyncTime: Date.now(), inProgress: false });
+    console.log(`[MEETINGS] Background sync started (non-blocking)`);
   } else if (calendars.length > 0) {
-    console.log(`[MEETINGS] Skipping sync - last sync was ${Math.round((now - (cachedSync?.lastSyncTime || 0)) / 1000)}s ago`);
+    console.log(`[MEETINGS] Skipping sync - last sync was ${lastSyncAge}s ago, inProgress=${syncInProgress}`);
   }
 
   // Get upcoming events from all calendars (future events only)
@@ -1240,7 +1255,12 @@ export default async (req, res) => {
     ? `${totalHours}h ${totalMinutes}m`
     : `${totalMinutes}m`;
 
-  console.log(`[MEETINGS-DEBUG] Rendering meetings page:`, {
+  // #region agent log
+  const totalTime = Date.now() - perfStart;
+  fetch('http://127.0.0.1:7250/ingest/bf0206c3-6e13-4499-92a3-7fb2b7527fcf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'routes/meetings/list.js:performance',message:'Page render time (background sync)',data:{totalTimeMs:totalTime,syncSkipped:!shouldSync||syncInProgress,lastSyncAge,syncInProgress,calendarsCount:calendars.length,artifactsCount:artifacts.length,meetingsCount:meetings.length},timestamp:Date.now(),sessionId:'debug-session',runId:'perf-bg-1'})}).catch(()=>{});
+  // #endregion
+
+  console.log(`[MEETINGS-DEBUG] Rendering meetings page in ${totalTime}ms:`, {
     userId,
     calendarsCount: calendars.length,
     hasCalendars: calendars.length > 0,
@@ -1251,6 +1271,7 @@ export default async (req, res) => {
     meetingsSample: meetings.slice(0, 3).map(m => ({ id: m.id, title: m.title, type: m.type })),
     page,
     totalPages,
+    syncSkipped: !shouldSync || syncInProgress,
   });
   
   return res.render("meetings.ejs", {
@@ -1265,6 +1286,8 @@ export default async (req, res) => {
     hasPrev,
     totalTimeSeconds,
     totalTimeFormatted,
+    lastSyncAge, // seconds since last sync, or null if never synced
+    syncInProgress, // true if background sync is running
     filters: {
       q: q || "",
       from: from || "",
