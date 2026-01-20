@@ -2,13 +2,8 @@ import dotenv from "dotenv";
 // Load environment variables immediately - this ensures DATABASE_URL is available
 dotenv.config();
 
-import path from "path";
-import { fileURLToPath } from "url";
 import { Sequelize } from "sequelize";
 import { Umzug, SequelizeStorage } from "umzug";
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 
 import initUserModel from "./models/user.js";
 import initCalendarModel from "./models/calendar.js";
@@ -30,39 +25,10 @@ function initializeDatabase() {
     return; // Already initialized
   }
 
-  // Use SQLite for local development if DATABASE_URL is not set
   if (!process.env.DATABASE_URL) {
-    console.log("INFO: DATABASE_URL not set, using SQLite for local development");
-    const sqlitePath = path.join(__dirname, "db.sqlite");
-    sequelize = new Sequelize({
-      dialect: "sqlite",
-      storage: sqlitePath,
-      logging: false,
-    });
-    console.log(`INFO: Using SQLite database at ${sqlitePath}`);
-    
-    // Initialize Umzug for SQLite
-    umzug = new Umzug({
-      migrations: {
-        glob: "migrations/*.js",
-        resolve: ({ name, path }) => {
-          const getModule = () => import(`file:///${path.replace(/\\/g, "/")}`);
-          return {
-            name: name,
-            path: path,
-            up: async (upParams) => (await getModule()).up(upParams),
-            down: async (downParams) => (await getModule()).down(downParams),
-          };
-        },
-      },
-      context: { queryInterface: sequelize.getQueryInterface() },
-      storage: new SequelizeStorage({ sequelize }),
-      logger: undefined,
-    });
-    return;
+    throw new Error("DATABASE_URL environment variable is required");
   }
 
-  // Use PostgreSQL when DATABASE_URL is set
   const url = new URL(process.env.DATABASE_URL);
   console.log(`INFO: Configuring PostgreSQL database`);
   console.log(`   Host: ${url.hostname}, Database: ${url.pathname.substring(1)}`);
