@@ -935,17 +935,67 @@
         method: 'POST',
       });
       const result = await response.json();
+      
+      if (!response.ok) {
+        // Handle specific error cases
+        if (result.error === 'Notion not connected') {
+          showNotification('Please connect your Notion account in Settings first.', 'error');
+          btnText.textContent = 'Notion not connected';
+        } else if (result.error === 'Notion destination not configured') {
+          showNotification('Please configure a Notion destination in Settings first.', 'error');
+          btnText.textContent = 'No destination configured';
+        } else {
+          throw new Error(result.message || result.error || 'Failed to queue publish');
+        }
+        btn.disabled = false;
+        btn.classList.remove('opacity-75', 'cursor-not-allowed');
+        setTimeout(() => (btnText.textContent = originalText), 5000);
+        return;
+      }
+      
       if (result.success) {
-        btnText.textContent = result.action === 'publish' ? 'Publish queued' : 'Enriching then publish';
+        if (result.action === 'publish') {
+          showNotification('Publishing to Notion... This may take a moment.', 'info');
+          btnText.textContent = 'Publishing...';
+          
+          // Poll for publish completion (check publish deliveries)
+          setTimeout(async () => {
+            try {
+              // Reload page after a delay to show updated publish status
+              setTimeout(() => {
+                window.location.reload();
+              }, 3000);
+            } catch (pollErr) {
+              console.error('Error checking publish status:', pollErr);
+            }
+          }, 2000);
+        } else {
+          showNotification('Generating summary first, then will publish to Notion...', 'info');
+          btnText.textContent = 'Enriching then publish';
+          
+          // Wait for summary, then publish
+          const summaryReady = await pollForSummary(meetingId, 60, 2000);
+          if (summaryReady) {
+            showNotification('Summary ready! Publishing to Notion...', 'info');
+            // The enrichment job should have triggered publishing automatically
+            setTimeout(() => {
+              window.location.reload();
+            }, 3000);
+          } else {
+            showNotification('Summary generation is taking longer than expected. Publishing will happen automatically when ready.', 'info');
+            btnText.textContent = 'Processing...';
+          }
+        }
       } else {
         throw new Error(result.error || 'Failed to queue publish');
       }
     } catch (err) {
       console.error('Publish error:', err);
+      showNotification('Error: ' + err.message, 'error');
       btnText.textContent = 'Error: ' + err.message;
       btn.disabled = false;
       btn.classList.remove('opacity-75', 'cursor-not-allowed');
-      setTimeout(() => (btnText.textContent = originalText), 3000);
+      setTimeout(() => (btnText.textContent = originalText), 5000);
     }
   }
 

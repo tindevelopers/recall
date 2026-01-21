@@ -1,5 +1,6 @@
 import db from "../../db.js";
 import { backgroundQueue } from "../../queue.js";
+import { Op } from "sequelize";
 
 export default async (req, res) => {
   if (!req.authenticated) {
@@ -10,8 +11,41 @@ export default async (req, res) => {
   const userId = req.authentication.user.id;
 
   try {
+    // Check if Notion integration exists
+    const notionIntegration = await db.Integration.findOne({
+      where: { userId, provider: "notion" },
+    });
+
+    if (!notionIntegration) {
+      return res.status(400).json({
+        success: false,
+        error: "Notion not connected",
+        message: "Please connect your Notion account in Settings first.",
+      });
+    }
+
+    // Check if Notion target is configured
+    const notionTarget = await db.PublishTarget.findOne({
+      where: { userId, type: "notion", enabled: true },
+    });
+
+    if (!notionTarget) {
+      return res.status(400).json({
+        success: false,
+        error: "Notion destination not configured",
+        message: "Please configure a Notion destination in Settings first.",
+      });
+    }
+
+    // Find the meeting artifact - support both UUID and readableId
     const artifact = await db.MeetingArtifact.findOne({
-      where: { id: meetingId, userId },
+      where: {
+        userId,
+        [Op.or]: [
+          { id: meetingId },
+          { readableId: meetingId }
+        ],
+      },
     });
 
     if (!artifact) {
