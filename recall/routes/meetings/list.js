@@ -3,6 +3,7 @@ import { Op } from "sequelize";
 import Recall from "../../services/recall/index.js";
 import { backgroundQueue } from "../../queue.js";
 import { telemetryEvent } from "../../utils/telemetry.js";
+import { generateReadableMeetingId } from "../../utils/meeting-id.js";
 const { sequelize } = db;
 
 // Cache for sync operations - avoid hitting Recall API on every page load
@@ -323,6 +324,36 @@ async function syncBotArtifacts(calendars, userId) {
     });
     
     if (existingArtifact) {
+      // Fetch full bot data to get recording duration
+      let fullBotData = null;
+      try {
+        fullBotData = await Recall.getBot(botId);
+        // #region agent log
+        fetch('http://127.0.0.1:7250/ingest/bf0206c3-6e13-4499-92a3-7fb2b7527fcf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'routes/meetings/list.js:syncBotArtifacts',message:'Fetched full bot data for existing artifact',data:{artifactId:existingArtifact.id,botId,hasRecordings:!!fullBotData?.recordings?.length,recordingDuration:fullBotData?.recordings?.[0]?.duration_seconds,recordingLength:fullBotData?.recordings?.[0]?.length_seconds,recordingDurationField:fullBotData?.recordings?.[0]?.duration},timestamp:Date.now(),sessionId:'debug-session',runId:'duration-fix',hypothesisId:'G'})}).catch(()=>{});
+        // #endregion
+        
+        // Update artifact with recording data if available
+        if (fullBotData?.recordings?.length > 0) {
+          const recording = fullBotData.recordings[0];
+          const updatedPayload = {
+            ...existingArtifact.rawPayload,
+            data: {
+              ...existingArtifact.rawPayload?.data,
+              recordings: fullBotData.recordings,
+              media_shortcuts: recording.media_shortcuts,
+              // Extract video/audio URLs
+              video_url: recording.media_shortcuts?.video?.data?.download_url || existingArtifact.rawPayload?.data?.video_url,
+              audio_url: recording.media_shortcuts?.audio?.data?.download_url || existingArtifact.rawPayload?.data?.audio_url,
+              recording_url: recording.media_shortcuts?.video?.data?.download_url || existingArtifact.rawPayload?.data?.recording_url,
+            },
+          };
+          await existingArtifact.update({ rawPayload: updatedPayload });
+          console.log(`[MEETINGS] Updated artifact ${existingArtifact.id} with recording data`);
+        }
+      } catch (e) {
+        console.log(`[MEETINGS] Could not fetch full bot data for ${botId}: ${e.message}`);
+      }
+      
       // Check if the existing artifact has transcript chunks - if not, try to create them
       let existingChunks = await db.MeetingTranscriptChunk.count({
         where: { meetingArtifactId: existingArtifact.id }
@@ -486,6 +517,17 @@ async function syncBotArtifacts(calendars, userId) {
       calendarEvent = allEvents.find(e => e.meetingUrl === bot.meeting_url);
     }
     
+    // Fetch full bot data to get recording duration and other details
+    let fullBotData = null;
+    try {
+      fullBotData = await Recall.getBot(botId);
+      // #region agent log
+      fetch('http://127.0.0.1:7250/ingest/bf0206c3-6e13-4499-92a3-7fb2b7527fcf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'routes/meetings/list.js:syncBotArtifacts',message:'Fetched full bot data for new artifact',data:{botId,hasRecordings:!!fullBotData?.recordings?.length,recordingDuration:fullBotData?.recordings?.[0]?.duration_seconds,recordingLength:fullBotData?.recordings?.[0]?.length_seconds,recordingDurationField:fullBotData?.recordings?.[0]?.duration},timestamp:Date.now(),sessionId:'debug-session',runId:'duration-fix',hypothesisId:'G'})}).catch(()=>{});
+      // #endregion
+    } catch (e) {
+      console.log(`[MEETINGS] Could not fetch full bot data for ${botId}: ${e.message}`);
+    }
+    
     // Fetch transcript
     let transcript = null;
     try {
@@ -509,6 +551,17 @@ async function syncBotArtifacts(calendars, userId) {
         extractTitleFromUrl(bot.meeting_url) ||
         "Meeting";
 
+      // Extract recording data from full bot data
+      const recording = fullBotData?.recordings?.[0];
+      const videoUrl = recording?.media_shortcuts?.video?.data?.download_url || bot.video_url || null;
+      const audioUrl = recording?.media_shortcuts?.audio?.data?.download_url || bot.audio_url || null;
+
+      // Generate readable ID based on meeting start time or current time
+      const meetingDate = calendarEvent?.startTime 
+        ? new Date(calendarEvent.startTime)
+        : (bot.join_at ? new Date(bot.join_at) : new Date());
+      const readableId = generateReadableMeetingId(meetingDate);
+      
       const artifact = await db.MeetingArtifact.create({
         recallEventId: calendarEvent?.recallId || null,
         recallBotId: botId,
@@ -516,6 +569,7 @@ async function syncBotArtifacts(calendars, userId) {
         userId: userId,
         eventType: 'bot.done',
         status: 'done',
+        readableId: readableId,
         rawPayload: {
           event: 'bot.done',
           data: {
@@ -525,12 +579,15 @@ async function syncBotArtifacts(calendars, userId) {
             start_time: bot.join_at || bot.created_at,
             end_time: bot.updated_at,
             meeting_url: bot.meeting_url,
-            video_url: bot.video_url || null,
-            audio_url: bot.audio_url || null,
-            recording_url: bot.video_url || null,
+            video_url: videoUrl,
+            audio_url: audioUrl,
+            recording_url: videoUrl,
             transcript: transcript,
             status: botStatus,
             participants: bot.meeting_participants || [],
+            // Store full recording data for duration calculation
+            recordings: fullBotData?.recordings || null,
+            media_shortcuts: recording?.media_shortcuts || null,
           },
           synced_from_api: true,
         },
@@ -628,6 +685,27 @@ async function syncBotArtifacts(calendars, userId) {
         } catch (chunkError) {
           console.error(`[MEETINGS] Error creating transcript chunks for bot ${botId}:`, chunkError.message);
         }
+      }
+      
+      // Queue enrichment job for AI summarization, action items, and follow-ups
+      // Only queue if we have transcript content or the artifact is marked as completed
+      const hasTranscript = hasTranscriptContent(transcript);
+      if (hasTranscript || botStatus === 'done' || botStatus === 'completed') {
+        console.log(`[MEETINGS] Queueing enrichment for artifact ${artifact.id} (hasTranscript=${hasTranscript}, status=${botStatus})`);
+        try {
+          await backgroundQueue.add("meeting.enrich", {
+            meetingArtifactId: artifact.id,
+          }, {
+            jobId: `enrich-${artifact.id}-sync`,
+            removeOnComplete: true,
+            removeOnFail: false,
+          });
+          console.log(`[MEETINGS] Successfully queued enrichment for artifact ${artifact.id}`);
+        } catch (enrichError) {
+          console.error(`[MEETINGS] Failed to queue enrichment for artifact ${artifact.id}:`, enrichError.message);
+        }
+      } else {
+        console.log(`[MEETINGS] Skipping enrichment for artifact ${artifact.id} (no transcript, status=${botStatus})`);
       }
     } catch (error) {
       console.error(`[MEETINGS] Error creating artifact for bot ${botId}:`, error.message);
@@ -1065,20 +1143,182 @@ export default async (req, res) => {
     // Check if this is a Recall recording (has artifact with recording) vs platform recording
     const hasRecallRecordingFlag = hasRecordingFlag && !!artifact.recallBotId;
 
+    // Fetch bot data on-demand if recordings array is missing (for accurate duration)
+    let artifactData = artifact.rawPayload?.data || {};
+    // Fetch if we have a bot ID but no recordings data (regardless of video_url, since recordings might not be stored yet)
+    if (!artifactData.recordings && artifact.recallBotId) {
+      // #region agent log
+      fetch('http://127.0.0.1:7250/ingest/bf0206c3-6e13-4499-92a3-7fb2b7527fcf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'routes/meetings/list.js:on_demand_bot_fetch',message:'Fetching bot data on-demand for duration',data:{artifactId:artifact.id,botId:artifact.recallBotId},timestamp:Date.now(),sessionId:'debug-session',runId:'duration-fix-on-demand',hypothesisId:'H'})}).catch(()=>{});
+      // #endregion
+      try {
+        const botData = await Recall.getBot(artifact.recallBotId);
+        if (botData?.recordings?.length > 0) {
+          // Update artifact in memory for this request
+          artifactData = {
+            ...artifactData,
+            recordings: botData.recordings,
+            media_shortcuts: botData.recordings[0]?.media_shortcuts,
+          };
+          // Also update the artifact in database for future requests (non-blocking)
+          const updatedPayload = {
+            ...artifact.rawPayload,
+            data: {
+              ...artifact.rawPayload?.data,
+              recordings: botData.recordings,
+              media_shortcuts: botData.recordings[0]?.media_shortcuts,
+            },
+          };
+          artifact.update({ rawPayload: updatedPayload }).catch(err => {
+            console.log(`[MEETINGS] Failed to update artifact ${artifact.id} with recording data: ${err.message}`);
+          });
+          // #region agent log
+          fetch('http://127.0.0.1:7250/ingest/bf0206c3-6e13-4499-92a3-7fb2b7527fcf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'routes/meetings/list.js:on_demand_bot_fetch',message:'Successfully fetched bot data on-demand',data:{artifactId:artifact.id,botId:artifact.recallBotId,hasRecordings:true,recordingDuration:botData.recordings[0]?.duration_seconds},timestamp:Date.now(),sessionId:'debug-session',runId:'duration-fix-on-demand',hypothesisId:'H'})}).catch(()=>{});
+          // #endregion
+        }
+      } catch (err) {
+        // #region agent log
+        fetch('http://127.0.0.1:7250/ingest/bf0206c3-6e13-4499-92a3-7fb2b7527fcf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'routes/meetings/list.js:on_demand_bot_fetch',message:'Failed to fetch bot data on-demand',data:{artifactId:artifact.id,botId:artifact.recallBotId,error:err.message},timestamp:Date.now(),sessionId:'debug-session',runId:'duration-fix-on-demand',hypothesisId:'H'})}).catch(()=>{});
+        // #endregion
+        console.log(`[MEETINGS] Could not fetch bot data on-demand for ${artifact.recallBotId}: ${err.message}`);
+      }
+    }
+
     // Calculate duration from artifacts first, then fallback to calendar event times
     const durationSeconds = (() => {
-      // First priority: use artifact start/end times
+      // #region agent log
+      const durationDebug = {
+        artifactId: artifact.id,
+        artifactStartTime,
+        artifactEndTime,
+        calendarStartTime: startTime,
+        calendarEndTime: endTime,
+        durationSecondsField: artifactData.duration_seconds,
+        recordingDuration: artifactData.recording?.duration || artifactData.recording_duration,
+        botDuration: artifactData.bot?.duration || artifactData.bot_duration,
+        recordingsExists: !!artifactData.recordings,
+        recordingsIsArray: Array.isArray(artifactData.recordings),
+        recordingsLength: Array.isArray(artifactData.recordings) ? artifactData.recordings.length : null,
+        recordingsArray: artifactData.recordings?.[0] ? {
+          duration: artifactData.recordings[0].duration,
+          duration_seconds: artifactData.recordings[0].duration_seconds,
+          length: artifactData.recordings[0].length,
+          length_seconds: artifactData.recordings[0].length_seconds,
+          keys: Object.keys(artifactData.recordings[0] || {}),
+        } : null,
+        mediaShortcuts: artifactData.media_shortcuts ? Object.keys(artifactData.media_shortcuts) : null,
+        rawPayloadKeys: Object.keys(artifactData),
+      };
+      // #endregion
+      
+      // First priority: use recording duration from Recall API (most accurate)
+      if (artifactData.recordings?.[0]?.duration_seconds) {
+        // #region agent log
+        fetch('http://127.0.0.1:7250/ingest/bf0206c3-6e13-4499-92a3-7fb2b7527fcf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'routes/meetings/list.js:duration_calc',message:'Using recording duration_seconds from recordings array',data:{...durationDebug,calculatedDuration:artifactData.recordings[0].duration_seconds,source:'recordings[0].duration_seconds'},timestamp:Date.now(),sessionId:'debug-session',runId:'duration-debug',hypothesisId:'A'})}).catch(()=>{});
+        // #endregion
+        return artifactData.recordings[0].duration_seconds;
+      }
+      if (artifactData.recordings?.[0]?.duration) {
+        // #region agent log
+        const durSec = typeof artifactData.recordings[0].duration === 'number' ? artifactData.recordings[0].duration : null;
+        fetch('http://127.0.0.1:7250/ingest/bf0206c3-6e13-4499-92a3-7fb2b7527fcf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'routes/meetings/list.js:duration_calc',message:'Using recording duration from recordings array',data:{...durationDebug,calculatedDuration:durSec,source:'recordings[0].duration'},timestamp:Date.now(),sessionId:'debug-session',runId:'duration-debug',hypothesisId:'A'})}).catch(()=>{});
+        // #endregion
+        return durSec;
+      }
+      if (artifactData.recordings?.[0]?.length_seconds) {
+        // #region agent log
+        fetch('http://127.0.0.1:7250/ingest/bf0206c3-6e13-4499-92a3-7fb2b7527fcf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'routes/meetings/list.js:duration_calc',message:'Using recording length_seconds from recordings array',data:{...durationDebug,calculatedDuration:artifactData.recordings[0].length_seconds,source:'recordings[0].length_seconds'},timestamp:Date.now(),sessionId:'debug-session',runId:'duration-debug',hypothesisId:'B'})}).catch(()=>{});
+        // #endregion
+        return artifactData.recordings[0].length_seconds;
+      }
+      
+      // Second priority: calculate duration from transcript timestamps (more accurate than calendar times)
+      const transcript = artifactData.transcript;
+      if (hasTranscriptContent(transcript)) {
+        let maxEndTime = 0;
+        // Try to find the maximum end timestamp in the transcript
+        if (Array.isArray(transcript) && transcript.length > 0) {
+          // Format: [{ participant: {...}, words: [{ end_timestamp: {...} }] }]
+          if (transcript[0]?.words) {
+            for (const segment of transcript) {
+              const words = segment.words || [];
+              for (const word of words) {
+                if (word.end_timestamp) {
+                  const endTime = typeof word.end_timestamp === 'number' 
+                    ? word.end_timestamp 
+                    : word.end_timestamp.relative;
+                  if (typeof endTime === 'number' && endTime > maxEndTime) {
+                    maxEndTime = endTime;
+                  }
+                }
+              }
+            }
+          } else {
+            // Format: [{ end_timestamp: number, end_time: number }]
+            for (const segment of transcript) {
+              const endTime = segment.end_timestamp || segment.end_time;
+              if (typeof endTime === 'number' && endTime > maxEndTime) {
+                maxEndTime = endTime;
+              }
+            }
+          }
+        } else if (transcript.words && Array.isArray(transcript.words)) {
+          // Format: { words: [{ end_timestamp: number }] }
+          for (const word of transcript.words) {
+            const endTime = word.end_timestamp || word.end_time;
+            if (typeof endTime === 'number' && endTime > maxEndTime) {
+              maxEndTime = endTime;
+            }
+          }
+        }
+        
+        if (maxEndTime > 0) {
+          // Convert to seconds (timestamps are usually in seconds already, but check if they're in milliseconds)
+          const durationSec = maxEndTime > 1000000 ? maxEndTime / 1000 : maxEndTime;
+          // #region agent log
+          fetch('http://127.0.0.1:7250/ingest/bf0206c3-6e13-4499-92a3-7fb2b7527fcf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'routes/meetings/list.js:duration_calc',message:'Using duration from transcript timestamps',data:{...durationDebug,calculatedDuration:durationSec,maxEndTime,source:'transcript_timestamps'},timestamp:Date.now(),sessionId:'debug-session',runId:'duration-debug',hypothesisId:'G'})}).catch(()=>{});
+          // #endregion
+          return durationSec;
+        }
+      }
+      
+      // Third priority: use artifact start/end times (from actual recording)
       if (artifactStartTime && artifactEndTime) {
-        return Math.max(0, (new Date(artifactEndTime) - new Date(artifactStartTime)) / 1000);
+        const calcDuration = Math.max(0, (new Date(artifactEndTime) - new Date(artifactStartTime)) / 1000);
+        // #region agent log
+        fetch('http://127.0.0.1:7250/ingest/bf0206c3-6e13-4499-92a3-7fb2b7527fcf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'routes/meetings/list.js:duration_calc',message:'Using artifact start/end times',data:{...durationDebug,calculatedDuration:calcDuration,source:'artifact_start_end_times'},timestamp:Date.now(),sessionId:'debug-session',runId:'duration-debug',hypothesisId:'C'})}).catch(()=>{});
+        // #endregion
+        return calcDuration;
       }
-      // Second priority: use calendar event times
+      
+      // Fourth priority: check for duration directly in artifact data
+      if (artifactData.duration_seconds) {
+        // #region agent log
+        fetch('http://127.0.0.1:7250/ingest/bf0206c3-6e13-4499-92a3-7fb2b7527fcf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'routes/meetings/list.js:duration_calc',message:'Using duration_seconds from artifact data',data:{...durationDebug,calculatedDuration:artifactData.duration_seconds,source:'duration_seconds'},timestamp:Date.now(),sessionId:'debug-session',runId:'duration-debug',hypothesisId:'E'})}).catch(()=>{});
+        // #endregion
+        return artifactData.duration_seconds;
+      }
+      
+      // Fifth priority: use calendar event times (scheduled, may not match actual recording)
+      // BUT: Skip if duration is clearly wrong (>24 hours suggests recurring event bug)
       if (startTime && endTime) {
-        return Math.max(0, (new Date(endTime) - new Date(startTime)) / 1000);
+        const calcDuration = Math.max(0, (new Date(endTime) - new Date(startTime)) / 1000);
+        // Sanity check: if duration is >24 hours, it's likely a recurring event bug - skip it
+        if (calcDuration > 24 * 3600) {
+          // #region agent log
+          fetch('http://127.0.0.1:7250/ingest/bf0206c3-6e13-4499-92a3-7fb2b7527fcf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'routes/meetings/list.js:duration_calc',message:'Skipping calendar event times - duration too large (likely recurring event bug)',data:{...durationDebug,calculatedDuration:calcDuration,source:'calendar_event_times_rejected'},timestamp:Date.now(),sessionId:'debug-session',runId:'duration-debug',hypothesisId:'D'})}).catch(()=>{});
+          // #endregion
+          // Don't return - continue to next fallback
+        } else {
+          // #region agent log
+          fetch('http://127.0.0.1:7250/ingest/bf0206c3-6e13-4499-92a3-7fb2b7527fcf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'routes/meetings/list.js:duration_calc',message:'Using calendar event times (scheduled)',data:{...durationDebug,calculatedDuration:calcDuration,source:'calendar_event_times'},timestamp:Date.now(),sessionId:'debug-session',runId:'duration-debug',hypothesisId:'D'})}).catch(()=>{});
+          // #endregion
+          return calcDuration;
+        }
       }
-      // Check for duration directly in artifact data
-      if (artifact.rawPayload?.data?.duration_seconds) {
-        return artifact.rawPayload.data.duration_seconds;
-      }
+      
+      // #region agent log
+      fetch('http://127.0.0.1:7250/ingest/bf0206c3-6e13-4499-92a3-7fb2b7527fcf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'routes/meetings/list.js:duration_calc',message:'No duration found',data:{...durationDebug,calculatedDuration:null,source:'none'},timestamp:Date.now(),sessionId:'debug-session',runId:'duration-debug',hypothesisId:'F'})}).catch(()=>{});
+      // #endregion
       return null;
     })();
 

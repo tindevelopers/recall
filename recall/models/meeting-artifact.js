@@ -40,6 +40,11 @@ export default (sequelize) => {
         type: DataTypes.JSON,
         allowNull: false,
       },
+      readableId: {
+        type: DataTypes.STRING,
+        allowNull: true,
+        unique: true,
+      },
     },
     {
       sequelize,

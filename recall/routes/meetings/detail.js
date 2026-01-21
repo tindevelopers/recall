@@ -1,4 +1,5 @@
 import db from "../../db.js";
+import { Op } from "sequelize";
 
 export default async (req, res) => {
   if (!req.authenticated) {
@@ -8,9 +9,15 @@ export default async (req, res) => {
   const userId = req.authentication.user.id;
   const meetingId = req.params.id;
 
-  // Try to find as artifact first
+  // Try to find as artifact first - support both UUID and readableId
   let artifact = await db.MeetingArtifact.findOne({
-    where: { id: meetingId, userId },
+    where: {
+      userId,
+      [Op.or]: [
+        { id: meetingId },
+        { readableId: meetingId },
+      ],
+    },
     include: [
       {
         model: db.CalendarEvent,
@@ -89,6 +96,7 @@ export default async (req, res) => {
   // Build meeting data
   const meeting = {
     id: artifact?.id || summary?.id,
+    readableId: artifact?.readableId || null,
     title: calendarEvent?.title || artifact?.rawPayload?.data?.title || "Untitled Meeting",
     startTime: calendarEvent?.startTime || artifact?.rawPayload?.data?.start_time || artifact?.createdAt || summary?.createdAt,
     endTime: calendarEvent?.endTime || artifact?.rawPayload?.data?.end_time || null,
