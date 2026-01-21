@@ -1,20 +1,33 @@
 "use strict";
 
 import { Sequelize } from "sequelize";
+import { generateReadableMeetingId } from "../utils/meeting-id.js";
 
 export const up = async ({ context: { queryInterface } }) => {
-  // Add readableId column to meeting_artifacts
-  await queryInterface.addColumn("meeting_artifacts", "readableId", {
-    type: Sequelize.STRING,
-    allowNull: true,
-    unique: true,
-  });
+  // Check if readableId column already exists
+  const tableDescription = await queryInterface.describeTable("meeting_artifacts");
+  const columnExists = tableDescription.readableId !== undefined;
   
-  // Create index for faster lookups
-  await queryInterface.addIndex("meeting_artifacts", ["readableId"], {
-    unique: true,
-    name: "meeting_artifacts_readable_id_unique",
-  });
+  if (!columnExists) {
+    // Add readableId column to meeting_artifacts
+    await queryInterface.addColumn("meeting_artifacts", "readableId", {
+      type: Sequelize.STRING,
+      allowNull: true,
+      unique: true,
+    });
+  }
+  
+  // Check if index exists before creating it
+  const indexes = await queryInterface.showIndex("meeting_artifacts");
+  const indexExists = indexes.some(idx => idx.name === "meeting_artifacts_readable_id_unique");
+  
+  if (!indexExists) {
+    // Create index for faster lookups
+    await queryInterface.addIndex("meeting_artifacts", ["readableId"], {
+      unique: true,
+      name: "meeting_artifacts_readable_id_unique",
+    });
+  }
   
   // Generate readable IDs for existing artifacts based on their creation date
   const artifacts = await queryInterface.sequelize.query(
@@ -24,12 +37,7 @@ export const up = async ({ context: { queryInterface } }) => {
   
   for (const artifact of artifacts) {
     const createdAt = artifact.createdAt ? new Date(artifact.createdAt) : new Date();
-    const year = createdAt.getFullYear();
-    const month = String(createdAt.getMonth() + 1).padStart(2, '0');
-    const day = String(createdAt.getDate()).padStart(2, '0');
-    const dateStr = `${year}${month}${day}`;
-    const randomHex = Math.floor(Math.random() * 4096).toString(16).toUpperCase().padStart(3, '0');
-    const readableId = `MTG-${dateStr}-${randomHex}`;
+    const readableId = generateReadableMeetingId(createdAt);
     
     await queryInterface.sequelize.query(
       `UPDATE meeting_artifacts SET "readableId" = :readableId WHERE id = :id`,
