@@ -3,7 +3,8 @@ import { Op } from "sequelize";
 import Recall from "../../services/recall/index.js";
 import { backgroundQueue } from "../../queue.js";
 import { telemetryEvent } from "../../utils/telemetry.js";
-import { generateReadableMeetingId } from "../../utils/meeting-id.js";
+import { generateUniqueReadableMeetingId } from "../../utils/meeting-id.js";
+import { v4 as uuidv4 } from "uuid";
 const { sequelize } = db;
 
 // Cache for sync operations - avoid hitting Recall API on every page load
@@ -556,11 +557,22 @@ async function syncBotArtifacts(calendars, userId) {
       const videoUrl = recording?.media_shortcuts?.video?.data?.download_url || bot.video_url || null;
       const audioUrl = recording?.media_shortcuts?.audio?.data?.download_url || bot.audio_url || null;
 
-      // Generate readable ID based on meeting start time or current time
+      // Generate unique readable ID based on meeting start time or current time
       const meetingDate = calendarEvent?.startTime 
         ? new Date(calendarEvent.startTime)
         : (bot.join_at ? new Date(bot.join_at) : new Date());
-      const readableId = generateReadableMeetingId(meetingDate);
+      
+      // Check uniqueness function for readableId
+      const checkUnique = async (id) => {
+        const existing = await db.MeetingArtifact.findOne({
+          where: { readableId: id },
+        });
+        return !existing;
+      };
+      
+      // Generate a temporary UUID for fallback (will be replaced by actual artifact ID)
+      const tempId = uuidv4();
+      const readableId = await generateUniqueReadableMeetingId(meetingDate, checkUnique, tempId);
       
       const artifact = await db.MeetingArtifact.create({
         recallEventId: calendarEvent?.recallId || null,

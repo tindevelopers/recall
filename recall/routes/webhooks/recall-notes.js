@@ -2,7 +2,7 @@ import { backgroundQueue } from "../../queue.js";
 import db from "../../db.js";
 import { v4 as uuidv4 } from "uuid";
 import Recall from "../../services/recall/index.js";
-import { generateReadableMeetingId } from "../../utils/meeting-id.js";
+import { generateUniqueReadableMeetingId } from "../../utils/meeting-id.js";
 
 /**
  * Webhook handler for Recall.ai transcript and bot events.
@@ -272,14 +272,24 @@ export default async (req, res) => {
       });
       console.log(`[RECALL-NOTES] Updated existing artifact ${artifact.id}`);
     } else {
-      // Generate readable ID based on meeting start time or current time
+      // Generate unique readable ID based on meeting start time or current time
+      const artifactId = uuidv4();
       const meetingDate = calendarEvent?.startTime 
         ? new Date(calendarEvent.startTime)
         : (enrichedPayload?.data?.start_time ? new Date(enrichedPayload.data.start_time) : new Date());
-      const readableId = generateReadableMeetingId(meetingDate);
+      
+      // Check uniqueness function for readableId
+      const checkUnique = async (id) => {
+        const existing = await db.MeetingArtifact.findOne({
+          where: { readableId: id },
+        });
+        return !existing;
+      };
+      
+      const readableId = await generateUniqueReadableMeetingId(meetingDate, checkUnique, artifactId);
       
       artifact = await db.MeetingArtifact.create({
-        id: uuidv4(),
+        id: artifactId,
         ...artifactDefaults,
         readableId: readableId,
         rawPayload: enrichedPayload,
