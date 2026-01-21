@@ -701,6 +701,10 @@
 </div>
 
 <script>
+  // Store meeting ID for use in JavaScript (could be UUID or readableId)
+  const meetingId = '<%= meeting.readableId || meeting.id %>';
+  const artifactId = '<%= meeting.artifactId || "" %>';
+
   // Format all datetime elements to user's local timezone
   document.addEventListener('DOMContentLoaded', function() {
     document.querySelectorAll('.local-datetime').forEach(function(el) {
@@ -751,6 +755,99 @@
     activeTab.classList.add('border-indigo-500', 'text-indigo-600');
   }
 
+  // Notification system
+  function showNotification(message, type = 'info') {
+    // Remove any existing notifications
+    const existing = document.getElementById('enrichment-notification');
+    if (existing) {
+      existing.remove();
+    }
+
+    const notification = document.createElement('div');
+    notification.id = 'enrichment-notification';
+    notification.className = `fixed top-4 right-4 z-50 max-w-sm w-full bg-white shadow-lg rounded-lg pointer-events-auto ring-1 ring-black ring-opacity-5 overflow-hidden`;
+    
+    const bgColor = type === 'success' ? 'bg-green-50' : type === 'error' ? 'bg-red-50' : 'bg-blue-50';
+    const iconColor = type === 'success' ? 'text-green-400' : type === 'error' ? 'text-red-400' : 'text-blue-400';
+    const textColor = type === 'success' ? 'text-green-800' : type === 'error' ? 'text-red-800' : 'text-blue-800';
+    
+    let iconSvg = '';
+    if (type === 'success') {
+      iconSvg = '<svg class="h-6 w-6 ' + iconColor + '" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>';
+    } else if (type === 'error') {
+      iconSvg = '<svg class="h-6 w-6 ' + iconColor + '" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>';
+    } else {
+      iconSvg = '<svg class="h-6 w-6 ' + iconColor + ' animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>';
+    }
+    
+    const hoverColor = textColor.replace('800', '600');
+    
+    notification.innerHTML = 
+      '<div class="p-4 ' + bgColor + '">' +
+        '<div class="flex items-start">' +
+          '<div class="flex-shrink-0">' + iconSvg + '</div>' +
+          '<div class="ml-3 w-0 flex-1">' +
+            '<p class="text-sm font-medium ' + textColor + '">' + message + '</p>' +
+          '</div>' +
+          '<div class="ml-4 flex-shrink-0 flex">' +
+            '<button onclick="this.closest(\'#enrichment-notification\').remove()" class="inline-flex ' + textColor + ' hover:' + hoverColor + ' focus:outline-none">' +
+              '<svg class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">' +
+                '<path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"></path>' +
+              '</svg>' +
+            '</button>' +
+          '</div>' +
+        '</div>' +
+      '</div>';
+    
+    document.body.appendChild(notification);
+    
+    // Auto-remove after 5 seconds for success/error, keep info notifications until manually closed
+    if (type !== 'info') {
+      setTimeout(() => {
+        if (notification.parentNode) {
+          notification.remove();
+        }
+      }, 5000);
+    }
+  }
+
+  // Poll for summary completion
+  async function pollForSummary(meetingId, maxAttempts = 60, intervalMs = 2000) {
+    let attempts = 0;
+    
+    const poll = async () => {
+      try {
+        const response = await fetch(`/api/meetings/${meetingId}/summary`);
+        const data = await response.json();
+        
+        if (data.summary && data.summary.content) {
+          // Summary is ready!
+          return true;
+        }
+        
+        attempts++;
+        if (attempts >= maxAttempts) {
+          // Timeout after 2 minutes
+          return false;
+        }
+        
+        // Continue polling
+        await new Promise(resolve => setTimeout(resolve, intervalMs));
+        return poll();
+      } catch (error) {
+        console.error('Error polling for summary:', error);
+        attempts++;
+        if (attempts >= maxAttempts) {
+          return false;
+        }
+        await new Promise(resolve => setTimeout(resolve, intervalMs));
+        return poll();
+      }
+    };
+    
+    return poll();
+  }
+
   // Enrichment trigger functionality
   async function triggerEnrichment(artifactId) {
     const btn = document.getElementById('enrich-btn');
@@ -761,6 +858,9 @@
     btn.classList.add('opacity-75', 'cursor-not-allowed');
     const originalText = btnText.textContent;
     btnText.innerHTML = '<svg class="animate-spin -ml-1 mr-2 h-4 w-4 inline" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> Processing...';
+    
+    // Show "Please wait" notification
+    showNotification('Please wait, generating AI summary... This may take a moment.', 'info');
     
     try {
       const response = await fetch('/api/meetings/enrich', {
@@ -773,25 +873,50 @@
       
       const result = await response.json();
       
-      if (result.success) {
-        btnText.textContent = '✓ Queued for processing';
-        // Reload page after a short delay to show updated data
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to trigger enrichment');
+      }
+      
+      // Start polling for summary completion
+      btnText.innerHTML = '<svg class="animate-spin -ml-1 mr-2 h-4 w-4 inline" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> Generating...';
+      
+      const summaryReady = await pollForSummary(meetingId);
+      
+      if (summaryReady) {
+        // Success! Show notification and refresh page
+        showNotification('AI summary generated successfully! Refreshing page...', 'success');
+        
+        // Refresh page after a short delay to show the notification
         setTimeout(() => {
           window.location.reload();
-        }, 2000);
+        }, 1500);
       } else {
-        throw new Error(result.error || 'Failed to trigger enrichment');
+        // Timeout - show message that it's still processing
+        showNotification('Summary generation is taking longer than expected. The page will refresh automatically when complete.', 'info');
+        btnText.textContent = 'Still processing...';
+        
+        // Continue polling in background and refresh when ready
+        setTimeout(async () => {
+          const ready = await pollForSummary(meetingId, 120, 3000); // Poll for up to 6 more minutes
+          if (ready) {
+            showNotification('AI summary generated successfully!', 'success');
+            setTimeout(() => {
+              window.location.reload();
+            }, 1500);
+          }
+        }, 5000);
       }
     } catch (error) {
       console.error('Enrichment error:', error);
+      showNotification('Error: ' + error.message, 'error');
       btnText.textContent = 'Error: ' + error.message;
       btn.classList.remove('opacity-75', 'cursor-not-allowed');
       btn.disabled = false;
       
-      // Reset button text after 3 seconds
+      // Reset button text after 5 seconds
       setTimeout(() => {
         btnText.textContent = originalText;
-      }, 3000);
+      }, 5000);
     }
   }
 

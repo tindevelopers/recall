@@ -1,5 +1,6 @@
 import db from "../../db.js";
 import { backgroundQueue } from "../../queue.js";
+import { Op } from "sequelize";
 
 /**
  * Get transcript for a meeting
@@ -136,9 +137,15 @@ export async function getSummary(req, res) {
   const userId = req.authentication.user.id;
 
   try {
-    // Find the meeting artifact first
+    // Find the meeting artifact first - support both UUID and readableId
     const artifact = await db.MeetingArtifact.findOne({
-      where: { id: meetingId, userId },
+      where: {
+        userId,
+        [Op.or]: [
+          { id: meetingId },
+          { readableId: meetingId }
+        ],
+      },
     });
 
     if (!artifact) {
@@ -189,9 +196,15 @@ export async function getActionItems(req, res) {
   const userId = req.authentication.user.id;
 
   try {
-    // Find the meeting artifact first
+    // Find the meeting artifact first - support both UUID and readableId
     const artifact = await db.MeetingArtifact.findOne({
-      where: { id: meetingId, userId },
+      where: {
+        userId,
+        [Op.or]: [
+          { id: meetingId },
+          { readableId: meetingId }
+        ],
+      },
     });
 
     if (!artifact) {
