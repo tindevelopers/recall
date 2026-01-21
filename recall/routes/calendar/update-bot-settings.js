@@ -1,6 +1,6 @@
 import { generateNotice } from "../utils.js";
 import db from "../../db.js";
-import { backgroundQueue } from "../../queue.js";
+import { queueBotScheduleJob } from "../../utils/queue-bot-schedule.js";
 
 export default async (req, res) => {
   if (!req.authenticated) {
@@ -86,12 +86,9 @@ export default async (req, res) => {
 
   // Re-schedule bots for all future events with the new settings
   const events = await calendar.getCalendarEvents();
-  events.forEach((event) => {
-    backgroundQueue.add("calendarevent.update_bot_schedule", {
-      calendarId: calendar.id,
-      recallEventId: event.recallId,
-    });
-  });
+  for (const event of events) {
+    await queueBotScheduleJob(event.recallId, calendar.id);
+  }
 
   return res.redirect(`/calendar/${calendar.id}`);
 };

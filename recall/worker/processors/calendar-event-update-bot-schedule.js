@@ -2,6 +2,7 @@ import Recall from "../../services/recall/index.js";
 import db from "../../db.js";
 import { buildBotConfig } from "../../logic/bot-config.js";
 import { telemetryEvent } from "../../utils/telemetry.js";
+import { checkForSharedBot, getSharedDeduplicationKey } from "../../utils/shared-bot-scheduling.js";
 
 // add or remove bot for a calendar event based on its record status
 export default async (job) => {
@@ -42,8 +43,10 @@ export default async (job) => {
   ) {
     console.log(`INFO: Schedule bot for event ${event.id}`);
     
-    // Get calendar to check bot settings
-    const calendar = await db.Calendar.findByPk(event.calendarId);
+    // Get calendar to check bot settings (with user for shared bot detection)
+    const calendar = await db.Calendar.findByPk(event.calendarId, {
+      include: [{ model: db.User }],
+    });
 
     // Determine public URL for webhooks (try multiple sources)
     let publicUrl = process.env.PUBLIC_URL;
@@ -86,14 +89,40 @@ export default async (job) => {
     fetch('http://127.0.0.1:7250/ingest/bf0206c3-6e13-4499-92a3-7fb2b7527fcf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'worker/processors/calendar-event-update-bot-schedule.js:join_at_calculated',message:'Join_at time calculated',data:{eventId:event.id,startTime:event.startTime.toISOString(),joinAtTime:joinAtTime.toISOString(),joinBeforeStartMinutes:joinBeforeStartMinutes,hasJoinAt:!!botConfig.join_at,joinAtValue:botConfig.join_at},timestamp:Date.now(),sessionId:'debug-session',runId:'bot-schedule',hypothesisId:'C'})}).catch(()=>{});
     // #endregion
     
-    // Use a stable deduplication key based on the Recall event ID
-    // This ensures that when a meeting is updated (e.g., time changes), 
-    // the existing bot is updated rather than creating a new one
-    const deduplicationKey = `recall-event-${event.recallId}`;
+    // Check for shared bot from same company
+    const userEmail = calendar?.User?.email;
+    
+    let deduplicationKey = `recall-event-${event.recallId}`;
+    let sharedBotInfo = null;
+    
+    if (event.meetingUrl && userEmail) {
+      // Check if another user from the same company already has a bot scheduled
+      sharedBotInfo = await checkForSharedBot(event.meetingUrl, calendar.userId, userEmail);
+      
+      if (sharedBotInfo.hasSharedBot) {
+        console.log(
+          `[SHARED-BOT] Found existing bot from same company: eventId=${event.id} sharedEventId=${sharedBotInfo.sharedEventId} sharedBotId=${sharedBotInfo.sharedBotId} sharedUser=${sharedBotInfo.sharedUserEmail}`
+        );
+        
+        // Use shared deduplication key so Recall API uses the same bot
+        const sharedKey = getSharedDeduplicationKey(event.meetingUrl, userEmail);
+        if (sharedKey) {
+          deduplicationKey = sharedKey;
+          console.log(`[SHARED-BOT] Using shared deduplication key: ${deduplicationKey}`);
+        }
+      } else {
+        // Try to use shared key anyway for future coordination
+        const sharedKey = getSharedDeduplicationKey(event.meetingUrl, userEmail);
+        if (sharedKey) {
+          deduplicationKey = sharedKey;
+          console.log(`[SHARED-BOT] Using shared deduplication key for company coordination: ${deduplicationKey}`);
+        }
+      }
+    }
     
     // Log only a compact summary (Railway log rate limiting can drop important messages)
     console.log(
-      `[BOT_CONFIG] Scheduling summary: eventId=${event.id} recallEventId=${event.recallId} start=${event.startTime.toISOString()} join_at=${botConfig.join_at || "not_set"} hasMeetingUrl=${!!event.meetingUrl} deduplicationKey=${deduplicationKey}`
+      `[BOT_CONFIG] Scheduling summary: eventId=${event.id} recallEventId=${event.recallId} start=${event.startTime.toISOString()} join_at=${botConfig.join_at || "not_set"} hasMeetingUrl=${!!event.meetingUrl} deduplicationKey=${deduplicationKey}${sharedBotInfo?.hasSharedBot ? ' [SHARED]' : ''}`
     );
     
     // Validate event is in the future before scheduling

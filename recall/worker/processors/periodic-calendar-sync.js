@@ -150,12 +150,10 @@ export default async (job) => {
 
           // Queue bot scheduling jobs ONLY for events that should be recorded
           let scheduledCount = 0;
+          const { queueBotScheduleJob } = await import("../../utils/queue-bot-schedule.js");
           for (const event of dbEvents) {
             if (event.shouldRecordAutomatic || event.shouldRecordManual) {
-              await backgroundQueue.add("calendarevent.update_bot_schedule", {
-                calendarId: calendar.id,
-                recallEventId: event.recallId,
-              });
+              await queueBotScheduleJob(event.recallId, calendar.id);
               scheduledCount++;
             }
           }

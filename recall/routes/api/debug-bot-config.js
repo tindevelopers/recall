@@ -116,10 +116,8 @@ export default async (req, res) => {
 
     // Optionally enqueue the bot scheduling job
     if (enqueue === "true" && calendarEvent) {
-      await backgroundQueue.add("calendarevent.update_bot_schedule", {
-        calendarId: calendarEvent.calendarId,
-        recallEventId: calendarEvent.recallId,
-      });
+      const { queueBotScheduleJob } = await import("../../utils/queue-bot-schedule.js");
+      await queueBotScheduleJob(calendarEvent.recallId, calendarEvent.calendarId);
       response.enqueued = true;
       response.message = `Bot scheduling job enqueued for event ${calendarEvent.id}`;
     }

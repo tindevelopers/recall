@@ -1,7 +1,7 @@
 import { generateNotice } from "../utils.js";
 import db from "../../db.js";
-import { backgroundQueue } from "../../queue.js";
 import { updateAutoRecordStatusForCalendarEvents } from "../../logic/autorecord.js";
+import { queueBotScheduleJob } from "../../utils/queue-bot-schedule.js";
 
 export default async (req, res) => {
   if (!req.authenticated) {
@@ -68,12 +68,9 @@ export default async (req, res) => {
       ]);
 
       await updateAutoRecordStatusForCalendarEvents({ calendar, events });
-      events.forEach((event) => {
-        backgroundQueue.add("calendarevent.update_bot_schedule", {
-          calendarId: calendar.id,
-          recallEventId: event.recallId,
-        });
-      });
+      for (const event of events) {
+        await queueBotScheduleJob(event.recallId, calendar.id);
+      }
 
       return res.redirect(`/calendar/${calendar.id}`);
     } else {

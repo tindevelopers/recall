@@ -1,5 +1,5 @@
 import db from "../../db.js";
-import { backgroundQueue } from "../../queue.js";
+import { queueBotScheduleJob } from "../../utils/queue-bot-schedule.js";
 
 /**
  * Update the transcription mode for a specific calendar event.
@@ -44,10 +44,7 @@ export default async (req, res) => {
     // Re-queue bot scheduling to apply the new transcription mode
     // This will update the bot config if a bot is already scheduled
     if (event.shouldRecordAutomatic || event.shouldRecordManual) {
-      await backgroundQueue.add("calendarevent.update_bot_schedule", {
-        calendarId: event.calendarId,
-        recallEventId: event.recallId,
-      });
+      await queueBotScheduleJob(event.recallId, event.calendarId);
       console.log(`[TRANSCRIPTION] Re-queued bot schedule for event ${event.id} with new mode: ${newMode || 'default'}`);
     }
 

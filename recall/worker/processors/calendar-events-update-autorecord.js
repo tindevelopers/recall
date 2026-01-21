@@ -1,7 +1,7 @@
 import db from "../../db.js";
-import { backgroundQueue } from "../../queue.js";
 import { updateAutoRecordStatusForCalendarEvents } from "../../logic/autorecord.js";
 import { telemetryEvent } from "../../utils/telemetry.js";
+import { queueBotScheduleJob } from "../../utils/queue-bot-schedule.js";
 
 export default async (job) => {
   const { calendarId, recallEventIds } = job.data;
@@ -29,10 +29,7 @@ export default async (job) => {
   );
   for (const event of events) {
     try {
-      await backgroundQueue.add("calendarevent.update_bot_schedule", {
-        calendarId,
-        recallEventId: event.recallId,
-      });
+      await queueBotScheduleJob(event.recallId, calendarId);
     } catch (err) {
       console.error(`[AUTORECORD] Failed to queue bot scheduling for event ${event.id}:`, err);
       telemetryEvent(
