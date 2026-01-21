@@ -37,7 +37,41 @@ export const up = async ({ context: { queryInterface } }) => {
   
   for (const artifact of artifacts) {
     const createdAt = artifact.createdAt ? new Date(artifact.createdAt) : new Date();
-    const readableId = generateReadableMeetingId(createdAt);
+    
+    // Retry up to 20 times to find a unique readableId
+    let readableId;
+    let attempts = 0;
+    const maxAttempts = 20;
+    let foundUnique = false;
+    
+    while (attempts < maxAttempts && !foundUnique) {
+      readableId = generateReadableMeetingId(createdAt);
+      
+      // Check if this readableId already exists
+      const existing = await queryInterface.sequelize.query(
+        `SELECT id FROM meeting_artifacts WHERE "readableId" = :readableId LIMIT 1`,
+        {
+          replacements: { readableId },
+          type: Sequelize.QueryTypes.SELECT,
+        }
+      );
+      
+      if (existing.length === 0) {
+        // This readableId is unique, use it
+        foundUnique = true;
+      } else {
+        attempts++;
+      }
+    }
+    
+    // If we still haven't found a unique ID after max attempts, use artifact ID suffix as fallback
+    if (!foundUnique) {
+      const artifactIdSuffix = artifact.id.replace(/-/g, '').slice(-3).toUpperCase();
+      const year = createdAt.getFullYear();
+      const month = String(createdAt.getMonth() + 1).padStart(2, '0');
+      const day = String(createdAt.getDate()).padStart(2, '0');
+      readableId = `MTG-${year}${month}${day}-${artifactIdSuffix}`;
+    }
     
     await queryInterface.sequelize.query(
       `UPDATE meeting_artifacts SET "readableId" = :readableId WHERE id = :id`,
