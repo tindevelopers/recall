@@ -92,14 +92,25 @@ export default async function notionPublisher({
   target,
   integration,
 }) {
+  console.log(`[NOTION] Starting Notion publisher for meetingSummary ${meetingSummary.id}`);
+  
   if (!integration?.accessToken) {
+    console.error(`[NOTION] Missing access token for user`);
     throw new Error("Missing Notion access token for user");
   }
 
   const config = target.config || {};
   const destinationType = config.destinationType || "database";
   const destinationId = config.destinationId;
+  
+  console.log(`[NOTION] Config:`, {
+    destinationType,
+    destinationId: destinationId ? `${destinationId.substring(0, 8)}...` : null,
+    hasTitleTemplate: !!config.titleTemplate,
+  });
+  
   if (!destinationId) {
+    console.error(`[NOTION] Missing destinationId in target config`);
     throw new Error("Missing Notion destinationId in target config");
   }
 
@@ -108,31 +119,58 @@ export default async function notionPublisher({
     meetingSummary.summary?.slice(0, 100) ||
     "Meeting Notes";
   const children = buildBlocks(meetingSummary);
+  
+  console.log(`[NOTION] Built ${children.length} blocks, title: "${title.substring(0, 50)}..."`);
 
   let result = null;
   if (destinationType === "database") {
-    result = await createPageInDatabase({
-      accessToken: integration.accessToken,
-      databaseId: destinationId,
-      title,
-      children,
-    });
-    return {
-      externalId: result?.id,
-      url: result?.url,
-    };
+    console.log(`[NOTION] Creating page in database ${destinationId.substring(0, 8)}...`);
+    try {
+      result = await createPageInDatabase({
+        accessToken: integration.accessToken,
+        databaseId: destinationId,
+        title,
+        children,
+      });
+      console.log(`[NOTION] Successfully created page in database. Page ID: ${result?.id}, URL: ${result?.url}`);
+      return {
+        externalId: result?.id,
+        url: result?.url,
+      };
+    } catch (err) {
+      console.error(`[NOTION] Error creating page in database:`, {
+        message: err.message,
+        status: err.status,
+        code: err.code,
+        response: err.response?.data || err.body,
+      });
+      throw err;
+    }
   }
 
   // default: append to page
-  result = await appendBlocksToPage({
-    accessToken: integration.accessToken,
-    pageId: destinationId,
-    children,
-  });
-  return {
-    externalId: destinationId,
-    url: `https://www.notion.so/${destinationId.replace(/-/g, "")}`,
-  };
+  console.log(`[NOTION] Appending blocks to page ${destinationId.substring(0, 8)}...`);
+  try {
+    result = await appendBlocksToPage({
+      accessToken: integration.accessToken,
+      pageId: destinationId,
+      children,
+    });
+    const url = `https://www.notion.so/${destinationId.replace(/-/g, "")}`;
+    console.log(`[NOTION] Successfully appended blocks to page. URL: ${url}`);
+    return {
+      externalId: destinationId,
+      url,
+    };
+  } catch (err) {
+    console.error(`[NOTION] Error appending blocks to page:`, {
+      message: err.message,
+      status: err.status,
+      code: err.code,
+      response: err.response?.data || err.body,
+    });
+    throw err;
+  }
 }
 
 
