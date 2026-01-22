@@ -26,14 +26,28 @@ function formatDigitsAsGroups(digits) {
 
 function extractFriendlyMeetingIdFromText(text) {
   if (!text || typeof text !== "string") return null;
-  // Look for "Meeting ID: 226 973 425 402 36" pattern in the text
-  const match = text.match(/Meeting ID:\s*([0-9\s]+)/i);
-  if (!match) return null;
-  const digits = match[1].replace(/\D/g, "");
-  // Teams meeting IDs are typically 15 digits
-  if (digits.length >= 12 && digits.length <= 18) {
-    return formatDigitsAsGroups(digits);
+  
+  // Teams HTML format: <span>Meeting ID:</span><span>220 308 722 528 88</span>
+  // We need to handle the case where the ID is in a separate span after "Meeting ID:"
+  // First, try to match the pattern with HTML tags between them
+  const htmlMatch = text.match(/Meeting ID:[\s\S]*?<\/span>\s*<span[^>]*>([0-9\s]+)<\/span>/i);
+  if (htmlMatch) {
+    const digits = htmlMatch[1].replace(/\D/g, "");
+    // Teams meeting IDs are typically 14-15 digits
+    if (digits.length >= 14 && digits.length <= 18) {
+      return formatDigitsAsGroups(digits);
+    }
   }
+  
+  // Fallback: Look for "Meeting ID: 226 973 425 402 36" pattern in plain text
+  const plainMatch = text.match(/Meeting ID:\s*([0-9\s]+)/i);
+  if (plainMatch) {
+    const digits = plainMatch[1].replace(/\D/g, "");
+    if (digits.length >= 14 && digits.length <= 18) {
+      return formatDigitsAsGroups(digits);
+    }
+  }
+  
   return null;
 }
 
@@ -44,10 +58,10 @@ function isThreadId(str) {
 }
 
 function isNumericMeetingId(str) {
-  // A numeric meeting ID is purely digits (with optional spaces), 12-18 digits long
+  // A numeric meeting ID is purely digits (with optional spaces), 14-18 digits long
   if (!str || typeof str !== "string") return false;
   const digits = str.replace(/\D/g, "");
-  return digits.length >= 12 && digits.length <= 18 && /^[\d\s]+$/.test(str.trim());
+  return digits.length >= 14 && digits.length <= 18 && /^[\d\s]+$/.test(str.trim());
 }
 
 function deriveFriendlyMeetingId({ metadataMeetingId, metadataDisplayId, calendarEvent, extraMeetingIds = [] }) {
