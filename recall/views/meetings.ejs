@@ -413,11 +413,24 @@
                                     <% } %>
                                   </span>
                                   <% if (meeting.durationSeconds) { %>
-                                    <span class="flex items-center text-xs text-gray-500 bg-gray-100 rounded-full px-2 py-1">
+                                    <span class="flex items-center text-sm font-medium text-indigo-600 bg-indigo-50 rounded-full px-3 py-1">
+                                      <svg class="mr-1.5 h-4 w-4 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                      </svg>
+                                      <% 
+                                        const totalMins = Math.round(meeting.durationSeconds / 60);
+                                        const hours = Math.floor(totalMins / 60);
+                                        const mins = totalMins % 60;
+                                        const durationDisplay = hours > 0 ? `${hours}h ${mins}m` : `${mins} min`;
+                                      %>
+                                      <%= durationDisplay %>
+                                    </span>
+                                  <% } else { %>
+                                    <span class="flex items-center text-xs text-gray-400 bg-gray-100 rounded-full px-2 py-1">
                                       <svg class="mr-1 h-3.5 w-3.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                                       </svg>
-                                      <%= Math.round(meeting.durationSeconds / 60) %> min
+                                      Duration unknown
                                     </span>
                                   <% } %>
                                   <% if (meeting.calendarEmail) { %>
@@ -425,18 +438,58 @@
                                   <% } %>
                                 </div>
 
+                                <%# Show meeting ID (extracted from URL) and platform indicator %>
                                 <% if (meeting.meetingUrl) { 
                                      const urlRaw = meeting.meetingUrl;
                                      const urlStr = typeof urlRaw === 'string' ? urlRaw : (urlRaw.url || urlRaw.href || urlRaw.link || '');
-                                     let urlHost = urlStr;
-                                     try { urlHost = new URL(urlStr).hostname; } catch (e) {}
+                                     
+                                     // Extract meeting ID based on platform
+                                     let meetingId = null;
+                                     let platformName = null;
+                                     
+                                     if (urlStr.includes('teams.microsoft.com')) {
+                                       platformName = 'Teams';
+                                       // Teams meeting IDs are in the URL path: /meet/25728895582210
+                                       const teamsMatch = urlStr.match(/\/meet\/(\d+)/);
+                                       if (teamsMatch) {
+                                         // Format as spaced groups for readability
+                                         const rawId = teamsMatch[1];
+                                         meetingId = rawId.replace(/(\d{3})(?=\d)/g, '$1 ').trim();
+                                       }
+                                     } else if (urlStr.includes('zoom.us')) {
+                                       platformName = 'Zoom';
+                                       // Zoom meeting IDs: /j/12345678901
+                                       const zoomMatch = urlStr.match(/\/j\/(\d+)/);
+                                       if (zoomMatch) {
+                                         const rawId = zoomMatch[1];
+                                         meetingId = rawId.replace(/(\d{3})(?=\d)/g, '$1 ').trim();
+                                       }
+                                     } else if (urlStr.includes('webex.com')) {
+                                       platformName = 'Webex';
+                                       // Webex meeting IDs vary, try to extract from URL
+                                       const webexMatch = urlStr.match(/\/(\d{9,})/);
+                                       if (webexMatch) {
+                                         const rawId = webexMatch[1];
+                                         meetingId = rawId.replace(/(\d{3})(?=\d)/g, '$1 ').trim();
+                                       }
+                                     } else if (urlStr.includes('meet.google.com')) {
+                                       platformName = 'Google Meet';
+                                       // Google Meet codes: /abc-defg-hij
+                                       const meetMatch = urlStr.match(/\/([a-z]{3}-[a-z]{4}-[a-z]{3})/i);
+                                       if (meetMatch) {
+                                         meetingId = meetMatch[1];
+                                       }
+                                     }
                                 %>
-                                  <div class="flex items-center text-xs text-indigo-600 truncate max-w-xl">
-                                    <svg class="mr-1.5 h-3.5 w-3.5 text-indigo-500" viewBox="0 0 20 20" fill="currentColor">
-                                      <path fill-rule="evenodd" d="M12.586 4.586a2 2 0 112.828 2.828l-3 3a2 2 0 01-2.828 0l-.586-.586 1.414-1.414.586.586 3-3zM7.414 9.414l-.586-.586-3 3a2 2 0 102.828 2.828l3-3a2 2 0 000-2.828l-.586-.586-1.414 1.414z" clip-rule="evenodd" />
-                                    </svg>
-                                    <a href="<%= urlStr %>" target="_blank" class="hover:underline truncate"><%= urlHost || urlStr %></a>
-                                  </div>
+                                  <% if (meetingId) { %>
+                                    <div class="flex items-center text-xs text-gray-500">
+                                      <svg class="mr-1.5 h-3.5 w-3.5 text-gray-400" viewBox="0 0 20 20" fill="currentColor">
+                                        <path fill-rule="evenodd" d="M5.75 2a.75.75 0 01.75.75V4h7V2.75a.75.75 0 011.5 0V4h.25A2.75 2.75 0 0118 6.75v8.5A2.75 2.75 0 0115.25 18H4.75A2.75 2.75 0 012 15.25v-8.5A2.75 2.75 0 014.75 4H5V2.75A.75.75 0 015.75 2z" clip-rule="evenodd" />
+                                      </svg>
+                                      <span class="font-medium text-gray-600"><%= platformName %> ID:</span>
+                                      <span class="ml-1 font-mono"><%= meetingId %></span>
+                                    </div>
+                                  <% } %>
                                 <% } %>
 
                                 <!-- Description -->
@@ -481,6 +534,15 @@
 
                                 <!-- Status Badges -->
                                 <div class="mt-3 flex flex-wrap gap-2">
+                          <%# Teams Video Available indicator %>
+                          <% if (meeting.hasTeamsRecording) { %>
+                                    <span class="inline-flex items-center rounded-full bg-blue-50 px-2.5 py-1 text-xs font-medium text-blue-700 ring-1 ring-inset ring-blue-600/20">
+                              <svg class="mr-1 h-3 w-3" fill="currentColor" viewBox="0 0 20 20">
+                                <path d="M2 6a2 2 0 012-2h6a2 2 0 012 2v8a2 2 0 01-2 2H4a2 2 0 01-2-2V6zM14.553 7.106A1 1 0 0014 8v4a1 1 0 00.553.894l2 1A1 1 0 0018 13V7a1 1 0 00-1.447-.894l-2 1z"></path>
+                              </svg>
+                              Teams Video
+                            </span>
+                          <% } %>
                           <% if (meeting.hasRecording) { %>
                                     <span class="inline-flex items-center rounded-full bg-green-50 px-2.5 py-1 text-xs font-medium text-green-700 ring-1 ring-inset ring-green-600/20">
                               <svg class="mr-1 h-3 w-3" fill="currentColor" viewBox="0 0 20 20">
@@ -488,7 +550,7 @@
                               </svg>
                               Recording
                             </span>
-                          <% } else { %>
+                          <% } else if (!meeting.hasTeamsRecording) { %>
                             <span class="inline-flex items-center rounded-full bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-600 ring-1 ring-inset ring-gray-300">
                               No Recording
                             </span>
