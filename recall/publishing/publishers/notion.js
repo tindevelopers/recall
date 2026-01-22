@@ -1,7 +1,10 @@
 import {
   appendBlocksToPage,
   createPageInDatabase,
+  getPageOrDatabase,
 } from "../../services/notion/api-client.js";
+import { BasePublisher } from "../base-publisher.js";
+import { normalizeMeetingData } from "../data-transformer.js";
 
 function buildBlocks(meetingSummary) {
   const blocks = [];
@@ -87,58 +90,137 @@ function buildBlocks(meetingSummary) {
   return blocks;
 }
 
-export default async function notionPublisher({
-  meetingSummary,
-  target,
-  integration,
-}) {
-  console.log(`[NOTION] Starting Notion publisher for meetingSummary ${meetingSummary.id}`);
-  
-  if (!integration?.accessToken) {
-    console.error(`[NOTION] Missing access token for user`);
-    throw new Error("Missing Notion access token for user");
+class NotionPublisher extends BasePublisher {
+  constructor() {
+    super({ name: "notion" });
   }
 
-  const config = target.config || {};
-  const destinationType = config.destinationType || "database";
-  const destinationId = config.destinationId;
-  
-  console.log(`[NOTION] Config:`, {
-    destinationType,
-    destinationId: destinationId ? `${destinationId.substring(0, 8)}...` : null,
-    hasTitleTemplate: !!config.titleTemplate,
-  });
-  
-  if (!destinationId) {
-    console.error(`[NOTION] Missing destinationId in target config`);
-    throw new Error("Missing Notion destinationId in target config");
+  validateConfig(config) {
+    if (!config?.destinationId) {
+      throw new Error("Missing Notion destinationId in target config");
+    }
   }
 
-  const title =
-    config.titleTemplate ||
-    meetingSummary.summary?.slice(0, 100) ||
-    "Meeting Notes";
-  const children = buildBlocks(meetingSummary);
-  
-  console.log(`[NOTION] Built ${children.length} blocks, title: "${title.substring(0, 50)}..."`);
+  async transformData(meetingSummary) {
+    return normalizeMeetingData(meetingSummary);
+  }
 
-  let result = null;
-  if (destinationType === "database") {
-    console.log(`[NOTION] Creating page in database ${destinationId.substring(0, 8)}...`);
+  async send({ payload, target, integration, meetingSummary }) {
+    console.log(
+      `[NOTION] Starting Notion publisher for meetingSummary ${meetingSummary.id}`
+    );
+
+    if (!integration?.accessToken) {
+      console.error(`[NOTION] Missing access token for user`);
+      throw new Error("Missing Notion access token for user");
+    }
+
+    const config = target.config || {};
+    let destinationType = config.destinationType || "database";
+    const destinationId = config.destinationId;
+
+    console.log(`[NOTION] Config:`, {
+      destinationType,
+      destinationId: destinationId ? `${destinationId.substring(0, 8)}...` : null,
+      hasTitleTemplate: !!config.titleTemplate,
+    });
+
+    if (!destinationId) {
+      console.error(`[NOTION] Missing destinationId in target config`);
+      throw new Error("Missing Notion destinationId in target config");
+    }
+
+    // Validate destinationId and detect actual type
+    const destinationInfo = await getPageOrDatabase({
+      accessToken: integration.accessToken,
+      id: destinationId,
+    });
+
+    if (!destinationInfo) {
+      console.error(
+        `[NOTION] Destination not found or not accessible: ${destinationId}`
+      );
+      throw new Error("Notion destination not found or not accessible");
+    }
+
+    console.log(`[NOTION] Destination info:`, {
+      type: destinationInfo.type,
+      title: destinationInfo.title,
+      id: destinationInfo.id?.substring(0, 8),
+    });
+
+    // If target says page but actual object is database, fall back to database mode
+    if (destinationType === "page" && destinationInfo.type === "database") {
+      console.log(
+        `[NOTION] Destination is a database; switching to database publish flow`
+      );
+      destinationType = "database";
+    }
+
+    const title =
+      config.titleTemplate || payload.summary?.slice(0, 100) || "Meeting Notes";
+    const children = buildBlocks({
+      summary: payload.summary,
+      actionItems: payload.actionItems,
+      followUps: payload.followUps,
+      topics: payload.metadata?.topics || payload.topics,
+    });
+
+    console.log(
+      `[NOTION] Built ${children.length} blocks, title: "${title.substring(
+        0,
+        50
+      )}..."`
+    );
+
+    let result = null;
+    if (destinationType === "database") {
+      console.log(
+        `[NOTION] Creating page in database ${destinationId.substring(0, 8)}...`
+      );
+      try {
+        result = await createPageInDatabase({
+          accessToken: integration.accessToken,
+          databaseId: destinationId,
+          title,
+          children,
+        });
+        console.log(
+          `[NOTION] Successfully created page in database. Page ID: ${result?.id}, URL: ${result?.url}`
+        );
+        return {
+          externalId: result?.id,
+          url: result?.url,
+        };
+      } catch (err) {
+        console.error(`[NOTION] Error creating page in database:`, {
+          message: err.message,
+          status: err.status,
+          code: err.code,
+          response: err.response?.data || err.body,
+        });
+        throw err;
+      }
+    }
+
+    // default: append to page
+    console.log(
+      `[NOTION] Appending blocks to page ${destinationId.substring(0, 8)}...`
+    );
     try {
-      result = await createPageInDatabase({
+      result = await appendBlocksToPage({
         accessToken: integration.accessToken,
-        databaseId: destinationId,
-        title,
+        pageId: destinationId,
         children,
       });
-      console.log(`[NOTION] Successfully created page in database. Page ID: ${result?.id}, URL: ${result?.url}`);
+      const url = `https://www.notion.so/${destinationId.replace(/-/g, "")}`;
+      console.log(`[NOTION] Successfully appended blocks to page. URL: ${url}`);
       return {
-        externalId: result?.id,
-        url: result?.url,
+        externalId: destinationId,
+        url,
       };
     } catch (err) {
-      console.error(`[NOTION] Error creating page in database:`, {
+      console.error(`[NOTION] Error appending blocks to page:`, {
         message: err.message,
         status: err.status,
         code: err.code,
@@ -147,30 +229,9 @@ export default async function notionPublisher({
       throw err;
     }
   }
-
-  // default: append to page
-  console.log(`[NOTION] Appending blocks to page ${destinationId.substring(0, 8)}...`);
-  try {
-    result = await appendBlocksToPage({
-      accessToken: integration.accessToken,
-      pageId: destinationId,
-      children,
-    });
-    const url = `https://www.notion.so/${destinationId.replace(/-/g, "")}`;
-    console.log(`[NOTION] Successfully appended blocks to page. URL: ${url}`);
-    return {
-      externalId: destinationId,
-      url,
-    };
-  } catch (err) {
-    console.error(`[NOTION] Error appending blocks to page:`, {
-      message: err.message,
-      status: err.status,
-      code: err.code,
-      response: err.response?.data || err.body,
-    });
-    throw err;
-  }
 }
+
+const notionPublisher = new NotionPublisher();
+export default notionPublisher;
 
 
