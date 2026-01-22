@@ -104,13 +104,11 @@ export async function checkForSharedBot(meetingUrl, currentUserId, currentUserEm
   const companyCalendarIds = companyCalendars.map(c => c.id);
   
   // Find calendar events with the same meeting URL
-  const sharedEvents = await db.CalendarEvent.findAll({
+  // Note: startTime is a VIRTUAL field, so we need to filter in JS after fetching
+  const allEvents = await db.CalendarEvent.findAll({
     where: {
       calendarId: {
         [db.Sequelize.Op.in]: companyCalendarIds,
-      },
-      startTime: {
-        [db.Sequelize.Op.gte]: new Date(), // Only future events
       },
     },
     include: [
@@ -119,6 +117,16 @@ export async function checkForSharedBot(meetingUrl, currentUserId, currentUserEm
         include: [{ model: db.User }],
       },
     ],
+  });
+  
+  // Filter to only future events (startTime is a virtual field computed from recallData)
+  const now = new Date();
+  const sharedEvents = allEvents.filter(event => {
+    try {
+      return event.startTime && event.startTime >= now;
+    } catch {
+      return false;
+    }
   });
   
   // Check if any of these events have the same normalized meeting URL and have bots

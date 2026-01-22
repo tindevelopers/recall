@@ -119,9 +119,10 @@ export default async (req, res) => {
   
   for (const event of events) {
     // #region agent log
-    fetch('http://127.0.0.1:7250/ingest/bf0206c3-6e13-4499-92a3-7fb2b7527fcf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'routes/calendar/update-bot-settings.js:queue_job',message:'Queueing bot schedule job',data:{calendarId:calendar.id,eventId:event.id,recallId:event.recallId,title:event.title},timestamp:Date.now(),sessionId:'debug-session',runId:'settings-change',hypothesisId:'B'})}).catch(()=>{});
+    fetch('http://127.0.0.1:7250/ingest/bf0206c3-6e13-4499-92a3-7fb2b7527fcf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'routes/calendar/update-bot-settings.js:queue_job',message:'Queueing bot schedule job with forceReschedule',data:{calendarId:calendar.id,eventId:event.id,recallId:event.recallId,title:event.title},timestamp:Date.now(),sessionId:'debug-session',runId:'settings-change',hypothesisId:'B'})}).catch(()=>{});
     // #endregion
-    await queueBotScheduleJob(event.recallId, calendar.id);
+    // Use forceReschedule: true to ensure settings changes are applied even if a job was already processed
+    await queueBotScheduleJob(event.recallId, calendar.id, { forceReschedule: true });
   }
 
   return res.redirect(`/calendar/${calendar.id}`);
