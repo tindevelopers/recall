@@ -17,7 +17,7 @@ export async function createTask({ baseUrl, apiKey, content, description }) {
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      todo-item: {
+      "todo-item": {
         content,
         description,
       },
