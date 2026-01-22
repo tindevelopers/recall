@@ -495,7 +495,9 @@
                                 <!-- Description -->
                                 <% if (meeting.description) { 
                                      // Remove raw URLs (Teams/Zoom/etc.) from description to avoid long join links
-                                     const cleanedDesc = meeting.description.replace(/https?:\\/\\/\\S+/g, '').replace(/\\s{2,}/g, ' ').trim();
+                                     const urlStripper = new RegExp('https?://\\\\S+','g');
+                                     const whitespaceSquash = new RegExp('\\\\s{2,}','g');
+                                     const cleanedDesc = meeting.description.replace(urlStripper, '').replace(whitespaceSquash, ' ').trim();
                                    %>
                                   <% if (cleanedDesc.length > 0) { %>
                                     <div class="mt-2 text-sm text-gray-600 line-clamp-2">
