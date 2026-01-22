@@ -11,12 +11,8 @@ import {
 } from "../../utils/meeting-metadata-extractor.js";
 const { sequelize } = db;
 
-function extractFriendlyMeetingIdFromText(text) {
-  if (!text || typeof text !== "string") return null;
-  const match = text.match(/Meeting ID:\s*([0-9\s]+)/i);
-  if (!match) return null;
-  const digits = match[1].replace(/\D/g, "");
-  if (digits.length < 6) return null;
+function formatDigitsAsGroups(digits) {
+  if (!digits || digits.length < 6) return null;
   const groups = [];
   let idx = 0;
   while (idx < digits.length) {
@@ -28,10 +24,27 @@ function extractFriendlyMeetingIdFromText(text) {
   return groups.join(" ");
 }
 
-function deriveFriendlyMeetingId({ metadataMeetingId, metadataDisplayId, calendarEvent }) {
-  if (metadataDisplayId && /\d{3}/.test(metadataDisplayId)) return metadataDisplayId;
-  if (metadataMeetingId && /\d{3}/.test(metadataMeetingId) && !metadataMeetingId.includes("meeting_"))
-    return metadataMeetingId;
+function extractFriendlyMeetingIdFromText(text) {
+  if (!text || typeof text !== "string") return null;
+  const match = text.match(/Meeting ID:\s*([0-9\s]+)/i);
+  if (!match) return null;
+  const digits = match[1].replace(/\D/g, "");
+  return formatDigitsAsGroups(digits);
+}
+
+function deriveFriendlyMeetingId({ metadataMeetingId, metadataDisplayId, calendarEvent, extraMeetingIds = [] }) {
+  const candidates = [
+    metadataDisplayId,
+    metadataMeetingId,
+    ...extraMeetingIds,
+  ];
+
+  for (const candidate of candidates) {
+    if (!candidate || typeof candidate !== "string") continue;
+    const digits = candidate.replace(/\D/g, "");
+    const friendly = formatDigitsAsGroups(digits);
+    if (friendly) return friendly;
+  }
 
   const rawDesc =
     calendarEvent?.recallData?.raw?.body?.content ||
@@ -1444,6 +1457,11 @@ export default async (req, res) => {
       metadataMeetingId: artifact.meetingId || metadata.meetingId,
       metadataDisplayId: artifact.displayMeetingId || metadata.displayMeetingId,
       calendarEvent,
+      extraMeetingIds: [
+        artifact.rawPayload?.data?.bot_metadata?.meeting_metadata?.meeting_id,
+        artifact.rawPayload?.data?.meeting_metadata?.meeting_id,
+        calendarEvent?.recallData?.raw?.onlineMeeting?.meetingId,
+      ],
     });
 
     meetingsMap.set(key, {
@@ -1513,6 +1531,9 @@ export default async (req, res) => {
       metadataMeetingId: metadata.meetingId,
       metadataDisplayId: metadata.displayMeetingId,
       calendarEvent,
+      extraMeetingIds: [
+        calendarEvent?.recallData?.raw?.onlineMeeting?.meetingId,
+      ],
     });
 
     meetingsMap.set(key, {
