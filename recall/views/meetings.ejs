@@ -494,10 +494,22 @@
 
                                 <!-- Description -->
                                 <% if (meeting.description) { 
-                                     // Remove raw URLs (Teams/Zoom/etc.) from description to avoid long join links
-                                     const urlStripper = new RegExp('https?://\\\\S+','g');
-                                     const whitespaceSquash = new RegExp('\\\\s{2,}','g');
-                                     const cleanedDesc = meeting.description.replace(urlStripper, '').replace(whitespaceSquash, ' ').trim();
+                                     // Remove raw URLs (Teams/Zoom/etc.) and meeting join text from description
+                                     let cleanedDesc = meeting.description;
+                                     
+                                     // Remove URLs (http/https)
+                                     const urlPattern = new RegExp('https?://[^\\s]+', 'g');
+                                     cleanedDesc = cleanedDesc.replace(urlPattern, '');
+                                     
+                                     // Remove common meeting join text patterns
+                                     cleanedDesc = cleanedDesc.replace(/Microsoft Teams meeting Join:/gi, '');
+                                     cleanedDesc = cleanedDesc.replace(/Meeting ID:\s*\d+[\s\d]*/gi, '');
+                                     cleanedDesc = cleanedDesc.replace(/Passcode:\s*[\w\-]+/gi, '');
+                                     cleanedDesc = cleanedDesc.replace(/Join Zoom Meeting/gi, '');
+                                     cleanedDesc = cleanedDesc.replace(/Join Webex Meeting/gi, '');
+                                     
+                                     // Clean up whitespace
+                                     cleanedDesc = cleanedDesc.replace(/\s{2,}/g, ' ').trim();
                                    %>
                                   <% if (cleanedDesc.length > 0) { %>
                                     <div class="mt-2 text-sm text-gray-600 line-clamp-2">
