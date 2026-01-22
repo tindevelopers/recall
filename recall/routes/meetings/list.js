@@ -33,8 +33,8 @@ function extractFriendlyMeetingIdFromText(text) {
   const htmlMatch = text.match(/Meeting ID:[\s\S]*?<\/span>\s*<span[^>]*>([0-9\s]+)<\/span>/i);
   if (htmlMatch) {
     const digits = htmlMatch[1].replace(/\D/g, "");
-    // Teams meeting IDs are typically 14-15 digits
-    if (digits.length >= 14 && digits.length <= 18) {
+    // Teams meeting IDs are typically 13-15 digits
+    if (digits.length >= 13 && digits.length <= 18) {
       return formatDigitsAsGroups(digits);
     }
   }
@@ -43,7 +43,7 @@ function extractFriendlyMeetingIdFromText(text) {
   const plainMatch = text.match(/Meeting ID:\s*([0-9\s]+)/i);
   if (plainMatch) {
     const digits = plainMatch[1].replace(/\D/g, "");
-    if (digits.length >= 14 && digits.length <= 18) {
+    if (digits.length >= 13 && digits.length <= 18) {
       return formatDigitsAsGroups(digits);
     }
   }
@@ -58,10 +58,10 @@ function isThreadId(str) {
 }
 
 function isNumericMeetingId(str) {
-  // A numeric meeting ID is purely digits (with optional spaces), 14-18 digits long
+  // A numeric meeting ID is purely digits (with optional spaces), 13-18 digits long
   if (!str || typeof str !== "string") return false;
   const digits = str.replace(/\D/g, "");
-  return digits.length >= 14 && digits.length <= 18 && /^[\d\s]+$/.test(str.trim());
+  return digits.length >= 13 && digits.length <= 18 && /^[\d\s]+$/.test(str.trim());
 }
 
 function deriveFriendlyMeetingId({ metadataMeetingId, metadataDisplayId, calendarEvent, extraMeetingIds = [] }) {
