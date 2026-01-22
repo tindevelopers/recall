@@ -474,8 +474,15 @@
                                       <svg class="mr-1.5 h-3.5 w-3.5 text-gray-400" viewBox="0 0 20 20" fill="currentColor">
                                         <path fill-rule="evenodd" d="M5.75 2a.75.75 0 01.75.75V4h7V2.75a.75.75 0 011.5 0V4h.25A2.75 2.75 0 0118 6.75v8.5A2.75 2.75 0 0115.25 18H4.75A2.75 2.75 0 012 15.25v-8.5A2.75 2.75 0 014.75 4H5V2.75A.75.75 0 015.75 2z" clip-rule="evenodd" />
                                       </svg>
-                                      <span class="font-medium text-gray-600"><%= platformName || 'Meeting' %> ID:</span>
+                                  <span class="font-medium text-gray-600"><%= platformName || 'Meeting' %> ID:</span>
                                       <span class="ml-1 font-mono"><%= meetingId %></span>
+                                      <button 
+                                        class="ml-2 text-indigo-600 hover:text-indigo-800 text-xs underline"
+                                        onclick="copyText('<%= meetingId %>')"
+                                        type="button"
+                                      >
+                                        Copy
+                                      </button>
                                     </div>
                                   <% } %>
 
@@ -1037,6 +1044,11 @@ function formatTimestamp(seconds) {
   const mins = Math.floor(seconds / 60);
   const secs = Math.floor(seconds % 60);
   return `${mins}:${secs.toString().padStart(2, '0')}`;
+}
+
+function copyText(text) {
+  if (!text) return;
+  navigator.clipboard?.writeText(text).catch(() => {});
 }
 
 // Close modals on escape key

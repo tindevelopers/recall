@@ -11,6 +11,39 @@ import {
 } from "../../utils/meeting-metadata-extractor.js";
 const { sequelize } = db;
 
+function extractFriendlyMeetingIdFromText(text) {
+  if (!text || typeof text !== "string") return null;
+  const match = text.match(/Meeting ID:\s*([0-9\s]+)/i);
+  if (!match) return null;
+  const digits = match[1].replace(/\D/g, "");
+  if (digits.length < 6) return null;
+  const groups = [];
+  let idx = 0;
+  while (idx < digits.length) {
+    const remaining = digits.length - idx;
+    const size = remaining > 3 ? 3 : remaining;
+    groups.push(digits.substring(idx, idx + size));
+    idx += size;
+  }
+  return groups.join(" ");
+}
+
+function deriveFriendlyMeetingId({ metadataMeetingId, metadataDisplayId, calendarEvent }) {
+  if (metadataDisplayId && /\d{3}/.test(metadataDisplayId)) return metadataDisplayId;
+  if (metadataMeetingId && /\d{3}/.test(metadataMeetingId) && !metadataMeetingId.includes("meeting_"))
+    return metadataMeetingId;
+
+  const rawDesc =
+    calendarEvent?.recallData?.raw?.body?.content ||
+    calendarEvent?.recallData?.raw?.bodyPreview ||
+    calendarEvent?.recallData?.raw?.description ||
+    null;
+  const friendly = extractFriendlyMeetingIdFromText(rawDesc);
+  if (friendly) return friendly;
+
+  return metadataDisplayId || metadataMeetingId || null;
+}
+
 // Cache for sync operations - avoid hitting Recall API on every page load
 // Key: `sync-${userId}`, Value: { lastSyncTime: Date, inProgress: boolean }
 const syncCache = new Map();
@@ -1407,6 +1440,12 @@ export default async (req, res) => {
       calendarMeetingUrl: calendarEvent?.meetingUrl,
     });
 
+    const friendlyMeetingId = deriveFriendlyMeetingId({
+      metadataMeetingId: artifact.meetingId || metadata.meetingId,
+      metadataDisplayId: artifact.displayMeetingId || metadata.displayMeetingId,
+      calendarEvent,
+    });
+
     meetingsMap.set(key, {
       id: artifact.id,
       type: "artifact",
@@ -1444,7 +1483,9 @@ export default async (req, res) => {
       meetingPlatform: artifact.meetingPlatform || metadata.meetingPlatform,
       meetingId: artifact.meetingId || metadata.meetingId,
       displayMeetingId:
-        artifact.displayMeetingId || metadata.displayMeetingId,
+        friendlyMeetingId ||
+        artifact.displayMeetingId ||
+        metadata.displayMeetingId,
       meetingUrl: metadata.meetingUrl,
       createdAt: artifact.createdAt,
       syncedFromApi: !!artifact.rawPayload?.synced_from_api,
@@ -1467,6 +1508,11 @@ export default async (req, res) => {
 
     const metadata = extractMeetingMetadata({
       meetingUrl: calendarEvent?.meetingUrl,
+    });
+    const friendlyMeetingId = deriveFriendlyMeetingId({
+      metadataMeetingId: metadata.meetingId,
+      metadataDisplayId: metadata.displayMeetingId,
+      calendarEvent,
     });
 
     meetingsMap.set(key, {
@@ -1497,7 +1543,7 @@ export default async (req, res) => {
       platform: calendarEvent?.platform || null,
       meetingPlatform: metadata.meetingPlatform,
       meetingId: metadata.meetingId,
-      displayMeetingId: metadata.displayMeetingId,
+      displayMeetingId: friendlyMeetingId || metadata.displayMeetingId,
       meetingUrl: metadata.meetingUrl,
       summaryId: summary.id,
       createdAt: summary.createdAt,
