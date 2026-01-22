@@ -69,7 +69,7 @@ export default async (job) => {
       
       console.log(`[PUBLISHING] Found integration for ${target.type}, calling publisher...`);
 
-      const result = await publisher({
+      const result = await publisher.publish({
         meetingSummary,
         target,
         integration,

@@ -189,11 +189,25 @@ export async function appendBlocksToPage({ accessToken, pageId, children }) {
     } catch (err) {
       lastError = err;
       // If Notion says invalid_request_url, try the next candidate
-      if (
-        err.status === 400 &&
-        typeof err.message === "string" &&
-        err.message.toLowerCase().includes("invalid request url")
-      ) {
+      let isInvalidUrl = false;
+      if (err.status === 400) {
+        // Check error message
+        if (typeof err.message === "string" && err.message.toLowerCase().includes("invalid request url")) {
+          isInvalidUrl = true;
+        }
+        // Also check error body JSON for code field
+        if (err.body) {
+          try {
+            const errorBody = JSON.parse(err.body);
+            if (errorBody.code === "invalid_request_url") {
+              isInvalidUrl = true;
+            }
+          } catch (e) {
+            // Ignore JSON parse errors
+          }
+        }
+      }
+      if (isInvalidUrl) {
         continue;
       }
       throw err;

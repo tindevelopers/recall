@@ -90,7 +90,16 @@ export default {
         : [];
 
       // #region agent log
-      fetch('http://127.0.0.1:7250/ingest/bf0206c3-6e13-4499-92a3-7fb2b7527fcf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'services/recall/index.js:api_request_success',message:'Recall API request succeeded',data:{calendarEventId:id,hasResult:!!result,resultKeys:result?Object.keys(result):[],botCount:botIds.length,botIds:botIds},timestamp:Date.now(),sessionId:'debug-session',runId:'bot-schedule',hypothesisId:'A'})}).catch(()=>{});
+      // Capture bot details from response to check if config was applied
+      const botDetails = Array.isArray(result?.bots) ? result.bots.map(b => ({
+        id: b?.id,
+        status: b?.status,
+        bot_name: b?.bot_name,
+        join_at: b?.join_at,
+        hasRecordingConfig: !!b?.recording_config,
+        hasTranscript: !!b?.recording_config?.transcript,
+      })) : [];
+      fetch('http://127.0.0.1:7250/ingest/bf0206c3-6e13-4499-92a3-7fb2b7527fcf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'services/recall/index.js:api_request_success',message:'Recall API request succeeded',data:{calendarEventId:id,hasResult:!!result,resultKeys:result?Object.keys(result):[],botCount:botIds.length,botIds:botIds,botDetails:botDetails,resultPreview:JSON.stringify(result).substring(0,1500)},timestamp:Date.now(),sessionId:'debug-session',runId:'settings-change',hypothesisId:'D'})}).catch(()=>{});
       // #endregion
 
       await telemetryEvent(

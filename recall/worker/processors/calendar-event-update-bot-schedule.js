@@ -63,6 +63,10 @@ export default async (job) => {
     console.log(`[BOT_CONFIG] Event override: transcriptionMode=${event.transcriptionMode}, effective=${effectiveTranscriptionMode}`);
     console.log(`[BOT_CONFIG] Public URL for webhooks: ${publicUrl || 'NOT SET - realtime_endpoints will be empty!'}`);
 
+    // #region agent log
+    fetch('http://127.0.0.1:7250/ingest/bf0206c3-6e13-4499-92a3-7fb2b7527fcf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'worker/processors/calendar-event-update-bot-schedule.js:calendar_settings',message:'Calendar settings used for bot config',data:{eventId:event.id,recallEventId:event.recallId,calendarId:calendar?.id,calendarSettings:{botName:calendar?.botName,recordVideo:calendar?.recordVideo,recordAudio:calendar?.recordAudio,enableTranscription:calendar?.enableTranscription,transcriptionMode:calendar?.transcriptionMode,enableSummary:calendar?.enableSummary,joinBeforeStartMinutes:calendar?.joinBeforeStartMinutes}},timestamp:Date.now(),sessionId:'debug-session',runId:'settings-change',hypothesisId:'C'})}).catch(()=>{});
+    // #endregion
+
     // Build bot config from calendar settings + event overrides (shared logic)
     const botConfig = buildBotConfig({
       calendar,
@@ -71,7 +75,7 @@ export default async (job) => {
     });
     
     // #region agent log
-    fetch('http://127.0.0.1:7250/ingest/bf0206c3-6e13-4499-92a3-7fb2b7527fcf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'worker/processors/calendar-event-update-bot-schedule.js:bot_config_built',message:'Bot config built before scheduling',data:{eventId:event.id,recallEventId:event.recallId,hasBotConfig:!!botConfig,hasRecordingConfig:!!botConfig.recording_config,hasStatusCallback:!!botConfig.status_callback_url,publicUrl:publicUrl||'not-set'},timestamp:Date.now(),sessionId:'debug-session',runId:'bot-schedule',hypothesisId:'B'})}).catch(()=>{});
+    fetch('http://127.0.0.1:7250/ingest/bf0206c3-6e13-4499-92a3-7fb2b7527fcf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'worker/processors/calendar-event-update-bot-schedule.js:bot_config_built',message:'Bot config built before scheduling',data:{eventId:event.id,recallEventId:event.recallId,hasBotConfig:!!botConfig,hasRecordingConfig:!!botConfig.recording_config,hasStatusCallback:!!botConfig.status_callback_url,publicUrl:publicUrl||'not-set',botConfigFull:JSON.stringify(botConfig).substring(0,1000)},timestamp:Date.now(),sessionId:'debug-session',runId:'settings-change',hypothesisId:'C'})}).catch(()=>{});
     // #endregion
     
     // Calculate join_at time (must be at least 10 minutes before meeting start for scheduled bots)

@@ -20,6 +20,19 @@ export default async (req, res) => {
     });
   }
 
+  // #region agent log
+  const oldSettings = {
+    botName: calendar.botName,
+    recordVideo: calendar.recordVideo,
+    recordAudio: calendar.recordAudio,
+    enableTranscription: calendar.enableTranscription,
+    transcriptionMode: calendar.transcriptionMode,
+    enableSummary: calendar.enableSummary,
+    joinBeforeStartMinutes: calendar.joinBeforeStartMinutes,
+  };
+  fetch('http://127.0.0.1:7250/ingest/bf0206c3-6e13-4499-92a3-7fb2b7527fcf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'routes/calendar/update-bot-settings.js:before_update',message:'Settings before update',data:{calendarId:calendar.id,email:calendar.email,oldSettings:oldSettings,requestBody:req.body},timestamp:Date.now(),sessionId:'debug-session',runId:'settings-change',hypothesisId:'A'})}).catch(()=>{});
+  // #endregion
+
   // HTML form payload does not include unchecked checkboxes, so we default to "off"
   const {
     // Bot appearance
@@ -74,6 +87,19 @@ export default async (req, res) => {
 
   await calendar.save();
 
+  // #region agent log
+  const newSettings = {
+    botName: calendar.botName,
+    recordVideo: calendar.recordVideo,
+    recordAudio: calendar.recordAudio,
+    enableTranscription: calendar.enableTranscription,
+    transcriptionMode: calendar.transcriptionMode,
+    enableSummary: calendar.enableSummary,
+    joinBeforeStartMinutes: calendar.joinBeforeStartMinutes,
+  };
+  fetch('http://127.0.0.1:7250/ingest/bf0206c3-6e13-4499-92a3-7fb2b7527fcf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'routes/calendar/update-bot-settings.js:after_save',message:'Settings after save',data:{calendarId:calendar.id,email:calendar.email,newSettings:newSettings},timestamp:Date.now(),sessionId:'debug-session',runId:'settings-change',hypothesisId:'A'})}).catch(()=>{});
+  // #endregion
+
   res.cookie(
     "notice",
     JSON.stringify(
@@ -86,7 +112,15 @@ export default async (req, res) => {
 
   // Re-schedule bots for all future events with the new settings
   const events = await calendar.getCalendarEvents();
+  
+  // #region agent log
+  fetch('http://127.0.0.1:7250/ingest/bf0206c3-6e13-4499-92a3-7fb2b7527fcf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'routes/calendar/update-bot-settings.js:events_found',message:'Events to reschedule',data:{calendarId:calendar.id,eventsCount:events.length,eventIds:events.slice(0,10).map(e=>({id:e.id,recallId:e.recallId,title:e.title,startTime:e.startTime}))},timestamp:Date.now(),sessionId:'debug-session',runId:'settings-change',hypothesisId:'B'})}).catch(()=>{});
+  // #endregion
+  
   for (const event of events) {
+    // #region agent log
+    fetch('http://127.0.0.1:7250/ingest/bf0206c3-6e13-4499-92a3-7fb2b7527fcf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'routes/calendar/update-bot-settings.js:queue_job',message:'Queueing bot schedule job',data:{calendarId:calendar.id,eventId:event.id,recallId:event.recallId,title:event.title},timestamp:Date.now(),sessionId:'debug-session',runId:'settings-change',hypothesisId:'B'})}).catch(()=>{});
+    // #endregion
     await queueBotScheduleJob(event.recallId, calendar.id);
   }
 
