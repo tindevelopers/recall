@@ -26,35 +26,56 @@ function formatDigitsAsGroups(digits) {
 
 function extractFriendlyMeetingIdFromText(text) {
   if (!text || typeof text !== "string") return null;
+  // Look for "Meeting ID: 226 973 425 402 36" pattern in the text
   const match = text.match(/Meeting ID:\s*([0-9\s]+)/i);
   if (!match) return null;
   const digits = match[1].replace(/\D/g, "");
-  return formatDigitsAsGroups(digits);
+  // Teams meeting IDs are typically 15 digits
+  if (digits.length >= 12 && digits.length <= 18) {
+    return formatDigitsAsGroups(digits);
+  }
+  return null;
+}
+
+function isThreadId(str) {
+  // Thread IDs look like: 19:meeting_xxx@thread.v2
+  if (!str || typeof str !== "string") return false;
+  return str.includes("@thread.v2") || str.includes("19:meeting_");
+}
+
+function isNumericMeetingId(str) {
+  // A numeric meeting ID is purely digits (with optional spaces), 12-18 digits long
+  if (!str || typeof str !== "string") return false;
+  const digits = str.replace(/\D/g, "");
+  return digits.length >= 12 && digits.length <= 18 && /^[\d\s]+$/.test(str.trim());
 }
 
 function deriveFriendlyMeetingId({ metadataMeetingId, metadataDisplayId, calendarEvent, extraMeetingIds = [] }) {
-  const candidates = [
-    metadataDisplayId,
-    metadataMeetingId,
-    ...extraMeetingIds,
-  ];
-
-  for (const candidate of candidates) {
-    if (!candidate || typeof candidate !== "string") continue;
-    const digits = candidate.replace(/\D/g, "");
-    const friendly = formatDigitsAsGroups(digits);
-    if (friendly) return friendly;
-  }
-
+  // FIRST: Try to extract from calendar event body (most reliable source for Teams)
   const rawDesc =
     calendarEvent?.recallData?.raw?.body?.content ||
     calendarEvent?.recallData?.raw?.bodyPreview ||
     calendarEvent?.recallData?.raw?.description ||
     null;
-  const friendly = extractFriendlyMeetingIdFromText(rawDesc);
-  if (friendly) return friendly;
+  const friendlyFromBody = extractFriendlyMeetingIdFromText(rawDesc);
+  if (friendlyFromBody) return friendlyFromBody;
 
-  return metadataDisplayId || metadataMeetingId || null;
+  // SECOND: Check metadata candidates, but ONLY if they look like numeric IDs (not thread IDs)
+  const candidates = [
+    metadataDisplayId,
+    metadataMeetingId,
+    ...extraMeetingIds,
+  ].filter(c => c && typeof c === "string" && !isThreadId(c));
+
+  for (const candidate of candidates) {
+    if (isNumericMeetingId(candidate)) {
+      const digits = candidate.replace(/\D/g, "");
+      return formatDigitsAsGroups(digits);
+    }
+  }
+
+  // FALLBACK: Return null if we can't find a friendly ID (don't return thread IDs)
+  return null;
 }
 
 // Cache for sync operations - avoid hitting Recall API on every page load
