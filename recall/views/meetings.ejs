@@ -493,10 +493,15 @@
                                 <% } %>
 
                                 <!-- Description -->
-                                <% if (meeting.description) { %>
-                                  <div class="mt-2 text-sm text-gray-600 line-clamp-2">
-                                    <%= meeting.description %>
-                                  </div>
+                                <% if (meeting.description) { 
+                                     // Remove raw URLs (Teams/Zoom/etc.) from description to avoid long join links
+                                     const cleanedDesc = meeting.description.replace(/https?:\\/\\/\\S+/g, '').replace(/\\s{2,}/g, ' ').trim();
+                                   %>
+                                  <% if (cleanedDesc.length > 0) { %>
+                                    <div class="mt-2 text-sm text-gray-600 line-clamp-2">
+                                      <%= cleanedDesc %>
+                                    </div>
+                                  <% } %>
                                 <% } %>
 
                                 <!-- Organizer -->
