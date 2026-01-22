@@ -11,6 +11,7 @@
 import db from "../../db.js";
 import { backgroundQueue } from "../../queue.js";
 import { fetchTeamsTranscript, parseVTTTranscript } from "../../services/microsoft-graph/index.js";
+import { extractMeetingMetadata } from "../../utils/meeting-metadata-extractor.js";
 
 export default async (job) => {
   const { calendarEventId } = job.data;
@@ -42,6 +43,11 @@ export default async (job) => {
     }
 
     console.log(`[Teams Recording] Detected Teams meeting: ${meetingUrl}`);
+
+  const meetingMetadata = extractMeetingMetadata({
+    meetingUrl,
+    calendarMeetingUrl: calendarEvent?.meetingUrl,
+  });
 
     // Fetch transcript from Microsoft Graph
     const transcriptData = await fetchTeamsTranscript(calendarEvent);
@@ -80,12 +86,13 @@ export default async (job) => {
       userId,
       eventType: "teams_recording",
       status: "received",
+    ...meetingMetadata,
       rawPayload: {
         source: "microsoft_teams",
         meetingId: transcriptData.meetingId,
         transcriptId: transcriptData.transcriptId,
         metadata: transcriptData.metadata,
-        meetingUrl,
+      meetingUrl,
         title: calendarEvent.title,
         startTime: calendarEvent.startTime?.toISOString(),
         endTime: calendarEvent.endTime?.toISOString(),

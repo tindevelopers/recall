@@ -5,6 +5,10 @@ import { backgroundQueue } from "../../queue.js";
 import { telemetryEvent } from "../../utils/telemetry.js";
 import { generateUniqueReadableMeetingId } from "../../utils/meeting-id.js";
 import { v4 as uuidv4 } from "uuid";
+import {
+  extractMeetingMetadata,
+  normalizeMeetingUrl as normalizeMeetingUrlUtil,
+} from "../../utils/meeting-metadata-extractor.js";
 const { sequelize } = db;
 
 // Cache for sync operations - avoid hitting Recall API on every page load
@@ -594,6 +598,11 @@ async function syncBotArtifacts(calendars, userId) {
       const videoUrl = recording?.media_shortcuts?.video?.data?.download_url || bot.video_url || null;
       const audioUrl = recording?.media_shortcuts?.audio?.data?.download_url || bot.audio_url || null;
 
+      const meetingMetadata = extractMeetingMetadata({
+        meetingUrl: bot.meeting_url,
+        calendarMeetingUrl: calendarEvent?.meetingUrl,
+      });
+
       // Generate unique readable ID based on meeting start time or current time
       const meetingDate = calendarEvent?.startTime 
         ? new Date(calendarEvent.startTime)
@@ -618,6 +627,7 @@ async function syncBotArtifacts(calendars, userId) {
         userId: userId,
         eventType: 'bot.done',
         status: 'done',
+        ...meetingMetadata,
         readableId: readableId,
         rawPayload: {
           event: 'bot.done',
@@ -627,7 +637,9 @@ async function syncBotArtifacts(calendars, userId) {
             title: computedTitle,
             start_time: bot.join_at || bot.created_at,
             end_time: bot.updated_at,
-            meeting_url: bot.meeting_url,
+            meeting_url:
+              bot.meeting_url ||
+              normalizeMeetingUrlUtil(calendarEvent?.meetingUrl),
             video_url: videoUrl,
             audio_url: audioUrl,
             recording_url: videoUrl,
@@ -1386,6 +1398,15 @@ export default async (req, res) => {
       finalParticipants = matchingUpcomingEvent.attendees;
     }
 
+    const storedMeetingUrl =
+      artifact.meetingUrl ||
+      normalizeMeetingUrlUtil(artifact.rawPayload?.data?.meeting_url) ||
+      normalizeMeetingUrlUtil(calendarEvent?.meetingUrl);
+    const metadata = extractMeetingMetadata({
+      meetingUrl: storedMeetingUrl,
+      calendarMeetingUrl: calendarEvent?.meetingUrl,
+    });
+
     meetingsMap.set(key, {
       id: artifact.id,
       type: "artifact",
@@ -1420,9 +1441,11 @@ export default async (req, res) => {
       calendarEmail: calendarEvent?.Calendar?.email || null,
       platform: calendarEvent?.Calendar?.platform || null,
       summaryId: summary?.id || null,
-      meetingUrl: normalizeMeetingUrl(
-        calendarEvent?.meetingUrl || artifact.rawPayload?.data?.meeting_url || null
-      ),
+      meetingPlatform: artifact.meetingPlatform || metadata.meetingPlatform,
+      meetingId: artifact.meetingId || metadata.meetingId,
+      displayMeetingId:
+        artifact.displayMeetingId || metadata.displayMeetingId,
+      meetingUrl: metadata.meetingUrl,
       createdAt: artifact.createdAt,
       syncedFromApi: !!artifact.rawPayload?.synced_from_api,
     });
@@ -1441,6 +1464,10 @@ export default async (req, res) => {
         ? calendarEvent.title
         : extractMeetingTitle(null, calendarEvent);
     const summaryParticipants = calendarEvent ? getAttendeesFromEvent(calendarEvent) : [];
+
+    const metadata = extractMeetingMetadata({
+      meetingUrl: calendarEvent?.meetingUrl,
+    });
 
     meetingsMap.set(key, {
       id: summary.id,
@@ -1468,7 +1495,10 @@ export default async (req, res) => {
       organizer: calendarEvent ? getAttendeesFromEvent(calendarEvent).find(a => a.organizer) : null,
       calendarEmail: calendarEvent?.Calendar?.email || null,
       platform: calendarEvent?.platform || null,
-      meetingUrl: normalizeMeetingUrl(calendarEvent?.meetingUrl || null),
+      meetingPlatform: metadata.meetingPlatform,
+      meetingId: metadata.meetingId,
+      displayMeetingId: metadata.displayMeetingId,
+      meetingUrl: metadata.meetingUrl,
       summaryId: summary.id,
       createdAt: summary.createdAt,
     });

@@ -3,6 +3,10 @@ import db from "../../db.js";
 import { v4 as uuidv4 } from "uuid";
 import Recall from "../../services/recall/index.js";
 import { generateUniqueReadableMeetingId } from "../../utils/meeting-id.js";
+import {
+  extractMeetingMetadata,
+  normalizeMeetingUrl,
+} from "../../utils/meeting-metadata-extractor.js";
 
 /**
  * Webhook handler for Recall.ai transcript and bot events.
@@ -247,6 +251,23 @@ export default async (req, res) => {
       },
     } : rawPayload;
 
+    const meetingUrlFromPayload =
+      enrichedPayload?.data?.meeting_url || enrichedPayload?.meeting_url;
+    const meetingMetadata = extractMeetingMetadata({
+      meetingUrl: meetingUrlFromPayload,
+      calendarMeetingUrl: calendarEvent?.meetingUrl,
+    });
+
+    // Persist meetingUrl back into payload to keep rawPayload consistent
+    const payloadWithMeetingUrl = {
+      ...enrichedPayload,
+      data: {
+        ...enrichedPayload?.data,
+        meeting_url:
+          meetingUrlFromPayload || normalizeMeetingUrl(calendarEvent?.meetingUrl),
+      },
+    };
+
     const artifactDefaults = {
       recallEventId: effectiveRecallEventId,
       recallBotId,
@@ -254,16 +275,17 @@ export default async (req, res) => {
       userId: calendarEvent?.Calendar?.userId || calendarEvent?.userId || null,
       eventType: event,
       status: statusCode === "done" ? "completed" : "received",
+      ...meetingMetadata,
     };
 
     if (artifact) {
       // Merge payloads to preserve all data across multiple webhook calls
       const mergedPayload = {
         ...artifact.rawPayload,
-        ...enrichedPayload,
+        ...payloadWithMeetingUrl,
         data: {
           ...artifact.rawPayload?.data,
-          ...enrichedPayload?.data,
+          ...payloadWithMeetingUrl?.data,
         },
       };
       await artifact.update({
@@ -292,7 +314,7 @@ export default async (req, res) => {
         id: artifactId,
         ...artifactDefaults,
         readableId: readableId,
-        rawPayload: enrichedPayload,
+        rawPayload: payloadWithMeetingUrl,
       });
       console.log(`[RECALL-NOTES] Created new artifact ${artifact.id} with readableId ${readableId}`);
     }

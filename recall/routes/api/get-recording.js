@@ -20,23 +20,50 @@ export default async (req, res) => {
     // Find the meeting artifact
     const artifact = await db.MeetingArtifact.findOne({
       where: { id: meetingId, userId },
+      include: [{ model: db.CalendarEvent, include: [{ model: db.Calendar }] }],
     });
 
     if (!artifact) {
       return res.status(404).json({ error: "Meeting not found" });
     }
 
-    // Check if we already have recording URLs cached
+    // Check if we already have recording URLs cached (prioritize Recall recordings)
     const cachedVideoUrl = artifact.rawPayload?.data?.video_url ||
                            artifact.rawPayload?.data?.recording_url ||
                            artifact.rawPayload?.data?.media_shortcuts?.video?.data?.download_url;
     const cachedAudioUrl = artifact.rawPayload?.data?.audio_url ||
                            artifact.rawPayload?.data?.media_shortcuts?.audio?.data?.download_url;
+    
+    // Check for Teams recording URLs
+    // Teams recordings are typically accessible via the meeting URL
+    let teamsVideoUrl = artifact.rawPayload?.data?.teamsRecordingUrl ||
+                        artifact.rawPayload?.data?.teams_video_url ||
+                        artifact.rawPayload?.teamsRecordingUrl;
+    
+    // If no direct Teams URL but we have a Teams meeting URL, use it to access recording
+    if (!teamsVideoUrl && artifact.CalendarEvent?.meetingUrl && 
+        artifact.CalendarEvent.meetingUrl.includes('teams.microsoft.com')) {
+      teamsVideoUrl = artifact.CalendarEvent.meetingUrl;
+    }
 
+    // If we have Recall video, return it (prioritize Recall)
     if (cachedVideoUrl || cachedAudioUrl) {
       return res.json({
         videoUrl: cachedVideoUrl || null,
         audioUrl: cachedAudioUrl || null,
+        teamsVideoUrl: teamsVideoUrl || null,
+        source: 'recall',
+        cached: true,
+      });
+    }
+    
+    // If no Recall recording but we have Teams recording, return it
+    if (teamsVideoUrl) {
+      return res.json({
+        videoUrl: null,
+        audioUrl: null,
+        teamsVideoUrl: teamsVideoUrl,
+        source: 'teams',
         cached: true,
       });
     }
@@ -113,13 +140,60 @@ export default async (req, res) => {
     await artifact.update({ rawPayload: updatedPayload });
     console.log(`[GET-RECORDING] Updated artifact ${artifact.id} with recording URLs`);
 
+    // Check for Teams recording URL in artifact
+    // Teams recordings are typically accessed via Microsoft Stream or Teams web interface
+    // We can construct a link to view the recording if we have the meeting URL
+    let teamsVideoUrl = artifact.rawPayload?.data?.teamsRecordingUrl ||
+                        artifact.rawPayload?.data?.teams_video_url ||
+                        artifact.rawPayload?.teamsRecordingUrl;
+    
+    // If no direct Teams URL but we have a Teams meeting URL, we can link to the meeting
+    // Teams recordings are typically accessible through the meeting page
+    if (!teamsVideoUrl && artifact.CalendarEvent?.meetingUrl && 
+        artifact.CalendarEvent.meetingUrl.includes('teams.microsoft.com')) {
+      // Construct a link to view the recording (Teams recordings are accessible via the meeting page)
+      teamsVideoUrl = artifact.CalendarEvent.meetingUrl;
+    }
+
     return res.json({
       videoUrl,
       audioUrl,
+      teamsVideoUrl: teamsVideoUrl || null,
+      source: videoUrl || audioUrl ? 'recall' : (teamsVideoUrl ? 'teams' : null),
       cached: false,
     });
   } catch (error) {
     console.error(`[GET-RECORDING] Error:`, error);
+    
+    // Even on error, check if we have Teams recording URL
+    try {
+      const artifact = await db.MeetingArtifact.findOne({
+        where: { id: meetingId, userId },
+        include: [{ model: db.CalendarEvent }],
+      });
+      let teamsVideoUrl = artifact?.rawPayload?.data?.teamsRecordingUrl ||
+                          artifact?.rawPayload?.data?.teams_video_url ||
+                          artifact?.rawPayload?.teamsRecordingUrl;
+      
+      // Fallback to meeting URL if it's a Teams meeting
+      if (!teamsVideoUrl && artifact?.CalendarEvent?.meetingUrl && 
+          artifact.CalendarEvent.meetingUrl.includes('teams.microsoft.com')) {
+        teamsVideoUrl = artifact.CalendarEvent.meetingUrl;
+      }
+      
+      if (teamsVideoUrl) {
+        return res.json({
+          videoUrl: null,
+          audioUrl: null,
+          teamsVideoUrl: teamsVideoUrl,
+          source: 'teams',
+          cached: true,
+        });
+      }
+    } catch (fallbackError) {
+      // Ignore fallback error
+    }
+    
     return res.status(500).json({ 
       error: "Failed to get recording",
       message: error.message,

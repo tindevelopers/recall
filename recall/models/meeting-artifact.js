@@ -45,6 +45,22 @@ export default (sequelize) => {
         allowNull: true,
         unique: true,
       },
+      meetingPlatform: {
+        type: DataTypes.ENUM("teams", "zoom", "webex", "google_meet"),
+        allowNull: true,
+      },
+      meetingId: {
+        type: DataTypes.STRING,
+        allowNull: true,
+      },
+      displayMeetingId: {
+        type: DataTypes.STRING,
+        allowNull: true,
+      },
+      meetingUrl: {
+        type: DataTypes.TEXT,
+        allowNull: true,
+      },
     },
     {
       sequelize,

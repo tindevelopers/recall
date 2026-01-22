@@ -438,85 +438,78 @@
                                   <% } %>
                                 </div>
 
-                                <%# Show meeting ID (extracted from URL) and platform indicator %>
-                                <% if (meeting.meetingUrl) { 
-                                     const urlRaw = meeting.meetingUrl;
-                                     const urlStr = typeof urlRaw === 'string' ? urlRaw : (urlRaw.url || urlRaw.href || urlRaw.link || '');
-                                     
-                                     // Extract meeting ID based on platform
-                                     let meetingId = null;
-                                     let platformName = null;
-                                     
-                                     if (urlStr.includes('teams.microsoft.com')) {
-                                       platformName = 'Teams';
-                                       // Teams meeting IDs are in the URL path: /meet/25728895582210
-                                       const teamsMatch = urlStr.match(/\/meet\/(\d+)/);
-                                       if (teamsMatch) {
-                                         // Format as spaced groups for readability
-                                         const rawId = teamsMatch[1];
-                                         meetingId = rawId.replace(/(\d{3})(?=\d)/g, '$1 ').trim();
-                                       }
-                                     } else if (urlStr.includes('zoom.us')) {
-                                       platformName = 'Zoom';
-                                       // Zoom meeting IDs: /j/12345678901
-                                       const zoomMatch = urlStr.match(/\/j\/(\d+)/);
-                                       if (zoomMatch) {
-                                         const rawId = zoomMatch[1];
-                                         meetingId = rawId.replace(/(\d{3})(?=\d)/g, '$1 ').trim();
-                                       }
-                                     } else if (urlStr.includes('webex.com')) {
-                                       platformName = 'Webex';
-                                       // Webex meeting IDs vary, try to extract from URL
-                                       const webexMatch = urlStr.match(/\/(\d{9,})/);
-                                       if (webexMatch) {
-                                         const rawId = webexMatch[1];
-                                         meetingId = rawId.replace(/(\d{3})(?=\d)/g, '$1 ').trim();
-                                       }
-                                     } else if (urlStr.includes('meet.google.com')) {
-                                       platformName = 'Google Meet';
-                                       // Google Meet codes: /abc-defg-hij
-                                       const meetMatch = urlStr.match(/\/([a-z]{3}-[a-z]{4}-[a-z]{3})/i);
-                                       if (meetMatch) {
-                                         meetingId = meetMatch[1];
-                                       }
-                                     }
+                                <%# Show meeting ID (from stored metadata) and platform indicator %>
+                                <%
+                                  const platformNameMap = {
+                                    teams: 'Teams',
+                                    zoom: 'Zoom',
+                                    webex: 'Webex',
+                                    google_meet: 'Google Meet'
+                                  };
+                                  const platformName = platformNameMap[meeting.meetingPlatform] || null;
+                                  let meetingId = meeting.displayMeetingId || meeting.meetingId || null;
+
+                                  // Fallback: attempt lightweight extraction if still missing
+                                  if (!meetingId && meeting.meetingUrl) {
+                                    const urlStr = typeof meeting.meetingUrl === 'string'
+                                      ? meeting.meetingUrl
+                                      : (meeting.meetingUrl.url || meeting.meetingUrl.href || meeting.meetingUrl.link || '');
+                                    if (urlStr.includes('teams.microsoft.com')) {
+                                      const teamsMatch = urlStr.match(/\/meet\/([A-Za-z0-9]+)/);
+                                      if (teamsMatch) meetingId = teamsMatch[1].replace(/(\d{3})(?=\d)/g, '$1 ').trim();
+                                    } else if (urlStr.includes('zoom.us')) {
+                                      const zoomMatch = urlStr.match(/\/j\/(\d+)/);
+                                      if (zoomMatch) meetingId = zoomMatch[1].replace(/(\d{3})(?=\d)/g, '$1 ').trim();
+                                    } else if (urlStr.includes('webex.com')) {
+                                      const webexMatch = urlStr.match(/\/(\d{9,})/);
+                                      if (webexMatch) meetingId = webexMatch[1].replace(/(\d{3})(?=\d)/g, '$1 ').trim();
+                                    } else if (urlStr.includes('meet.google.com')) {
+                                      const meetMatch = urlStr.match(/\/([a-z]{3}-[a-z]{4}-[a-z]{3})/i);
+                                      if (meetMatch) meetingId = meetMatch[1];
+                                    }
+                                  }
                                 %>
                                   <% if (meetingId) { %>
                                     <div class="flex items-center text-xs text-gray-500">
                                       <svg class="mr-1.5 h-3.5 w-3.5 text-gray-400" viewBox="0 0 20 20" fill="currentColor">
                                         <path fill-rule="evenodd" d="M5.75 2a.75.75 0 01.75.75V4h7V2.75a.75.75 0 011.5 0V4h.25A2.75 2.75 0 0118 6.75v8.5A2.75 2.75 0 0115.25 18H4.75A2.75 2.75 0 012 15.25v-8.5A2.75 2.75 0 014.75 4H5V2.75A.75.75 0 015.75 2z" clip-rule="evenodd" />
                                       </svg>
-                                      <span class="font-medium text-gray-600"><%= platformName %> ID:</span>
+                                      <span class="font-medium text-gray-600"><%= platformName || 'Meeting' %> ID:</span>
                                       <span class="ml-1 font-mono"><%= meetingId %></span>
                                     </div>
                                   <% } %>
-                                <% } %>
 
                                 <!-- Description -->
+                                <%# For past meetings, hide description entirely since meeting ID is shown separately %>
+                                <%# Only show description if it contains actual meeting content (not just Teams metadata) %>
                                 <% if (meeting.description) { 
-                                     // Remove raw URLs (Teams/Zoom/etc.) and meeting join text from description
-                                     let cleanedDesc = meeting.description;
+                                     // Check if description is mostly Teams meeting metadata
+                                     const desc = meeting.description.toLowerCase();
+                                     const isTeamsMetadata = desc.includes('microsoft teams meeting') || 
+                                                             desc.includes('dial in by phone') ||
+                                                             desc.includes('phone conference id') ||
+                                                             desc.includes('for organizers') ||
+                                                             desc.includes('meeting options') ||
+                                                             desc.includes('need help') ||
+                                                             desc.includes('system reference') ||
+                                                             (desc.match(/https?:\/\//g) && desc.match(/https?:\/\//g).length > 0);
                                      
-                                     // Remove URLs (http/https)
-                                     const urlPattern = new RegExp('https?://[^\\s]+', 'g');
-                                     cleanedDesc = cleanedDesc.replace(urlPattern, '');
-                                     
-                                     // Remove common meeting join text patterns
-                                     cleanedDesc = cleanedDesc.replace(/Microsoft Teams meeting Join:/gi, '');
-                                     cleanedDesc = cleanedDesc.replace(/Meeting ID:\s*\d+[\s\d]*/gi, '');
-                                     cleanedDesc = cleanedDesc.replace(/Passcode:\s*[\w\-]+/gi, '');
-                                     cleanedDesc = cleanedDesc.replace(/Join Zoom Meeting/gi, '');
-                                     cleanedDesc = cleanedDesc.replace(/Join Webex Meeting/gi, '');
-                                     
-                                     // Clean up whitespace
-                                     cleanedDesc = cleanedDesc.replace(/\s{2,}/g, ' ').trim();
-                                   %>
-                                  <% if (cleanedDesc.length > 0) { %>
+                                     // Only show description if it's NOT Teams metadata
+                                     // (Meeting ID is already shown separately above)
+                                     if (!isTeamsMetadata) {
+                                       // Remove any URLs that might still be present
+                                       let cleanedDesc = meeting.description;
+                                       const urlPattern = new RegExp('https?://[^\\s]+', 'g');
+                                       cleanedDesc = cleanedDesc.replace(urlPattern, '').trim();
+                                       
+                                       if (cleanedDesc.length > 0) {
+                                 %>
                                     <div class="mt-2 text-sm text-gray-600 line-clamp-2">
                                       <%= cleanedDesc %>
                                     </div>
-                                  <% } %>
-                                <% } %>
+                                 <%   }
+                                     }
+                                   } %>
 
                                 <!-- Organizer -->
                                 <% if (meeting.organizer) { %>
@@ -605,7 +598,7 @@
                             <!-- Quick Action Icons -->
                             <div class="flex items-center space-x-1">
                               <!-- Play Recording Button - enabled for Recall recordings or Teams recordings -->
-                              <% const canPlayVideo = meeting.hasRecording || meeting.hasTeamsRecording; %>
+                              <% const canPlayVideo = meeting.hasRecording || meeting.hasRecallRecording || meeting.hasTeamsRecording || meeting.meetingPlatform === 'teams'; %>
                               <button 
                                 onclick='openPlayerModal("<%= meeting.id %>", "<%= (meeting.recordingUrl || "").replace(/"/g, "\\\"") %>", "<%= (meeting.audioUrl || "").replace(/"/g, "\\\"") %>", "<%= (meeting.title || "Meeting").replace(/"/g, "\\\"") %>")'
                                 class="<%= canPlayVideo ? 'text-green-600 hover:bg-green-50' : 'text-gray-300 cursor-not-allowed' %> p-2 rounded-lg transition-colors"
@@ -818,6 +811,10 @@ async function updateTranscriptionMode(selectElement) {
 
 // Modal functions
 async function openPlayerModal(meetingId, videoUrl, audioUrl, title) {
+  // #region agent log
+  fetch('http://127.0.0.1:7250/ingest/bf0206c3-6e13-4499-92a3-7fb2b7527fcf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'views/meetings.ejs:openPlayerModal',message:'Play button clicked',data:{meetingId,videoUrl:!!videoUrl,audioUrl:!!audioUrl,title},timestamp:Date.now(),sessionId:'debug-session',runId:'play-button',hypothesisId:'A'})}).catch(()=>{});
+  // #endregion
+  
   const modal = document.getElementById('player-modal');
   const titleEl = document.getElementById('player-modal-title');
   const content = document.getElementById('player-modal-content');
@@ -825,7 +822,7 @@ async function openPlayerModal(meetingId, videoUrl, audioUrl, title) {
   titleEl.textContent = title;
   modal.classList.remove('hidden');
   
-  // If we have URLs, play directly
+  // If we have Recall URLs, play directly (prioritize Recall)
   if (videoUrl) {
     content.innerHTML = `
       <video controls class="w-full rounded-lg" autoplay>
@@ -854,6 +851,12 @@ async function openPlayerModal(meetingId, videoUrl, audioUrl, title) {
     const response = await fetch(`/api/meetings/${meetingId}/recording`);
     if (response.ok) {
       const data = await response.json();
+      
+      // #region agent log
+      fetch('http://127.0.0.1:7250/ingest/bf0206c3-6e13-4499-92a3-7fb2b7527fcf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'views/meetings.ejs:openPlayerModal',message:'Recording API response',data:{meetingId,hasVideoUrl:!!data.videoUrl,hasAudioUrl:!!data.audioUrl,hasTeamsVideoUrl:!!data.teamsVideoUrl,source:data.source},timestamp:Date.now(),sessionId:'debug-session',runId:'play-button',hypothesisId:'B'})}).catch(()=>{});
+      // #endregion
+      
+      // Prioritize Recall video
       if (data.videoUrl) {
         content.innerHTML = `
           <video controls class="w-full rounded-lg" autoplay>
@@ -861,6 +864,7 @@ async function openPlayerModal(meetingId, videoUrl, audioUrl, title) {
             Your browser does not support the video tag.
           </video>
           ${data.audioUrl ? `<p class="mt-3 text-sm text-gray-500"><a href="${data.audioUrl}" target="_blank" class="text-indigo-600 hover:underline">Download audio only</a></p>` : ''}
+          ${data.teamsVideoUrl ? `<p class="mt-3 text-sm text-gray-500"><a href="${data.teamsVideoUrl}" target="_blank" class="text-blue-600 hover:underline">Also available: View Teams recording on Microsoft</a></p>` : ''}
         `;
       } else if (data.audioUrl) {
         content.innerHTML = `
@@ -868,6 +872,21 @@ async function openPlayerModal(meetingId, videoUrl, audioUrl, title) {
             <source src="${data.audioUrl}" type="audio/mpeg">
             Your browser does not support the audio element.
           </audio>
+          ${data.teamsVideoUrl ? `<p class="mt-3 text-sm text-gray-500"><a href="${data.teamsVideoUrl}" target="_blank" class="text-blue-600 hover:underline">Also available: View Teams recording on Microsoft</a></p>` : ''}
+        `;
+      } else if (data.teamsVideoUrl) {
+        // No Recall recording, but Teams recording available
+        content.innerHTML = `
+          <div class="text-center py-8">
+            <p class="text-gray-600 mb-4">No Recall recording available for this meeting.</p>
+            <p class="text-sm text-gray-500 mb-6">The recording is available on Microsoft Teams.</p>
+            <a href="${data.teamsVideoUrl}" target="_blank" class="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+              <svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                <path d="M2 6a2 2 0 012-2h6a2 2 0 012 2v8a2 2 0 01-2 2H4a2 2 0 01-2-2V6zM14.553 7.106A1 1 0 0014 8v4a1 1 0 00.553.894l2 1A1 1 0 0018 13V7a1 1 0 00-1.447-.894l-2 1z"></path>
+              </svg>
+              View Teams Recording on Microsoft
+            </a>
+          </div>
         `;
       } else {
         content.innerHTML = '<p class="text-gray-500 text-center py-8">No recording available for this meeting</p>';
