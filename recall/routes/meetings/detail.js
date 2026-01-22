@@ -2,6 +2,10 @@ import db from "../../db.js";
 import { Op } from "sequelize";
 
 export default async (req, res) => {
+  // #region agent log
+  const detailStartTime = Date.now();
+  fetch('http://127.0.0.1:7250/ingest/bf0206c3-6e13-4499-92a3-7fb2b7527fcf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'routes/meetings/detail.js:entry',message:'Detail page request started',data:{meetingId:req.params.id},timestamp:Date.now(),sessionId:'debug-session',runId:'detail-perf',hypothesisId:'B'})}).catch(()=>{});
+  // #endregion
   if (!req.authenticated) {
     return res.redirect("/sign-in");
   }
@@ -10,6 +14,10 @@ export default async (req, res) => {
   const meetingId = req.params.id;
 
   // Try to find as artifact first - support both UUID and readableId
+  // #region agent log
+  const artifactQueryStart = Date.now();
+  fetch('http://127.0.0.1:7250/ingest/bf0206c3-6e13-4499-92a3-7fb2b7527fcf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'routes/meetings/detail.js:artifact_query_start',message:'Starting artifact query',data:{meetingId},timestamp:Date.now(),sessionId:'debug-session',runId:'detail-perf',hypothesisId:'B'})}).catch(()=>{});
+  // #endregion
   let artifact = await db.MeetingArtifact.findOne({
     where: {
       userId,
@@ -29,9 +37,15 @@ export default async (req, res) => {
       {
         model: db.MeetingTranscriptChunk,
         order: [["sequence", "ASC"]],
+        // Limit chunks to avoid loading thousands at once - we can load more on demand if needed
+        limit: 1000,
       },
     ],
   });
+  // #region agent log
+  const artifactQueryEnd = Date.now();
+  fetch('http://127.0.0.1:7250/ingest/bf0206c3-6e13-4499-92a3-7fb2b7527fcf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'routes/meetings/detail.js:artifact_query_end',message:'Artifact query completed',data:{meetingId,queryTimeMs:artifactQueryEnd-artifactQueryStart,hasArtifact:!!artifact,chunkCount:artifact?.MeetingTranscriptChunks?.length||0},timestamp:Date.now(),sessionId:'debug-session',runId:'detail-perf',hypothesisId:'B'})}).catch(()=>{});
+  // #endregion
 
   let summary = null;
   let transcriptChunks = [];
@@ -49,7 +63,10 @@ export default async (req, res) => {
         {
           model: db.MeetingArtifact,
           include: [
-            { model: db.MeetingTranscriptChunk },
+            { 
+              model: db.MeetingTranscriptChunk,
+              limit: 1000, // Limit chunks to avoid loading thousands at once
+            },
           ],
         },
         {
@@ -148,11 +165,20 @@ export default async (req, res) => {
   };
 
   // Get publish deliveries for this meeting
+  // #region agent log
+  const publishQueryStart = Date.now();
+  fetch('http://127.0.0.1:7250/ingest/bf0206c3-6e13-4499-92a3-7fb2b7527fcf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'routes/meetings/detail.js:publish_query_start',message:'Starting publish deliveries query',data:{hasSummary:!!summary,summaryId:summary?.id},timestamp:Date.now(),sessionId:'debug-session',runId:'detail-perf',hypothesisId:'C'})}).catch(()=>{});
+  // #endregion
   const publishDeliveries = summary ? await db.PublishDelivery.findAll({
     where: { meetingSummaryId: summary.id },
     include: [{ model: db.PublishTarget }],
     order: [["createdAt", "DESC"]],
   }) : [];
+  // #region agent log
+  const publishQueryEnd = Date.now();
+  const totalTime = Date.now() - detailStartTime;
+  fetch('http://127.0.0.1:7250/ingest/bf0206c3-6e13-4499-92a3-7fb2b7527fcf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'routes/meetings/detail.js:publish_query_end',message:'Publish query completed and page ready',data:{publishQueryTimeMs:publishQueryEnd-publishQueryStart,totalTimeMs:totalTime,deliveryCount:publishDeliveries.length},timestamp:Date.now(),sessionId:'debug-session',runId:'detail-perf',hypothesisId:'C'})}).catch(()=>{});
+  // #endregion
 
   return res.render("meeting-detail.ejs", {
     notice: req.notice,

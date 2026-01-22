@@ -351,6 +351,10 @@
                       <input type="checkbox" name="hasRecallRecording" value="true" <%= filters?.hasRecallRecording === true ? 'checked' : '' %> class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
                       <span>Has Recall recording</span>
                     </label>
+                    <label class="inline-flex items-center space-x-1">
+                      <input type="checkbox" name="hasTeamsRecording" value="true" <%= filters?.hasTeamsRecording === true ? 'checked' : '' %> class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
+                      <span>Has Teams recording</span>
+                    </label>
                   </div>
                 </form>
                 <% if (typeof meetings === 'undefined' || meetings === null || !Array.isArray(meetings) || meetings.length === 0) { %>
@@ -432,6 +436,13 @@
                                       <path fill-rule="evenodd" d="M12.586 4.586a2 2 0 112.828 2.828l-3 3a2 2 0 01-2.828 0l-.586-.586 1.414-1.414.586.586 3-3zM7.414 9.414l-.586-.586-3 3a2 2 0 102.828 2.828l3-3a2 2 0 000-2.828l-.586-.586-1.414 1.414z" clip-rule="evenodd" />
                                     </svg>
                                     <a href="<%= urlStr %>" target="_blank" class="hover:underline truncate"><%= urlHost || urlStr %></a>
+                                  </div>
+                                <% } %>
+
+                                <!-- Description -->
+                                <% if (meeting.description) { %>
+                                  <div class="mt-2 text-sm text-gray-600 line-clamp-2">
+                                    <%= meeting.description %>
                                   </div>
                                 <% } %>
 

@@ -25,19 +25,48 @@ function isGenericMeetingTitle(title) {
 }
 
 /**
+ * Strip HTML tags from text and clean up meaningless content
+ */
+function stripHtml(html) {
+  if (!html || typeof html !== 'string') return html;
+  // Remove HTML tags but preserve text content
+  let text = html.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').trim();
+  // Remove strings that are just repeated characters (like "____" or "----")
+  if (/^[_\-=~.]{3,}$/.test(text)) {
+    return null;
+  }
+  // Remove strings that are mostly whitespace or special chars
+  const alphanumericContent = text.replace(/[^a-zA-Z0-9]/g, '');
+  if (alphanumericContent.length < 3) {
+    return null;
+  }
+  return text;
+}
+
+/**
  * Extract description from a calendar event
  */
 function getDescriptionFromEvent(event) {
   if (!event) return null;
   const raw = event?.recallData?.raw || {};
   
+  let description = null;
   if (event.platform === "google_calendar") {
-    return raw["description"] || null;
+    description = raw["description"] || null;
   } else if (event.platform === "microsoft_outlook") {
-    return raw["body"]?.content || raw["bodyPreview"] || null;
+    description = raw["body"]?.content || raw["bodyPreview"] || null;
   }
   
-  return null;
+  // Strip HTML tags if present
+  if (description) {
+    description = stripHtml(description);
+    // Return null if description is empty after stripping
+    if (!description || description.length === 0) {
+      return null;
+    }
+  }
+  
+  return description;
 }
 
 /**
@@ -47,17 +76,25 @@ function getDescriptionFromArtifact(artifact) {
   if (!artifact) return null;
   const data = artifact?.rawPayload?.data || {};
   
+  let description = null;
   // Check artifact data for description
   if (data.description) {
-    return data.description;
+    description = data.description;
+  } else if (data.bot_metadata?.meeting_metadata?.description) {
+    // Check bot metadata
+    description = data.bot_metadata.meeting_metadata.description;
   }
   
-  // Check bot metadata
-  if (data.bot_metadata?.meeting_metadata?.description) {
-    return data.bot_metadata.meeting_metadata.description;
+  // Strip HTML tags if present
+  if (description) {
+    description = stripHtml(description);
+    // Return null if description is empty after stripping
+    if (!description || description.length === 0) {
+      return null;
+    }
   }
   
-  return null;
+  return description;
 }
 
 /**
@@ -809,6 +846,7 @@ export default async (req, res) => {
     hasSummary,
     hasRecording,
     hasRecallRecording,
+    hasTeamsRecording,
     sort,
   } = req.query;
 
@@ -816,6 +854,7 @@ export default async (req, res) => {
   const hasSummaryFilter = hasSummary === "true" ? true : hasSummary === "false" ? false : null;
   const hasRecordingFilter = hasRecording === "true" ? true : hasRecording === "false" ? false : null;
   const hasRecallRecordingFilter = hasRecallRecording === "true" ? true : hasRecallRecording === "false" ? false : null;
+  const hasTeamsRecordingFilter = hasTeamsRecording === "true" ? true : hasTeamsRecording === "false" ? false : null;
 
   const userId = req.authentication.user.id;
 
@@ -1155,45 +1194,17 @@ export default async (req, res) => {
     // Check if this is a Recall recording (has artifact with recording) vs platform recording
     const hasRecallRecordingFlag = hasRecordingFlag && !!artifact.recallBotId;
 
-    // Fetch bot data on-demand if recordings array is missing (for accurate duration)
-    let artifactData = artifact.rawPayload?.data || {};
-    // Fetch if we have a bot ID but no recordings data (regardless of video_url, since recordings might not be stored yet)
-    if (!artifactData.recordings && artifact.recallBotId) {
-      // #region agent log
-      fetch('http://127.0.0.1:7250/ingest/bf0206c3-6e13-4499-92a3-7fb2b7527fcf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'routes/meetings/list.js:on_demand_bot_fetch',message:'Fetching bot data on-demand for duration',data:{artifactId:artifact.id,botId:artifact.recallBotId},timestamp:Date.now(),sessionId:'debug-session',runId:'duration-fix-on-demand',hypothesisId:'H'})}).catch(()=>{});
-      // #endregion
-      try {
-        const botData = await Recall.getBot(artifact.recallBotId);
-        if (botData?.recordings?.length > 0) {
-          // Update artifact in memory for this request
-          artifactData = {
-            ...artifactData,
-            recordings: botData.recordings,
-            media_shortcuts: botData.recordings[0]?.media_shortcuts,
-          };
-          // Also update the artifact in database for future requests (non-blocking)
-          const updatedPayload = {
-            ...artifact.rawPayload,
-            data: {
-              ...artifact.rawPayload?.data,
-              recordings: botData.recordings,
-              media_shortcuts: botData.recordings[0]?.media_shortcuts,
-            },
-          };
-          artifact.update({ rawPayload: updatedPayload }).catch(err => {
-            console.log(`[MEETINGS] Failed to update artifact ${artifact.id} with recording data: ${err.message}`);
-          });
-          // #region agent log
-          fetch('http://127.0.0.1:7250/ingest/bf0206c3-6e13-4499-92a3-7fb2b7527fcf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'routes/meetings/list.js:on_demand_bot_fetch',message:'Successfully fetched bot data on-demand',data:{artifactId:artifact.id,botId:artifact.recallBotId,hasRecordings:true,recordingDuration:botData.recordings[0]?.duration_seconds},timestamp:Date.now(),sessionId:'debug-session',runId:'duration-fix-on-demand',hypothesisId:'H'})}).catch(()=>{});
-          // #endregion
-        }
-      } catch (err) {
-        // #region agent log
-        fetch('http://127.0.0.1:7250/ingest/bf0206c3-6e13-4499-92a3-7fb2b7527fcf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'routes/meetings/list.js:on_demand_bot_fetch',message:'Failed to fetch bot data on-demand',data:{artifactId:artifact.id,botId:artifact.recallBotId,error:err.message},timestamp:Date.now(),sessionId:'debug-session',runId:'duration-fix-on-demand',hypothesisId:'H'})}).catch(()=>{});
-        // #endregion
-        console.log(`[MEETINGS] Could not fetch bot data on-demand for ${artifact.recallBotId}: ${err.message}`);
-      }
-    }
+    // Check if this is a Teams recording
+    const hasTeamsRecordingFlag = 
+      artifact.eventType === "teams_recording" ||
+      artifact.rawPayload?.source === "microsoft_teams" ||
+      (typeof artifact.rawPayload?.data?.meetingUrl === "string" && 
+       artifact.rawPayload.data.meetingUrl.includes("teams.microsoft.com")) ||
+      (calendarEvent?.meetingUrl && calendarEvent.meetingUrl.includes("teams.microsoft.com"));
+
+    // Use existing artifact data - don't fetch bot data on-demand as it causes N+1 API calls (600+ requests!)
+    // Duration will be calculated from existing data or shown as unknown
+    const artifactData = artifact.rawPayload?.data || {};
 
     // Calculate duration from artifacts first, then fallback to calendar event times
     const durationSeconds = (() => {
@@ -1353,10 +1364,21 @@ export default async (req, res) => {
     }
     
     // Use upcoming event description if available, otherwise use artifact/event description
-    let finalDescription = getDescriptionFromArtifact(artifact) || getDescriptionFromEvent(calendarEvent);
-    if (matchingUpcomingEvent?.description) {
-      finalDescription = matchingUpcomingEvent.description;
+    // #region agent log
+    const artifactDesc = getDescriptionFromArtifact(artifact);
+    const eventDesc = getDescriptionFromEvent(calendarEvent);
+    const upcomingDesc = matchingUpcomingEvent?.description;
+    // Get raw description before stripHtml for debugging
+    const rawEventDesc = calendarEvent?.recallData?.raw?.body?.content || calendarEvent?.recallData?.raw?.bodyPreview || calendarEvent?.recallData?.raw?.description;
+    fetch('http://127.0.0.1:7250/ingest/bf0206c3-6e13-4499-92a3-7fb2b7527fcf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'routes/meetings/list.js:description_extraction',message:'Extracting description',data:{artifactId:artifact.id,title:finalTitle,rawEventDescLength:rawEventDesc?.length,rawEventDescPreview:rawEventDesc?.substring(0,200),artifactDesc:artifactDesc?.substring(0,100),eventDesc:eventDesc?.substring(0,100),upcomingDesc:upcomingDesc?.substring(0,100),hasArtifactDesc:!!artifactDesc,hasEventDesc:!!eventDesc,hasUpcomingDesc:!!upcomingDesc},timestamp:Date.now(),sessionId:'debug-session',runId:'desc-debug-v2',hypothesisId:'E'})}).catch(()=>{});
+    // #endregion
+    let finalDescription = artifactDesc || eventDesc;
+    if (upcomingDesc) {
+      finalDescription = upcomingDesc;
     }
+    // #region agent log
+    fetch('http://127.0.0.1:7250/ingest/bf0206c3-6e13-4499-92a3-7fb2b7527fcf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'routes/meetings/list.js:description_final',message:'Final description value',data:{artifactId:artifact.id,title:finalTitle,finalDescLength:finalDescription?.length,finalDescription:finalDescription?.substring(0,200),hasFinalDesc:!!finalDescription},timestamp:Date.now(),sessionId:'debug-session',runId:'desc-debug-v2',hypothesisId:'E'})}).catch(()=>{});
+    // #endregion
     
     // Merge participants from upcoming event if available (they may be more complete)
     let finalParticipants = participants;
@@ -1376,6 +1398,7 @@ export default async (req, res) => {
       hasTranscript: hasTranscriptFlag,
       hasRecording: hasRecordingFlag,
       hasRecallRecording: hasRecallRecordingFlag,
+      hasTeamsRecording: hasTeamsRecordingFlag,
       transcriptStatus: hasTranscriptFlag ? "complete" : "missing",
       summaryStatus: summary ? "complete" : "missing",
       recordingStatus: hasRecordingFlag ? "complete" : "missing",
@@ -1390,6 +1413,9 @@ export default async (req, res) => {
         null,
       participants: finalParticipants,
       description: finalDescription,
+      // #region agent log
+      _debugDescription: finalDescription, // Keep for debugging
+      // #endregion
       organizer: calendarEvent ? getAttendeesFromEvent(calendarEvent).find(a => a.organizer) : null,
       calendarEmail: calendarEvent?.Calendar?.email || null,
       platform: calendarEvent?.Calendar?.platform || null,
@@ -1431,6 +1457,7 @@ export default async (req, res) => {
       hasTranscript: false,
       hasRecording: false,
       hasRecallRecording: false,
+      hasTeamsRecording: false,
       transcriptStatus: "missing",
       summaryStatus: "complete",
       recordingStatus: "missing",
@@ -1465,6 +1492,9 @@ export default async (req, res) => {
   } else if (hasRecallRecordingFilter === false) {
     // If explicitly set to false, show only meetings without Recall recordings
     meetings = meetings.filter((m) => m.hasRecallRecording !== true);
+  }
+  if (hasTeamsRecordingFilter !== null) {
+    meetings = meetings.filter((m) => m.hasTeamsRecording === hasTeamsRecordingFilter);
   }
   if (q && q.trim().length > 0) {
     const qLower = q.trim().toLowerCase();
@@ -1548,6 +1578,7 @@ export default async (req, res) => {
       hasSummary: hasSummaryFilter,
       hasRecording: hasRecordingFilter,
       hasRecallRecording: hasRecallRecordingFilter,
+      hasTeamsRecording: hasTeamsRecordingFilter,
       sort: sort || "newest",
     },
   });
