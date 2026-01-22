@@ -78,15 +78,37 @@ class MicrosoftGraphApi {
 
   /**
    * List transcripts for a specific online meeting
+   * Tries /me/ endpoint first (delegated permissions), then /users/{userId}/
    * @param {string} userId - User ID (organizer or participant)
    * @param {string} meetingId - Online meeting ID
    * @returns {Promise<Array>} Array of transcript objects
    */
   async listMeetingTranscripts(userId, meetingId) {
-    return await this.request({
-      path: `/users/${userId}/onlineMeetings/${meetingId}/transcripts`,
-      method: "GET",
-    });
+    // Try /me/ endpoint first (works with delegated permissions)
+    const endpoints = [
+      `/me/onlineMeetings/${meetingId}/transcripts`,
+      `/users/${userId}/onlineMeetings/${meetingId}/transcripts`,
+    ];
+    
+    for (const path of endpoints) {
+      try {
+        const response = await this.request({
+          path,
+          method: "GET",
+        });
+        return response;
+      } catch (error) {
+        // If 403 or 400, try next endpoint
+        if (error.status === 403 || error.status === 400) {
+          console.log(`[MS Graph] Endpoint ${path.split('/transcripts')[0]} failed, trying next...`);
+          continue;
+        }
+        throw error;
+      }
+    }
+    
+    // If all endpoints fail, throw the last error
+    throw new Error(`Could not access transcripts for meeting ${meetingId}`);
   }
 
   /**
@@ -134,23 +156,49 @@ class MicrosoftGraphApi {
   }
 
   /**
-   * Find online meeting by join URL or meeting ID
-   * Note: This may require searching calendar events or using different endpoints
+   * Find online meeting by join URL
+   * Uses the $filter query parameter to search by joinWebUrl
+   * @param {string} userId - User ID (organizer)
    * @param {string} joinWebUrl - Teams meeting join URL
    * @returns {Promise<Object|null>} Meeting details or null
    */
-  async findMeetingByJoinUrl(joinWebUrl) {
-    // Extract meeting ID from Teams URL if possible
-    // Teams URLs format: https://teams.microsoft.com/l/meetup-join/...
-    const match = joinWebUrl.match(/\/meetup-join\/([^\/]+)/);
-    if (!match) {
-      console.log(`[MS Graph] Could not extract meeting ID from URL: ${joinWebUrl}`);
+  async findMeetingByJoinUrl(userId, joinWebUrl) {
+    try {
+      // Try using /me/onlineMeetings first (works with delegated permissions)
+      // Then fall back to /users/{userId}/onlineMeetings
+      const endpoints = [
+        `/me/onlineMeetings?$filter=JoinWebUrl eq '${joinWebUrl}'`,
+        `/users/${userId}/onlineMeetings?$filter=JoinWebUrl eq '${joinWebUrl}'`,
+      ];
+      
+      for (const path of endpoints) {
+        try {
+          const response = await this.request({
+            path,
+            method: "GET",
+          });
+          
+          const meetings = response?.value || [];
+          if (meetings.length > 0) {
+            console.log(`[MS Graph] Found meeting by joinWebUrl: ${meetings[0].id}`);
+            return meetings[0];
+          }
+        } catch (endpointError) {
+          // If 403, the token doesn't have OnlineMeetings.Read permission
+          if (endpointError.status === 403) {
+            console.log(`[MS Graph] Permission denied for ${path.split('?')[0]} - OnlineMeetings.Read permission may be required`);
+            continue;
+          }
+          throw endpointError;
+        }
+      }
+      
+      console.log(`[MS Graph] No meeting found with joinWebUrl (user may need to re-authorize with OnlineMeetings.Read permission)`);
+      return null;
+    } catch (error) {
+      console.error(`[MS Graph] Error finding meeting by joinWebUrl:`, error.message);
       return null;
     }
-
-    // Note: Finding meetings by URL may require different approach
-    // For now, we'll need the userId and meetingId from calendar events
-    return null;
   }
 
   /**

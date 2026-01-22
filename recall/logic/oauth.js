@@ -41,6 +41,8 @@ function buildMicrosoftOutlookOAuthScopes() {
   const baseCalendarScopes = [
     "offline_access", 
     "https://graph.microsoft.com/Calendars.Read",
+    // Teams meeting permissions - needed to find meetings by joinWebUrl
+    "OnlineMeetings.Read",
     // Teams recording and transcript permissions
     "OnlineMeetingTranscript.Read.All",
     "OnlineMeetingRecording.Read.All"

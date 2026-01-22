@@ -93,25 +93,40 @@ function extractTeamsMeetingInfo(calendarEvent) {
     return null;
   }
 
+  // Try to extract organizer Object ID from Teams URL context parameter
+  // Format: context={"Tid":"tenant-id","Oid":"organizer-object-id"}
+  let organizerObjectId = null;
+  try {
+    const contextMatch = meetingUrl.match(/context=([^&]+)/);
+    if (contextMatch) {
+      const context = JSON.parse(decodeURIComponent(contextMatch[1]));
+      organizerObjectId = context.Oid;
+      console.log(`[MS Graph] Extracted organizer Object ID from URL: ${organizerObjectId}`);
+    }
+  } catch (e) {
+    console.log(`[MS Graph] Could not parse context from Teams URL: ${e.message}`);
+  }
+
   // Get organizer/user ID from calendar
   // For Microsoft Outlook calendars, the organizer email is in recallData
   const organizerEmail = calendarEvent.recallData?.raw?.organizer?.emailAddress?.address ||
                          calendarEvent.recallData?.organizer?.email ||
                          calendarEvent.Calendar?.email;
 
-  if (!organizerEmail) {
-    console.log(`[MS Graph] Could not find organizer email for calendar event ${calendarEvent.id}`);
+  if (!organizerEmail && !organizerObjectId) {
+    console.log(`[MS Graph] Could not find organizer email or object ID for calendar event ${calendarEvent.id}`);
     return null;
   }
 
-  // For Graph API, we typically use the organizer's user ID (email or object ID)
-  // Note: We may need to look up the user's object ID, but email often works
-  // Some endpoints accept email, others require object ID
+  // For Graph API, prefer Object ID over email for transcript access
+  // Some endpoints require the exact Object ID from the meeting context
   return {
-    userId: organizerEmail, // Graph API accepts email as userId in many cases
+    userId: organizerObjectId || organizerEmail, // Prefer Object ID if available
+    userEmail: organizerEmail, // Keep email for fallback/logging
     meetingId: meetingId,
     joinWebUrl: meetingUrl,
     onlineMeetingId: onlineMeetingId, // Prefer this if available
+    organizerObjectId: organizerObjectId,
   };
 }
 
@@ -132,9 +147,42 @@ export async function fetchTeamsTranscript(calendarEvent) {
       return null;
     }
 
-    const client = getGraphClient(calendar);
+    // Microsoft Graph API requires the organizer's token to access transcripts
+    // Try to find the organizer's calendar if different from the event's calendar
+    const organizerEmail = calendarEvent.recallData?.raw?.organizer?.emailAddress?.address;
+    let clientCalendar = calendar;
+    
+    if (organizerEmail && organizerEmail.toLowerCase() !== calendar.email?.toLowerCase()) {
+      console.log(`[MS Graph] Event calendar (${calendar.email}) differs from organizer (${organizerEmail}), looking for organizer's calendar...`);
+      
+      try {
+        // Try to find the organizer's calendar
+        // Note: email is a VIRTUAL field derived from recallData, so we need to search by recallData.platform_email
+        const allMicrosoftCalendars = await db.Calendar.findAll({
+          where: {
+            platform: "microsoft_outlook",
+          },
+        });
+        
+        // Find the calendar with matching email (email is a virtual field)
+        const organizerCalendar = allMicrosoftCalendars.find(
+          c => c.email?.toLowerCase() === organizerEmail.toLowerCase()
+        );
+        
+        if (organizerCalendar) {
+          console.log(`[MS Graph] Found organizer's calendar: ${organizerCalendar.id} (${organizerCalendar.email})`);
+          clientCalendar = organizerCalendar;
+        } else {
+          console.log(`[MS Graph] Organizer's calendar not found in database (searched ${allMicrosoftCalendars.length} Microsoft calendars), will try with event calendar's token`);
+        }
+      } catch (dbError) {
+        console.error(`[MS Graph] Error looking up organizer's calendar:`, dbError.message);
+      }
+    }
+
+    const client = getGraphClient(clientCalendar);
     if (!client) {
-      console.log(`[MS Graph] Could not create API client for calendar ${calendar.id}`);
+      console.log(`[MS Graph] Could not create API client for calendar ${clientCalendar.id}`);
       return null;
     }
 
@@ -150,11 +198,26 @@ export async function fetchTeamsTranscript(calendarEvent) {
       }
     }
 
+    // The meeting ID from the URL (thread ID format) doesn't work with Graph API
+    // We need to find the meeting by its joinWebUrl to get the correct meeting ID
+    let actualMeetingId = meetingInfo.meetingId;
+    
+    if (meetingInfo.joinWebUrl) {
+      console.log(`[MS Graph] Looking up meeting by joinWebUrl to get correct meeting ID...`);
+      const meeting = await client.findMeetingByJoinUrl(meetingInfo.userId, meetingInfo.joinWebUrl);
+      if (meeting?.id) {
+        console.log(`[MS Graph] Found meeting with ID: ${meeting.id}`);
+        actualMeetingId = meeting.id;
+      } else {
+        console.log(`[MS Graph] Could not find meeting by joinWebUrl, trying with thread ID...`);
+      }
+    }
+
     // List available transcripts for the meeting
     // Note: userId might need to be the organizer's object ID, but email often works
     const transcriptsResponse = await client.listMeetingTranscripts(
       meetingInfo.userId,
-      meetingInfo.meetingId
+      actualMeetingId
     );
 
     const transcripts = transcriptsResponse?.value || transcriptsResponse || [];
@@ -175,7 +238,7 @@ export async function fetchTeamsTranscript(calendarEvent) {
     // Download transcript content
     const transcriptContent = await client.getTranscriptContent(
       meetingInfo.userId,
-      meetingInfo.meetingId,
+      actualMeetingId,
       transcriptId
     );
 
@@ -188,7 +251,7 @@ export async function fetchTeamsTranscript(calendarEvent) {
       content: transcriptContent,
       format: "vtt",
       metadata: transcript,
-      meetingId: meetingInfo.meetingId,
+      meetingId: actualMeetingId,
       userId: meetingInfo.userId,
     };
   } catch (error) {
