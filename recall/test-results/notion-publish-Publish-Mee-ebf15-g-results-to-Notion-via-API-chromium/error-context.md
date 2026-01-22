@@ -1,0 +1,136 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e2]:
+  - navigation [ref=e3]:
+    - generic [ref=e5]:
+      - generic [ref=e6]:
+        - img "tin.info" [ref=e8]
+        - generic [ref=e9]:
+          - link "Home" [ref=e10] [cursor=pointer]:
+            - /url: /
+          - link "Meetings" [ref=e11] [cursor=pointer]:
+            - /url: /meetings
+          - link "Settings" [ref=e12] [cursor=pointer]:
+            - /url: /settings
+      - button "Open user menu" [ref=e16] [cursor=pointer]:
+        - generic [ref=e17]: Open user menu
+  - generic [ref=e18]:
+    - banner [ref=e19]:
+      - heading "Dashboard" [level=1] [ref=e21]
+    - main [ref=e22]:
+      - generic [ref=e24]:
+        - generic [ref=e27]:
+          - generic [ref=e28]:
+            - heading "Meeting Notes & Recordings" [level=2] [ref=e29]
+            - paragraph [ref=e30]: View transcripts, AI summaries, action items, and download recordings from your completed meetings.
+          - link "View Meetings" [ref=e31] [cursor=pointer]:
+            - /url: /meetings
+            - img [ref=e32]
+            - text: View Meetings
+        - generic [ref=e34]:
+          - heading "Connect Your Calendar" [level=3] [ref=e35]
+          - list [ref=e36]:
+            - listitem [ref=e37]:
+              - generic [ref=e39]:
+                - generic [ref=e40]:
+                  - heading "Google Calendar" [level=3] [ref=e41]
+                  - img "Google Calendar Logo" [ref=e42]
+                  - paragraph [ref=e44]: connected
+                - generic [ref=e45]:
+                  - generic "Already connected" [ref=e46]: Connected
+                  - link "Reconnect" [ref=e47] [cursor=pointer]:
+                    - /url: https://accounts.google.com/o/oauth2/v2/auth?client_id=undefined&redirect_uri=http%3A%2F%2Flocalhost%3A3003%2Foauth-callback%2Fgoogle-calendar&response_type=code&scope=https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fuserinfo.email+https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fcalendar.events.readonly&access_type=offline&prompt=consent&state=%7B%22userId%22%3A%222b29d2ea-dd9b-4373-b2de-1a5d13c82451%22%2C%22calendarId%22%3A%227af850f1-cb5b-431c-b724-128504855e44%22%7D
+            - listitem [ref=e48]:
+              - generic [ref=e50]:
+                - generic [ref=e51]:
+                  - heading "Microsoft Outlook" [level=3] [ref=e52]
+                  - img "Microsoft Outlook Calendar Logo" [ref=e53]
+                  - paragraph [ref=e55]: connected
+                - generic [ref=e56]:
+                  - generic "Already connected" [ref=e57]: Connected
+                  - link "Reconnect" [ref=e58] [cursor=pointer]:
+                    - /url: https://login.microsoftonline.com/common/oauth2/v2.0/authorize?client_id=undefined&redirect_uri=http%3A%2F%2Flocalhost%3A3003%2Foauth-callback%2Fmicrosoft-outlook&response_type=code&scope=offline_access+https%3A%2F%2Fgraph.microsoft.com%2FCalendars.Read+openid+email&prompt=consent&state=%7B%22userId%22%3A%222b29d2ea-dd9b-4373-b2de-1a5d13c82451%22%2C%22calendarId%22%3A%22ca526018-fc06-4043-a42e-33251ab4322f%22%7D
+        - generic [ref=e59]:
+          - heading "Integrations & Tools" [level=3] [ref=e60]
+          - list [ref=e61]:
+            - listitem [ref=e62]:
+              - generic [ref=e63]:
+                - generic [ref=e64]:
+                  - generic [ref=e65]:
+                    - img [ref=e66]
+                    - heading "Notion" [level=3] [ref=e68]
+                  - link "Connect" [ref=e70] [cursor=pointer]:
+                    - /url: https://api.notion.com/v1/oauth/authorize?client_id=undefined&response_type=code&owner=user&redirect_uri=http%3A%2F%2Flocalhost%3A3003%2Foauth-callback%2Fnotion&state=%7B%22userId%22%3A%222b29d2ea-dd9b-4373-b2de-1a5d13c82451%22%7D
+                - paragraph [ref=e72]: Connect Notion to configure publishing destinations.
+            - listitem [ref=e73]:
+              - generic [ref=e74]:
+                - generic [ref=e76]:
+                  - img [ref=e77]
+                  - heading "Ask My Meetings" [level=3] [ref=e79]
+                - paragraph [ref=e80]: Use AI to search and query across all your meeting transcripts and notes.
+                - generic [ref=e82]:
+                  - generic [ref=e83]:
+                    - generic [ref=e84]: Question
+                    - textbox "Question" [ref=e85]:
+                      - /placeholder: e.g., What were the action items from last week's calls?
+                  - button "Ask" [ref=e86] [cursor=pointer]
+        - list [ref=e87]:
+          - listitem [ref=e88]:
+            - heading "Connected Calendars" [level=3] [ref=e90]
+            - list [ref=e91]:
+              - listitem [ref=e92]:
+                - generic [ref=e94]:
+                  - paragraph [ref=e95]:
+                    - link "gene@tin.info" [ref=e96] [cursor=pointer]:
+                      - /url: /calendar/ca526018-fc06-4043-a42e-33251ab4322f
+                      - text: gene@tin.info
+                  - paragraph [ref=e98]:
+                    - 'link "(Recall ID: f8567c8f-6a12-4ab5-a064-c8fa9d1d0b43)" [ref=e99] [cursor=pointer]':
+                      - /url: /calendar/ca526018-fc06-4043-a42e-33251ab4322f
+                - generic [ref=e100]:
+                  - generic [ref=e101]:
+                    - paragraph
+                    - paragraph [ref=e102]: connected
+                    - paragraph
+                    - paragraph [ref=e103]:
+                      - text: Last updated
+                      - time [ref=e104]: January 19, 2026 at 03:11 AM
+                    - generic [ref=e105]:
+                      - link "Settings" [ref=e106] [cursor=pointer]:
+                        - /url: /calendar/ca526018-fc06-4043-a42e-33251ab4322f
+                        - img [ref=e107]
+                        - text: Settings
+                      - button "Disconnect" [ref=e111] [cursor=pointer]:
+                        - img [ref=e112]
+                        - text: Disconnect
+                      - button "Delete" [ref=e115] [cursor=pointer]
+                  - img [ref=e116]
+              - listitem [ref=e118]:
+                - generic [ref=e120]:
+                  - paragraph [ref=e121]:
+                    - link "gene@velocitypartners.info" [ref=e122] [cursor=pointer]:
+                      - /url: /calendar/7af850f1-cb5b-431c-b724-128504855e44
+                      - text: gene@velocitypartners.info
+                  - paragraph [ref=e124]:
+                    - 'link "(Recall ID: 40594f98-bc9c-49f6-9fbc-1a0847aa68a8)" [ref=e125] [cursor=pointer]':
+                      - /url: /calendar/7af850f1-cb5b-431c-b724-128504855e44
+                - generic [ref=e126]:
+                  - generic [ref=e127]:
+                    - paragraph
+                    - paragraph [ref=e128]: connected
+                    - paragraph
+                    - paragraph [ref=e129]:
+                      - text: Last updated
+                      - time [ref=e130]: January 19, 2026 at 02:09 PM
+                    - generic [ref=e131]:
+                      - link "Settings" [ref=e132] [cursor=pointer]:
+                        - /url: /calendar/7af850f1-cb5b-431c-b724-128504855e44
+                        - img [ref=e133]
+                        - text: Settings
+                      - button "Disconnect" [ref=e137] [cursor=pointer]:
+                        - img [ref=e138]
+                        - text: Disconnect
+                      - button "Delete" [ref=e141] [cursor=pointer]
+                  - img [ref=e142]
+```

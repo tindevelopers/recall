@@ -1,0 +1,126 @@
+<div class="space-y-6">
+  <div>
+    <h3 class="text-lg font-semibold text-gray-900">Publishing Destinations</h3>
+    <p class="text-sm text-gray-500">Configure where meeting summaries, transcript, action items, and metadata are sent.</p>
+  </div>
+
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+    <!-- Notion -->
+    <div class="bg-white rounded-xl border border-gray-200 p-5 hover:shadow-md transition-shadow">
+      <div class="flex items-start space-x-4">
+        <div class="flex-shrink-0 w-12 h-12 bg-gray-900 rounded-xl flex items-center justify-center">
+          <svg class="w-7 h-7 text-white" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M4.459 4.208c.746.606 1.026.56 2.428.466l13.215-.793c.28 0 .047-.28-.046-.326L17.86 1.968c-.42-.326-.98-.7-2.055-.607L3.01 2.295c-.466.046-.56.28-.374.466zm.793 3.08v13.904c0 .747.373 1.027 1.214.98l14.523-.84c.841-.046.935-.56.935-1.167V6.354c0-.606-.233-.933-.748-.887l-15.177.887c-.56.047-.747.327-.747.934zm14.337.745c.093.42 0 .84-.42.888l-.7.14v10.264c-.608.327-1.168.514-1.635.514-.748 0-.935-.234-1.495-.933l-4.577-7.186v6.952l1.448.327s0 .84-1.168.84l-3.22.186c-.094-.186 0-.653.327-.746l.84-.233V9.854L7.822 9.62c-.094-.42.14-1.026.793-1.073l3.454-.233 4.764 7.28v-6.44l-1.215-.14c-.093-.514.28-.887.747-.933zM2.212 1.107l13.028-.933c1.635-.14 2.055-.047 3.08.7l4.249 2.986c.7.514.934.653.934 1.213v16.378c0 1.026-.373 1.634-1.68 1.726l-15.458.934c-.98.047-1.448-.093-1.962-.747l-3.129-4.06c-.56-.747-.793-1.306-.793-1.96V2.667c0-.839.374-1.54 1.73-1.56z"/>
+          </svg>
+        </div>
+        <div class="flex-1">
+          <div class="flex items-center justify-between">
+            <h4 class="text-sm font-semibold text-gray-900">Notion</h4>
+            <% if (notionTarget || notionDestination) { %>
+              <span class="inline-flex items-center rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-800">
+                Connected
+              </span>
+            <% } else { %>
+              <span class="inline-flex items-center rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-600">
+                Not connected
+              </span>
+            <% } %>
+          </div>
+          <p class="text-xs text-gray-500 mt-1">Publish summary, actions, follow-ups, sentiment, transcript, and metadata.</p>
+          <% if (!notionDestination) { %>
+            <a href="/oauth/notion" class="inline-flex items-center text-xs text-indigo-600 hover:text-indigo-500 font-medium mt-2">
+              Connect Notion →
+            </a>
+          <% } else { %>
+            <p class="text-xs text-gray-600 mt-2 truncate">
+              Destination: <span class="font-medium"><%= notionDestination.pageName || notionDestination.pageId %></span>
+            </p>
+          <% } %>
+        </div>
+      </div>
+    </div>
+
+    <!-- Slack -->
+    <div class="bg-white rounded-xl border border-gray-200 p-5 hover:shadow-md transition-shadow">
+      <form method="POST" action="/integrations/slack-target" class="space-y-3">
+        <div class="flex items-start space-x-4">
+          <div class="flex-shrink-0 w-12 h-12 bg-indigo-50 rounded-xl flex items-center justify-center">
+            <svg class="w-7 h-7 text-indigo-600" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M5.1 15.9c0 1.05-.86 1.9-1.9 1.9S1.3 16.95 1.3 15.9s.86-1.9 1.9-1.9h1.9v1.9zm.95 0c0-1.05.86-1.9 1.9-1.9s1.9.85 1.9 1.9v4.75c0 1.05-.86 1.9-1.9 1.9s-1.9-.85-1.9-1.9V15.9zm1.9-10.85c-1.05 0-1.9-.86-1.9-1.9S6 1.25 7.05 1.25 8.95 2.1 8.95 3.15v1.9H7.05zm0 .95c1.05 0 1.9.86 1.9 1.9s-.86 1.9-1.9 1.9H2.3c-1.05 0-1.9-.86-1.9-1.9S1.25 6 2.3 6h4.75zM18.9 8.05c0-1.05.86-1.9 1.9-1.9s1.9.86 1.9 1.9-.86 1.9-1.9 1.9h-1.9v-1.9zm-.95 0c0 1.05-.86 1.9-1.9 1.9s-1.9-.86-1.9-1.9V3.3c0-1.05.86-1.9 1.9-1.9s1.9.86 1.9 1.9v4.75zm-1.9 10.85c1.05 0 1.9.86 1.9 1.9s-.86 1.9-1.9 1.9-1.9-.86-1.9-1.9v-1.9h1.9zm0-.95c-1.05 0-1.9-.86-1.9-1.9s.86-1.9 1.9-1.9h4.75c1.05 0 1.9.86 1.9 1.9s-.86 1.9-1.9 1.9H16.05z"/>
+            </svg>
+          </div>
+          <div class="flex-1">
+            <div class="flex items-center justify-between">
+              <h4 class="text-sm font-semibold text-gray-900">Slack</h4>
+              <% if (slackTarget) { %>
+                <span class="inline-flex items-center rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-800">
+                  Configured
+                </span>
+              <% } else { %>
+                <span class="inline-flex items-center rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-600">
+                  Not configured
+                </span>
+              <% } %>
+            </div>
+            <p class="text-xs text-gray-500 mt-1">Post summary, actions, follow-ups, sentiment, and metadata to Slack via webhook.</p>
+          </div>
+        </div>
+        <div class="space-y-2">
+          <label class="block text-xs font-medium text-gray-700">Webhook URL</label>
+          <input name="webhookUrl" type="url" required value="<%= slackTarget?.config?.webhookUrl || '' %>" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm">
+          <div class="flex items-center space-x-2">
+            <input id="slack-enabled" name="enabled" type="checkbox" <%= slackTarget?.enabled ? 'checked' : '' %> class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500">
+            <label for="slack-enabled" class="text-xs text-gray-700">Enable Slack publishing</label>
+          </div>
+          <button type="submit" class="inline-flex items-center rounded-md bg-indigo-600 px-3 py-2 text-xs font-semibold text-white shadow-sm hover:bg-indigo-500">
+            Save Slack Target
+          </button>
+        </div>
+      </form>
+    </div>
+
+    <!-- Teamwork -->
+    <div class="bg-white rounded-xl border border-gray-200 p-5 hover:shadow-md transition-shadow">
+      <form method="POST" action="/integrations/teamwork-target" class="space-y-3">
+        <div class="flex items-start space-x-4">
+          <div class="flex-shrink-0 w-12 h-12 bg-green-50 rounded-xl flex items-center justify-center">
+            <svg class="w-7 h-7 text-green-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M3 5a2 2 0 012-2h4.5l2 2H19a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2V5z"/>
+              <path stroke-linecap="round" stroke-linejoin="round" d="M8 14l2 2 4-4"/>
+            </svg>
+          </div>
+          <div class="flex-1">
+            <div class="flex items-center justify-between">
+              <h4 class="text-sm font-semibold text-gray-900">Teamwork</h4>
+              <% if (teamworkTarget) { %>
+                <span class="inline-flex items-center rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-800">
+                  Configured
+                </span>
+              <% } else { %>
+                <span class="inline-flex items-center rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-600">
+                  Not configured
+                </span>
+              <% } %>
+            </div>
+            <p class="text-xs text-gray-500 mt-1">Create Teamwork tasks for action items and include summary metadata.</p>
+          </div>
+        </div>
+        <div class="space-y-2">
+          <label class="block text-xs font-medium text-gray-700">Base URL (e.g., https://yourcompany.teamwork.com)</label>
+          <input name="baseUrl" type="url" required value="<%= teamworkTarget?.config?.baseUrl || '' %>" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm">
+          <label class="block text-xs font-medium text-gray-700">API Key</label>
+          <input name="apiKey" type="password" required value="<%= teamworkTarget?.config?.apiKey || '' %>" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm">
+          <div class="flex items-center space-x-2">
+            <input id="teamwork-enabled" name="enabled" type="checkbox" <%= teamworkTarget?.enabled ? 'checked' : '' %> class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500">
+            <label for="teamwork-enabled" class="text-xs text-gray-700">Enable Teamwork publishing</label>
+          </div>
+          <button type="submit" class="inline-flex items-center rounded-md bg-indigo-600 px-3 py-2 text-xs font-semibold text-white shadow-sm hover:bg-indigo-500">
+            Save Teamwork Target
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+

@@ -81,3 +81,4 @@ echo "   - Verify it has start command: npm run start:worker"
 echo ""
 
 
+

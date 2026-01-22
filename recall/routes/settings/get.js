@@ -50,6 +50,14 @@ export default async (req, res) => {
     });
   }
 
+  // Publishing targets
+  const publishTargets = await db.PublishTarget.findAll({
+    where: { userId },
+  });
+  const slackTarget = publishTargets.find((t) => t.type === "slack") || null;
+  const teamworkTarget = publishTargets.find((t) => t.type === "teamwork") || null;
+  const notionTarget = publishTargets.find((t) => t.type === "notion") || null;
+
   return res.render("settings.ejs", {
     notice: req.notice,
     user: req.authentication.user,
@@ -57,5 +65,9 @@ export default async (req, res) => {
     calendar,
     webhookCount,
     notionDestination,
+    publishTargets,
+    slackTarget,
+    teamworkTarget,
+    notionTarget,
   });
 };

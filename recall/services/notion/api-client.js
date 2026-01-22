@@ -10,6 +10,11 @@ function buildHeaders(accessToken) {
   };
 }
 
+function normalizeNotionId(id) {
+  if (!id || typeof id !== "string") return id;
+  return id.replace(/-/g, "");
+}
+
 async function notionRequest({ accessToken, path, method = "POST", body }) {
   const res = await fetch(`https://api.notion.com/v1${path}`, {
     method,
@@ -18,9 +23,12 @@ async function notionRequest({ accessToken, path, method = "POST", body }) {
   });
   if (!res.ok) {
     const text = await res.text();
-    throw new Error(
+    const err = new Error(
       `Notion request failed (${res.status}) ${path}: ${text || "unknown"}`
     );
+    err.status = res.status;
+    err.body = text;
+    throw err;
   }
   return await res.json();
 }
@@ -138,11 +146,12 @@ export async function createPageInDatabase({
   title,
   children,
 }) {
+  const dbId = normalizeNotionId(databaseId);
   return notionRequest({
     accessToken,
     path: "/pages",
     body: {
-      parent: { database_id: databaseId },
+      parent: { database_id: dbId },
       properties: {
         Name: {
           title: [
@@ -160,13 +169,39 @@ export async function createPageInDatabase({
 }
 
 export async function appendBlocksToPage({ accessToken, pageId, children }) {
-  return notionRequest({
-    accessToken,
-    path: `/blocks/${pageId}/children`,
-    body: {
-      children,
-    },
-  });
+  const blockIdNormalized = normalizeNotionId(pageId);
+  const blockIdHyphenated = pageId;
+  
+  // Try normalized ID first, then fall back to hyphenated if Notion rejects the URL
+  const candidates = [blockIdNormalized, blockIdHyphenated].filter(Boolean);
+  
+  let lastError = null;
+  for (const candidate of candidates) {
+    try {
+      return await notionRequest({
+        accessToken,
+        path: `/blocks/${candidate}/children`,
+        method: "PATCH",
+        body: {
+          children,
+        },
+      });
+    } catch (err) {
+      lastError = err;
+      // If Notion says invalid_request_url, try the next candidate
+      if (
+        err.status === 400 &&
+        typeof err.message === "string" &&
+        err.message.toLowerCase().includes("invalid request url")
+      ) {
+        continue;
+      }
+      throw err;
+    }
+  }
+  
+  // If all attempts failed, throw the last error
+  throw lastError;
 }
 
 
