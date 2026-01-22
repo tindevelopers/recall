@@ -585,12 +585,13 @@
                             
                             <!-- Quick Action Icons -->
                             <div class="flex items-center space-x-1">
-                              <!-- Play Recording Button -->
+                              <!-- Play Recording Button - enabled for Recall recordings or Teams recordings -->
+                              <% const canPlayVideo = meeting.hasRecording || meeting.hasTeamsRecording; %>
                               <button 
                                 onclick='openPlayerModal("<%= meeting.id %>", "<%= (meeting.recordingUrl || "").replace(/"/g, "\\\"") %>", "<%= (meeting.audioUrl || "").replace(/"/g, "\\\"") %>", "<%= (meeting.title || "Meeting").replace(/"/g, "\\\"") %>")'
-                                class="<%= meeting.hasRecording ? 'text-green-600 hover:bg-green-50' : 'text-gray-300 cursor-not-allowed' %> p-2 rounded-lg transition-colors"
-                                title="<%= meeting.hasRecording ? 'Play Recording' : 'No recording available' %>"
-                                <%= meeting.hasRecording ? '' : 'disabled' %>
+                                class="<%= canPlayVideo ? 'text-green-600 hover:bg-green-50' : 'text-gray-300 cursor-not-allowed' %> p-2 rounded-lg transition-colors"
+                                title="<%= canPlayVideo ? 'Play Recording' : 'No recording available' %>"
+                                <%= canPlayVideo ? '' : 'disabled' %>
                               >
                                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"></path>
@@ -797,13 +798,15 @@ async function updateTranscriptionMode(selectElement) {
 }
 
 // Modal functions
-function openPlayerModal(meetingId, videoUrl, audioUrl, title) {
+async function openPlayerModal(meetingId, videoUrl, audioUrl, title) {
   const modal = document.getElementById('player-modal');
   const titleEl = document.getElementById('player-modal-title');
   const content = document.getElementById('player-modal-content');
   
   titleEl.textContent = title;
+  modal.classList.remove('hidden');
   
+  // If we have URLs, play directly
   if (videoUrl) {
     content.innerHTML = `
       <video controls class="w-full rounded-lg" autoplay>
@@ -812,18 +815,51 @@ function openPlayerModal(meetingId, videoUrl, audioUrl, title) {
       </video>
       ${audioUrl ? `<p class="mt-3 text-sm text-gray-500"><a href="${audioUrl}" target="_blank" class="text-indigo-600 hover:underline">Download audio only</a></p>` : ''}
     `;
-  } else if (audioUrl) {
+    return;
+  }
+  
+  if (audioUrl) {
     content.innerHTML = `
       <audio controls class="w-full" autoplay>
         <source src="${audioUrl}" type="audio/mpeg">
         Your browser does not support the audio element.
       </audio>
     `;
-  } else {
-    content.innerHTML = '<p class="text-gray-500">No recording available</p>';
+    return;
   }
   
-  modal.classList.remove('hidden');
+  // No URL provided - try to fetch recording info from API
+  content.innerHTML = '<div class="flex items-center justify-center py-8"><div class="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600"></div><span class="ml-3 text-gray-500">Loading recording...</span></div>';
+  
+  try {
+    const response = await fetch(`/api/meetings/${meetingId}/recording`);
+    if (response.ok) {
+      const data = await response.json();
+      if (data.videoUrl) {
+        content.innerHTML = `
+          <video controls class="w-full rounded-lg" autoplay>
+            <source src="${data.videoUrl}" type="video/mp4">
+            Your browser does not support the video tag.
+          </video>
+          ${data.audioUrl ? `<p class="mt-3 text-sm text-gray-500"><a href="${data.audioUrl}" target="_blank" class="text-indigo-600 hover:underline">Download audio only</a></p>` : ''}
+        `;
+      } else if (data.audioUrl) {
+        content.innerHTML = `
+          <audio controls class="w-full" autoplay>
+            <source src="${data.audioUrl}" type="audio/mpeg">
+            Your browser does not support the audio element.
+          </audio>
+        `;
+      } else {
+        content.innerHTML = '<p class="text-gray-500 text-center py-8">No recording available for this meeting</p>';
+      }
+    } else {
+      content.innerHTML = '<p class="text-gray-500 text-center py-8">No recording available for this meeting</p>';
+    }
+  } catch (error) {
+    console.error('Error fetching recording:', error);
+    content.innerHTML = '<p class="text-red-500 text-center py-8">Failed to load recording</p>';
+  }
 }
 
 async function openTranscriptModal(meetingId, title) {
