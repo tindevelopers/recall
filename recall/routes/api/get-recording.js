@@ -140,12 +140,11 @@ export default async (req, res) => {
     await artifact.update({ rawPayload: updatedPayload });
     console.log(`[GET-RECORDING] Updated artifact ${artifact.id} with recording URLs`);
 
-    // Check for Teams recording URL in artifact
-    // Teams recordings are typically accessed via Microsoft Stream or Teams web interface
-    // We can construct a link to view the recording if we have the meeting URL
-    let teamsVideoUrl = artifact.rawPayload?.data?.teamsRecordingUrl ||
-                        artifact.rawPayload?.data?.teams_video_url ||
-                        artifact.rawPayload?.teamsRecordingUrl;
+    // Refresh Teams recording URL after updating payload (reuse existing variable from above)
+    teamsVideoUrl = artifact.rawPayload?.data?.teamsRecordingUrl ||
+                    artifact.rawPayload?.data?.teams_video_url ||
+                    artifact.rawPayload?.teamsRecordingUrl ||
+                    teamsVideoUrl;
     
     // If no direct Teams URL but we have a Teams meeting URL, we can link to the meeting
     // Teams recordings are typically accessible through the meeting page
