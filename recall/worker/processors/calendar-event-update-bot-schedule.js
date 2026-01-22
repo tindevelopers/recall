@@ -103,24 +103,27 @@ export default async (job) => {
       // Check if another user from the same company already has a bot scheduled
       sharedBotInfo = await checkForSharedBot(event.meetingUrl, calendar.userId, userEmail);
       
+      if (sharedBotInfo.hasSharedBot && sharedBotInfo.sharedBotId) {
+        // Another user from the same company already has a bot scheduled for this meeting
+        // Skip scheduling to avoid duplicate bots
+        console.log(
+          `[SHARED-BOT] Skipping - bot already scheduled by same company: eventId=${event.id} sharedEventId=${sharedBotInfo.sharedEventId} sharedBotId=${sharedBotInfo.sharedBotId} sharedUser=${sharedBotInfo.sharedUserEmail}`
+        );
+        return; // Exit early - no need to schedule another bot
+      }
+      
       if (sharedBotInfo.hasSharedBot) {
         console.log(
           `[SHARED-BOT] Found existing bot from same company: eventId=${event.id} sharedEventId=${sharedBotInfo.sharedEventId} sharedBotId=${sharedBotInfo.sharedBotId} sharedUser=${sharedBotInfo.sharedUserEmail}`
         );
-        
-        // Use shared deduplication key so Recall API uses the same bot
-        const sharedKey = getSharedDeduplicationKey(event.meetingUrl, userEmail);
-        if (sharedKey) {
-          deduplicationKey = sharedKey;
-          console.log(`[SHARED-BOT] Using shared deduplication key: ${deduplicationKey}`);
-        }
-      } else {
-        // Try to use shared key anyway for future coordination
-        const sharedKey = getSharedDeduplicationKey(event.meetingUrl, userEmail);
-        if (sharedKey) {
-          deduplicationKey = sharedKey;
-          console.log(`[SHARED-BOT] Using shared deduplication key for company coordination: ${deduplicationKey}`);
-        }
+      }
+      
+      // Use shared deduplication key for company coordination
+      // This ensures only one bot is scheduled even if multiple users try simultaneously
+      const sharedKey = getSharedDeduplicationKey(event.meetingUrl, userEmail);
+      if (sharedKey) {
+        deduplicationKey = sharedKey;
+        console.log(`[SHARED-BOT] Using shared deduplication key: ${deduplicationKey}`);
       }
     }
     
@@ -161,6 +164,13 @@ export default async (job) => {
       // #region agent log
       fetch('http://127.0.0.1:7250/ingest/bf0206c3-6e13-4499-92a3-7fb2b7527fcf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'worker/processors/calendar-event-update-bot-schedule.js:api_call_failed',message:'Recall API call failed',data:{eventId:event.id,recallEventId:event.recallId,errorMessage:error.message,errorStatus:error.res?.status,hasErrorBody:!!error.body,errorBodyPreview:error.body?.substring(0,200)},timestamp:Date.now(),sessionId:'debug-session',runId:'bot-schedule',hypothesisId:'A'})}).catch(()=>{});
       // #endregion
+      
+      // Handle 409 conflict gracefully - this means deduplication is working correctly
+      // Another request with the same deduplication key is already in progress
+      if (error.message?.includes('status 409') || error.message?.includes('conflict')) {
+        console.log(`[BOT_CONFIG] Bot scheduling deduplicated (409 conflict) for event ${event.id} - another request is in progress`);
+        return; // Don't throw - this is expected behavior for shared bots
+      }
       
       console.error(`[BOT_CONFIG] Failed to schedule bot for event ${event.id}:`, error.message);
       // Log the full error for debugging
