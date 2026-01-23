@@ -62,12 +62,17 @@
                 </span>
               <% } %>
             </div>
-            <p class="text-xs text-gray-500 mt-1">Post summary, actions, follow-ups, sentiment, and metadata to Slack via webhook.</p>
+            <p class="text-xs text-gray-500 mt-1">Post summary, actions, follow-ups, sentiment, and metadata to Slack via OAuth (channel selection).</p>
           </div>
         </div>
         <div class="space-y-2">
-          <label class="block text-xs font-medium text-gray-700">Webhook URL</label>
-          <input name="webhookUrl" type="url" required value="<%= slackTarget?.config?.webhookUrl || '' %>" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm">
+          <a href="/oauth/slack" class="inline-flex items-center text-xs text-indigo-600 hover:text-indigo-500 font-medium">
+            Connect Slack →
+          </a>
+          <label class="block text-xs font-medium text-gray-700 mt-2">Channel ID</label>
+          <input name="channelId" type="text" required value="<%= slackTarget?.config?.channelId || '' %>" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm" placeholder="C12345678">
+          <label class="block text-xs font-medium text-gray-700">Channel Name (optional)</label>
+          <input name="channelName" type="text" value="<%= slackTarget?.config?.channelName || '' %>" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm" placeholder="channel-name">
           <div class="flex items-center space-x-2">
             <input id="slack-enabled" name="enabled" type="checkbox" <%= slackTarget?.enabled ? 'checked' : '' %> class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500">
             <label for="slack-enabled" class="text-xs text-gray-700">Enable Slack publishing</label>
@@ -75,6 +80,7 @@
           <button type="submit" class="inline-flex items-center rounded-md bg-indigo-600 px-3 py-2 text-xs font-semibold text-white shadow-sm hover:bg-indigo-500">
             Save Slack Target
           </button>
+          <p class="text-[11px] text-gray-500">Tip: Connect Slack first, then paste a channel ID (e.g., C123...) or use the upcoming channel picker.</p>
         </div>
       </form>
     </div>
@@ -110,6 +116,12 @@
           <input name="baseUrl" type="url" required value="<%= teamworkTarget?.config?.baseUrl || '' %>" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm">
           <label class="block text-xs font-medium text-gray-700">API Key</label>
           <input name="apiKey" type="password" required value="<%= teamworkTarget?.config?.apiKey || '' %>" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm">
+          <label class="block text-xs font-medium text-gray-700">Project ID (optional)</label>
+          <input name="projectId" type="text" value="<%= teamworkTarget?.config?.projectId || '' %>" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm" placeholder="Project ID">
+          <label class="block text-xs font-medium text-gray-700">Tasklist ID (optional)</label>
+          <input name="tasklistId" type="text" value="<%= teamworkTarget?.config?.tasklistId || '' %>" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm" placeholder="Tasklist ID">
+          <label class="block text-xs font-medium text-gray-700">Milestone ID (optional)</label>
+          <input name="milestoneId" type="text" value="<%= teamworkTarget?.config?.milestoneId || '' %>" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm" placeholder="Milestone ID">
           <div class="flex items-center space-x-2">
             <input id="teamwork-enabled" name="enabled" type="checkbox" <%= teamworkTarget?.enabled ? 'checked' : '' %> class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500">
             <label for="teamwork-enabled" class="text-xs text-gray-700">Enable Teamwork publishing</label>

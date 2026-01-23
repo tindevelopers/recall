@@ -768,6 +768,17 @@
                   </button>
                   <button
                     type="button"
+                    onclick="openSlackDestinationPicker('<%= meeting.artifactId %>')"
+                    id="publish-slack-btn"
+                    class="w-full inline-flex items-center justify-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-sky-600 shadow-sm ring-1 ring-inset ring-sky-200 hover:bg-sky-50"
+                  >
+                    <svg class="mr-2 h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M5.1 15.9c0 1.05-.86 1.9-1.9 1.9S1.3 16.95 1.3 15.9s.86-1.9 1.9-1.9h1.9v1.9zm.95 0c0-1.05.86-1.9 1.9-1.9s1.9.85 1.9 1.9v4.75c0 1.05-.86 1.9-1.9 1.9s-1.9-.85-1.9-1.9V15.9zm1.9-10.85c-1.05 0-1.9-.86-1.9-1.9S6 1.25 7.05 1.25 8.95 2.1 8.95 3.15v1.9H7.05zm0 .95c1.05 0 1.9.86 1.9 1.9s-.86 1.9-1.9 1.9H2.3c-1.05 0-1.9-.86-1.9-1.9S1.25 6 2.3 6h4.75zM18.9 8.05c0-1.05.86-1.9 1.9-1.9s1.9.86 1.9 1.9-.86 1.9-1.9 1.9h-1.9v-1.9zm-.95 0c0 1.05-.86 1.9-1.9 1.9s-1.9-.86-1.9-1.9V3.3c0-1.05.86-1.9 1.9-1.9s1.9.86 1.9 1.9v4.75zm-1.9 10.85c1.05 0 1.9.86 1.9 1.9s-.86 1.9-1.9 1.9-1.9-.86-1.9-1.9v-1.9h1.9zm0-.95c-1.05 0-1.9-.86-1.9-1.9s.86-1.9 1.9-1.9h4.75c1.05 0 1.9.86 1.9 1.9s-.86 1.9-1.9 1.9H16.05z"/>
+                    </svg>
+                    <span id="publish-slack-btn-text">Publish to Slack</span>
+                  </button>
+                  <button
+                    type="button"
                     onclick="publishToNotion('<%= meeting.artifactId %>')"
                     id="publish-btn"
                     class="w-full inline-flex items-center justify-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-700 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50"
@@ -1578,6 +1589,122 @@
     }
   }
 
+  // ===== Slack Destination Picker =====
+  let slackChannels = [];
+  let selectedSlackChannelId = null;
+  let createSlackChannelName = '';
+  let inviteAllSlack = false;
+
+  async function openSlackDestinationPicker(artifactId) {
+    publishArtifactId = artifactId;
+    const modal = document.getElementById('slack-destination-modal');
+    const listContainer = document.getElementById('slack-channels-list');
+    const loadingEl = document.getElementById('slack-channels-loading');
+    const errorEl = document.getElementById('slack-channels-error');
+    const createNameInput = document.getElementById('slack-create-channel-name');
+    const inviteAllCheckbox = document.getElementById('slack-invite-all-checkbox');
+    selectedSlackChannelId = null;
+    createSlackChannelName = '';
+    inviteAllSlack = false;
+    createNameInput.value = '';
+    inviteAllCheckbox.checked = false;
+    listContainer.innerHTML = '';
+    loadingEl.classList.remove('hidden');
+    errorEl.classList.add('hidden');
+    document.getElementById('slack-publish-btn').disabled = true;
+    modal.classList.remove('hidden');
+
+    try {
+      const resp = await fetch('/api/slack/channels');
+      const data = await resp.json();
+      if (!resp.ok) throw new Error(data.error || 'Failed to load Slack channels');
+      slackChannels = data.channels || [];
+      selectedSlackChannelId = slackChannels[0]?.id || null;
+      renderSlackChannels(slackChannels);
+      document.getElementById('slack-publish-btn').disabled = !(selectedSlackChannelId || createSlackChannelName);
+    } catch (err) {
+      console.error('Error loading Slack channels:', err);
+      errorEl.textContent = err.message || 'Failed to load Slack channels. Please connect Slack in Settings.';
+      errorEl.classList.remove('hidden');
+    } finally {
+      loadingEl.classList.add('hidden');
+    }
+  }
+
+  function closeSlackDestinationPicker() {
+    document.getElementById('slack-destination-modal').classList.add('hidden');
+  }
+
+  function renderSlackChannels(channels) {
+    const listContainer = document.getElementById('slack-channels-list');
+    if (!channels.length) {
+      listContainer.innerHTML = '<p class="text-xs text-gray-500">No channels found. Create one below.</p>';
+      return;
+    }
+    listContainer.innerHTML = channels.map(ch => `
+      <button
+        type="button"
+        onclick="selectSlackChannel('${ch.id}', '${ch.name}')"
+        class="w-full flex items-center px-3 py-2 rounded-lg text-left transition-colors ${selectedSlackChannelId === ch.id ? 'bg-sky-50 ring-2 ring-sky-500 text-sky-700' : 'hover:bg-gray-50 text-gray-700'}"
+      >
+        <div class="flex-1 min-w-0">
+          <p class="text-sm font-medium truncate">#${ch.name}</p>
+          <p class="text-xs text-gray-500">${ch.isPrivate ? 'Private' : 'Public'}</p>
+        </div>
+        ${selectedSlackChannelId === ch.id ? `<svg class="h-5 w-5 text-sky-600 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg>` : ''}
+      </button>
+    `).join('');
+  }
+
+  function selectSlackChannel(id, name) {
+    selectedSlackChannelId = id;
+    createSlackChannelName = '';
+    document.getElementById('slack-create-channel-name').value = '';
+    document.getElementById('slack-publish-btn').disabled = false;
+    renderSlackChannels(slackChannels);
+  }
+
+  function onSlackCreateNameInput(val) {
+    createSlackChannelName = val.trim();
+    if (createSlackChannelName) {
+      selectedSlackChannelId = null;
+    }
+    document.getElementById('slack-publish-btn').disabled = !(selectedSlackChannelId || createSlackChannelName);
+    renderSlackChannels(slackChannels);
+  }
+
+  async function publishToSlackSelected() {
+    if (!publishArtifactId) return;
+    const btn = document.getElementById('slack-publish-btn');
+    const btnText = btn.querySelector('span');
+    const originalText = btnText.textContent;
+    btn.disabled = true;
+    btnText.textContent = 'Publishing...';
+    const payload = {
+      channelId: selectedSlackChannelId,
+      channelName: slackChannels.find(c => c.id === selectedSlackChannelId)?.name || null,
+      createChannelName: createSlackChannelName || undefined,
+      inviteAll: document.getElementById('slack-invite-all-checkbox').checked,
+    };
+    try {
+      const resp = await fetch(`/api/meetings/${publishArtifactId}/publish/slack`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const data = await resp.json();
+      if (!resp.ok) throw new Error(data.error || 'Failed to publish to Slack');
+      closeSlackDestinationPicker();
+      showNotification('Publishing to Slack...', 'info');
+      setTimeout(() => window.location.reload(), 1500);
+    } catch (err) {
+      console.error('Slack publish error:', err);
+      showNotification(err.message || 'Failed to publish to Slack', 'error');
+      btn.disabled = false;
+      btnText.textContent = originalText;
+    }
+  }
+
   function escapeHtml(text) {
     const div = document.createElement('div');
     div.textContent = text;
@@ -1621,6 +1748,84 @@
     }
   }
 </script>
+
+<!-- Slack Destination Picker Modal -->
+<div id="slack-destination-modal" class="hidden fixed inset-0 z-50 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+  <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+    <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" onclick="closeSlackDestinationPicker()"></div>
+    <div class="inline-block align-bottom bg-white rounded-lg px-4 pt-5 pb-4 text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full sm:p-6">
+      <div class="absolute top-0 right-0 pt-4 pr-4">
+        <button type="button" onclick="closeSlackDestinationPicker()" class="bg-white rounded-md text-gray-400 hover:text-gray-500 focus:outline-none">
+          <span class="sr-only">Close</span>
+          <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+          </svg>
+        </button>
+      </div>
+      <div class="sm:flex sm:items-start">
+        <div class="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-sky-100 sm:mx-0 sm:h-10 sm:w-10">
+          <svg class="h-6 w-6 text-sky-600" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M5.1 15.9c0 1.05-.86 1.9-1.9 1.9S1.3 16.95 1.3 15.9s.86-1.9 1.9-1.9h1.9v1.9zm.95 0c0-1.05.86-1.9 1.9-1.9s1.9.85 1.9 1.9v4.75c0 1.05-.86 1.9-1.9 1.9s-1.9-.85-1.9-1.9V15.9zm1.9-10.85c-1.05 0-1.9-.86-1.9-1.9S6 1.25 7.05 1.25 8.95 2.1 8.95 3.15v1.9H7.05zm0 .95c1.05 0 1.9.86 1.9 1.9s-.86 1.9-1.9 1.9H2.3c-1.05 0-1.9-.86-1.9-1.9S1.25 6 2.3 6h4.75zM18.9 8.05c0-1.05.86-1.9 1.9-1.9s1.9.86 1.9 1.9-.86 1.9-1.9 1.9h-1.9v-1.9zm-.95 0c0 1.05-.86 1.9-1.9 1.9s-1.9-.86-1.9-1.9V3.3c0-1.05.86-1.9 1.9-1.9s1.9.86 1.9 1.9v4.75zm-1.9 10.85c1.05 0 1.9.86 1.9 1.9s-.86 1.9-1.9 1.9-1.9-.86-1.9-1.9v-1.9h1.9zm0-.95c-1.05 0-1.9-.86-1.9-1.9s.86-1.9 1.9-1.9h4.75c1.05 0 1.9.86 1.9 1.9s-.86 1.9-1.9 1.9H16.05z"/>
+          </svg>
+        </div>
+        <div class="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left flex-1">
+          <h3 class="text-lg leading-6 font-medium text-gray-900">Publish to Slack</h3>
+          <p class="mt-1 text-sm text-gray-500">Choose a channel or create a new one to post this meeting.</p>
+        </div>
+      </div>
+
+      <div class="mt-4">
+        <div id="slack-channels-loading" class="mt-4 text-center py-6">
+          <svg class="animate-spin h-8 w-8 text-sky-600 mx-auto" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+          </svg>
+          <p class="mt-2 text-sm text-gray-500">Loading Slack channels...</p>
+        </div>
+        <div id="slack-channels-error" class="hidden mt-2 p-3 bg-red-50 rounded-md text-sm text-red-700"></div>
+        <div id="slack-channels-list" class="mt-2 max-h-56 overflow-y-auto space-y-1"></div>
+
+        <div class="mt-4 space-y-2">
+          <label class="block text-xs font-medium text-gray-700">Or create a new channel</label>
+          <input
+            type="text"
+            id="slack-create-channel-name"
+            placeholder="e.g., meeting-recaps"
+            class="block w-full rounded-md border-gray-300 shadow-sm focus:border-sky-500 focus:ring-sky-500 sm:text-sm"
+            oninput="onSlackCreateNameInput(this.value)"
+          />
+          <div class="flex items-center space-x-2 mt-2">
+            <input
+              type="checkbox"
+              id="slack-invite-all-checkbox"
+              class="h-4 w-4 text-sky-600 border-gray-300 rounded focus:ring-sky-500"
+            />
+            <label for="slack-invite-all-checkbox" class="text-xs text-gray-700">Invite all users</label>
+          </div>
+        </div>
+      </div>
+
+      <div class="mt-5 sm:mt-4 sm:flex sm:flex-row-reverse gap-3">
+        <button
+          type="button"
+          id="slack-publish-btn"
+          onclick="publishToSlackSelected()"
+          disabled
+          class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-sky-600 text-base font-medium text-white hover:bg-sky-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-sky-500 sm:w-auto sm:text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          <span>Publish to Selected</span>
+        </button>
+        <button
+          type="button"
+          onclick="closeSlackDestinationPicker()"
+          class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-sky-500 sm:mt-0 sm:w-auto sm:text-sm"
+        >
+          Cancel
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
 
 <!-- Notion Destination Picker Modal -->
 <div id="notion-destination-modal" class="hidden fixed inset-0 z-50 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">

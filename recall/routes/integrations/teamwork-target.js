@@ -12,7 +12,7 @@ export default async (req, res) => {
   }
 
   try {
-    const { baseUrl, apiKey, enabled } = req.body;
+    const { baseUrl, apiKey, projectId, tasklistId, milestoneId, enabled } = req.body;
     if (!baseUrl || !apiKey) {
       throw new Error("Teamwork base URL and API key are required");
     }
@@ -27,6 +27,9 @@ export default async (req, res) => {
         config: {
           baseUrl,
           apiKey,
+          projectId: projectId || null,
+          tasklistId: tasklistId || null,
+          milestoneId: milestoneId || null,
         },
       },
       { returning: true }

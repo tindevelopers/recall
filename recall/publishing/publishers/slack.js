@@ -1,6 +1,6 @@
 import { BasePublisher } from "../base-publisher.js";
 import { normalizeMeetingData } from "../data-transformer.js";
-import { postMessage } from "../../services/slack/api-client.js";
+import { postMessage } from "../../services/slack/web-api-client.js";
 
 class SlackPublisher extends BasePublisher {
   constructor() {
@@ -104,17 +104,26 @@ class SlackPublisher extends BasePublisher {
     return blocks;
   }
 
-  async send({ payload, target }) {
+  async send({ payload, target, integration }) {
+    if (!integration?.accessToken) {
+      throw new Error("Slack not connected");
+    }
+
+    const channelId = target?.config?.channelId;
+    if (!channelId) {
+      throw new Error("Slack channel not configured");
+    }
+
     const blocks = this.buildBlocks(payload);
-    await postMessage({
-      webhookUrl: target.config.webhookUrl,
+    const resp = await postMessage(integration.accessToken, {
+      channel: channelId,
       text: payload.title,
       blocks,
     });
 
     return {
-      externalId: null,
-      url: null,
+      externalId: resp?.ts || null,
+      url: resp?.channel ? `https://app.slack.com/client/${resp.channel}/${resp.ts}` : null,
     };
   }
 }

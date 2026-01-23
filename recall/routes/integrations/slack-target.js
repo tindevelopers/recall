@@ -12,9 +12,9 @@ export default async (req, res) => {
   }
 
   try {
-    const { webhookUrl, enabled } = req.body;
-    if (!webhookUrl) {
-      throw new Error("Slack webhook URL is required");
+    const { channelId, channelName, enabled } = req.body;
+    if (!channelId) {
+      throw new Error("Slack channel is required");
     }
 
     const userId = req.authentication.user.id;
@@ -25,7 +25,8 @@ export default async (req, res) => {
         type: "slack",
         enabled: enabled === "on" || enabled === true,
         config: {
-          webhookUrl,
+          channelId,
+          channelName,
         },
       },
       { returning: true }

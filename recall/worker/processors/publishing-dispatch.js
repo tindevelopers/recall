@@ -3,7 +3,7 @@ import { getPublisher } from "../../publishing/publisher-registry.js";
 import { v4 as uuidv4 } from "uuid";
 
 export default async (job) => {
-  const { meetingSummaryId, notionOverride } = job.data;
+  const { meetingSummaryId, notionOverride, slackOverride } = job.data;
   console.log(`[PUBLISHING] Starting publishing dispatch for meetingSummary ${meetingSummaryId}`);
   
   if (notionOverride) {
@@ -13,6 +13,12 @@ export default async (job) => {
       createNewPage: notionOverride.createNewPage,
       titleTemplate: notionOverride.titleTemplate ? `${notionOverride.titleTemplate.substring(0,30)}...` : null,
     });
+  }
+
+  if (slackOverride) {
+    await publishToSlackWithOverride(meetingSummary, userId, slackOverride);
+    console.log(`[PUBLISHING] Completed Slack-only publishing dispatch for meetingSummary ${meetingSummaryId}`);
+    return;
   }
   
   const meetingSummary = await db.MeetingSummary.findByPk(meetingSummaryId, {
@@ -202,6 +208,46 @@ async function publishToNotionWithOverride(meetingSummary, userId, notionOverrid
     }
   } catch (err) {
     console.error(`[ERROR] Failed publishing to Notion (override):`, err);
+    throw err;
+  }
+}
+
+async function publishToSlackWithOverride(meetingSummary, userId, slackOverride) {
+  const publisher = getPublisher("slack");
+  if (!publisher) {
+    console.error(`[PUBLISHING] No Slack publisher found`);
+    return;
+  }
+
+  const integration = await db.Integration.findOne({
+    where: { userId, provider: "slack" },
+  });
+
+  if (!integration) {
+    console.error(`[PUBLISHING] No Slack integration found for user ${userId}`);
+    return;
+  }
+
+  // Create a virtual target with the override config
+  const virtualTarget = {
+    id: `slack-override-${Date.now()}`,
+    type: "slack",
+    config: {
+      channelId: slackOverride.channelId,
+      channelName: slackOverride.channelName,
+    },
+  };
+
+  console.log(`[PUBLISHING] Publishing to Slack with override config:`, virtualTarget.config);
+
+  try {
+    await publisher.publish({
+      meetingSummary,
+      target: virtualTarget,
+      integration,
+    });
+  } catch (err) {
+    console.error(`[ERROR] Failed publishing to Slack (override):`, err);
     throw err;
   }
 }

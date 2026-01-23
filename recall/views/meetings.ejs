@@ -1025,6 +1025,51 @@ async function openActionsModal(meetingId, summaryId, title) {
   modal.classList.remove('hidden');
   
   try {
+    const formatActionItem = (item) => {
+      if (item == null) return '';
+      if (typeof item === 'string') return item;
+      if (Array.isArray(item)) return item.map(formatActionItem).join(', ');
+      const candidates = [
+        item.text,
+        item.description,
+        item.task,
+        item.title,
+        item.name,
+        item.content,
+        item.summary,
+        item.action,
+        item.action_item,
+        item.note,
+      ];
+      for (const c of candidates) {
+        if (typeof c === 'string' && c.trim()) return c;
+      }
+      try {
+        return JSON.stringify(item);
+      } catch (e) {
+        return String(item);
+      }
+    };
+
+    const formatAssignee = (item) => {
+      const a = item?.assignee || item?.assigned_to || item?.assignedTo || item?.owner;
+      if (!a) return '';
+      if (typeof a === 'string') return a;
+      if (Array.isArray(a)) {
+        const names = a.map(x => x?.name || x?.email || x).filter(Boolean);
+        return names.join(', ');
+      }
+      return a.name || a.email || '';
+    };
+
+    const formatDue = (item) => {
+      const due = item?.dueDate || item?.due_date || item?.due || item?.deadline;
+      if (!due) return '';
+      const d = new Date(due);
+      if (isNaN(d.getTime())) return '';
+      return d.toLocaleString();
+    };
+
     const response = await fetch(`/api/meetings/${meetingId}/actions`);
     if (response.ok) {
       const data = await response.json();
@@ -1035,9 +1080,9 @@ async function openActionsModal(meetingId, summaryId, title) {
               <li class="flex items-start space-x-3 p-3 bg-amber-50 rounded-lg">
                 <span class="flex-shrink-0 w-6 h-6 flex items-center justify-center bg-amber-200 text-amber-800 rounded-full text-xs font-medium">${index + 1}</span>
                 <div class="flex-1 min-w-0">
-                  <p class="text-sm text-gray-900">${item.text || item.description || item}</p>
-                  ${item.assignee ? `<p class="text-xs text-gray-500 mt-1">Assigned to: ${item.assignee}</p>` : ''}
-                  ${item.dueDate ? `<p class="text-xs text-gray-500">Due: ${item.dueDate}</p>` : ''}
+                  <p class="text-sm text-gray-900 break-words">${formatActionItem(item)}</p>
+                  ${formatAssignee(item) ? `<p class="text-xs text-gray-500 mt-1">Assigned to: ${formatAssignee(item)}</p>` : ''}
+                  ${formatDue(item) ? `<p class="text-xs text-gray-500">Due: ${formatDue(item)}</p>` : ''}
                 </div>
               </li>
             `).join('')}
