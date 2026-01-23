@@ -68,6 +68,12 @@ export default (sequelize) => {
         defaultValue: true,
         comment: "Whether to notify this user when meeting is updated",
       },
+      shareToken: {
+        type: DataTypes.STRING(64),
+        allowNull: true,
+        unique: true,
+        comment: "Unique token for public shareable link",
+      },
     },
     {
       sequelize,
@@ -98,6 +104,13 @@ export default (sequelize) => {
         },
         {
           fields: ["status"],
+        },
+        {
+          fields: ["shareToken"],
+          unique: true,
+          where: {
+            shareToken: { [DataTypes.Op || sequelize.Sequelize.Op]: { ne: null } },
+          },
         },
       ],
     }

@@ -1,6 +1,7 @@
 import express from "express";
 import db from "../../db.js";
 import { Op } from "sequelize";
+import crypto from "crypto";
 
 const router = express.Router();
 
@@ -117,17 +118,29 @@ router.post("/meetings/:meetingId/shares", async (req, res) => {
 
     if (existingShare) {
       if (existingShare.status === "revoked") {
+        // Generate token if it doesn't exist
+        const shareToken = existingShare.shareToken || crypto.randomBytes(32).toString("base64url");
         // Reactivate the share
         await existingShare.update({
           status: "pending",
           accessLevel,
           notifyOnUpdates,
           sharedByUserId: userId,
+          shareToken,
         });
-        return res.json({ share: existingShare, message: "Share reactivated" });
+        const reactivatedShare = await db.MeetingShare.findByPk(existingShare.id, {
+          include: [
+            { model: db.User, as: "sharedWithUser", attributes: ["id", "name", "email"] },
+            { model: db.User, as: "sharedByUser", attributes: ["id", "name", "email"] },
+          ],
+        });
+        return res.json({ share: reactivatedShare, message: "Share reactivated" });
       }
       return res.status(400).json({ error: "Meeting is already shared with this user" });
     }
+
+    // Generate a unique share token for public link
+    const shareToken = crypto.randomBytes(32).toString("base64url");
 
     // Create the share
     const share = await db.MeetingShare.create({
@@ -139,6 +152,7 @@ router.post("/meetings/:meetingId/shares", async (req, res) => {
       notifyOnUpdates,
       status: targetUser ? "accepted" : "pending", // Auto-accept for existing users
       acceptedAt: targetUser ? new Date() : null,
+      shareToken,
     });
 
     // Reload with associations
@@ -294,6 +308,52 @@ router.get("/shared-meetings", async (req, res) => {
   } catch (error) {
     console.error("[API] Error fetching shared meetings:", error);
     res.status(500).json({ error: "Failed to fetch shared meetings" });
+  }
+});
+
+/**
+ * Generate or regenerate share token for an existing share
+ * POST /api/meetings/:meetingId/shares/:shareId/generate-token
+ */
+router.post("/meetings/:meetingId/shares/:shareId/generate-token", async (req, res) => {
+  try {
+    const { meetingId, shareId } = req.params;
+    const userId = req.authentication?.user?.id;
+
+    if (!userId) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    const share = await db.MeetingShare.findOne({
+      where: { id: shareId, meetingArtifactId: meetingId },
+    });
+
+    if (!share) {
+      return res.status(404).json({ error: "Share not found" });
+    }
+
+    // Check if user owns this meeting
+    const artifact = await db.MeetingArtifact.findByPk(meetingId);
+    const isOwner = artifact.ownerUserId === userId || artifact.userId === userId;
+    if (!isOwner) {
+      return res.status(403).json({ error: "Only the meeting owner can generate share tokens" });
+    }
+
+    // Generate new token
+    const shareToken = crypto.randomBytes(32).toString("base64url");
+    await share.update({ shareToken });
+
+    const updatedShare = await db.MeetingShare.findByPk(share.id, {
+      include: [
+        { model: db.User, as: "sharedWithUser", attributes: ["id", "name", "email"] },
+        { model: db.User, as: "sharedByUser", attributes: ["id", "name", "email"] },
+      ],
+    });
+
+    res.json({ share: updatedShare });
+  } catch (error) {
+    console.error("[API] Error generating share token:", error);
+    res.status(500).json({ error: "Failed to generate share token" });
   }
 });
 

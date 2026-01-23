@@ -1194,26 +1194,63 @@
         return;
       }
       
-      container.innerHTML = activeShares.map(share => `
-        <div class="flex items-center justify-between py-1">
-          <div class="flex items-center">
-            <div class="h-6 w-6 rounded-full bg-indigo-100 flex items-center justify-center">
-              <svg class="h-3 w-3 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
-              </svg>
+      container.innerHTML = activeShares.map(share => {
+        const shareLink = share.shareToken ? `${window.location.origin}/meetings/shared/${share.shareToken}` : null;
+        return `
+        <div class="py-2 border-b border-gray-100 last:border-0">
+          <div class="flex items-center justify-between mb-1">
+            <div class="flex items-center">
+              <div class="h-6 w-6 rounded-full bg-indigo-100 flex items-center justify-center">
+                <svg class="h-3 w-3 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+                </svg>
+              </div>
+              <span class="ml-2 text-xs text-gray-700">
+                ${share.sharedWithUser?.name || share.sharedWithUser?.email || share.sharedWithEmail || 'Unknown'}
+              </span>
+              <span class="ml-2 text-xs text-gray-400 capitalize">(${share.accessLevel})</span>
             </div>
-            <span class="ml-2 text-xs text-gray-700">
-              ${share.sharedWithUser?.name || share.sharedWithUser?.email || share.sharedWithEmail || 'Unknown'}
-            </span>
-            <span class="ml-2 text-xs text-gray-400 capitalize">(${share.accessLevel})</span>
+            <button 
+              type="button" 
+              onclick="revokeShare('${share.id}')"
+              class="text-xs text-red-600 hover:text-red-800"
+            >Revoke</button>
           </div>
-          <button 
-            type="button" 
-            onclick="revokeShare('${share.id}')"
-            class="text-xs text-red-600 hover:text-red-800"
-          >Revoke</button>
+          ${shareLink ? `
+          <div class="mt-2 flex items-center gap-2">
+            <input 
+              type="text" 
+              value="${shareLink}" 
+              readonly 
+              id="share-link-${share.id}"
+              class="flex-1 text-xs px-2 py-1 bg-gray-50 border border-gray-200 rounded text-gray-600 font-mono"
+              onclick="this.select()"
+            >
+            <button 
+              type="button"
+              onclick="copyShareLink('${share.id}', '${shareLink}')"
+              class="text-xs px-2 py-1 bg-indigo-50 text-indigo-600 rounded hover:bg-indigo-100"
+              title="Copy link"
+            >
+              <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
+              </svg>
+            </button>
+          </div>
+          ` : `
+          <div class="mt-2">
+            <button 
+              type="button"
+              onclick="generateShareToken('${share.id}')"
+              class="text-xs px-2 py-1 bg-indigo-50 text-indigo-600 rounded hover:bg-indigo-100"
+            >
+              Generate Shareable Link
+            </button>
+          </div>
+          `}
         </div>
-      `).join('');
+      `;
+      }).join('');
     } catch (error) {
       console.error('Error loading shares:', error);
       container.innerHTML = '<p class="text-xs text-red-500">Error loading shares</p>';
@@ -1515,6 +1552,43 @@
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
+  }
+
+  function copyShareLink(shareId, link) {
+    navigator.clipboard.writeText(link).then(() => {
+      showNotification('Share link copied to clipboard!', 'success');
+      const btn = document.querySelector(`#share-link-${shareId}`).nextElementSibling;
+      if (btn) {
+        const originalHTML = btn.innerHTML;
+        btn.innerHTML = '<svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>';
+        setTimeout(() => {
+          btn.innerHTML = originalHTML;
+        }, 2000);
+      }
+    }).catch(err => {
+      console.error('Failed to copy:', err);
+      showNotification('Failed to copy link', 'error');
+    });
+  }
+
+  async function generateShareToken(shareId) {
+    try {
+      const response = await fetch(`/api/meetings/${shareMeetingId}/shares/${shareId}/generate-token`, {
+        method: 'POST',
+      });
+      
+      const data = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to generate token');
+      }
+      
+      showNotification('Shareable link generated!', 'success');
+      loadCurrentShares(); // Reload to show the new link
+    } catch (error) {
+      console.error('Error generating share token:', error);
+      showNotification(error.message || 'Failed to generate shareable link', 'error');
+    }
   }
 </script>
 

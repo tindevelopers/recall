@@ -38,6 +38,7 @@ import apiCheckMeetingPayload from "./api/check-meeting-payload.js";
 import apiUpdateWebhookUrl from "./api/update-webhook-url.js";
 import meetingsList from "./meetings/list.js";
 import meetingsDetail from "./meetings/detail.js";
+import meetingsShared from "./meetings/shared.js";
 import meetingsUpdateTranscriptionMode from "./meetings/update-transcription-mode.js";
 import { getTranscript, getSummary, getActionItems, triggerEnrichment } from "./api/meeting-details.js";
 import refreshRecording from "./api/refresh-recording.js";
@@ -98,6 +99,7 @@ router.get("/api/check-meeting-payload", apiCheckMeetingPayload);
 router.post("/api/update-webhook-url", apiUpdateWebhookUrl);
 
 router.get("/meetings", meetingsList);
+router.get("/meetings/shared/:token", meetingsShared);
 router.get("/meetings/:id", meetingsDetail);
 router.post("/meetings/:eventId/transcription-mode", meetingsUpdateTranscriptionMode);
 
