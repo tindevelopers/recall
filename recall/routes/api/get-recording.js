@@ -7,6 +7,7 @@
 
 import db from "../../db.js";
 import Recall from "../../services/recall/index.js";
+import { fetchTeamsRecordingMetadata } from "../../services/microsoft-graph/index.js";
 import { Op } from "sequelize";
 
 const resolveSourceUrl = (artifact) =>
@@ -14,6 +15,8 @@ const resolveSourceUrl = (artifact) =>
   artifact.sourceRecordingUrl ||
   artifact.rawPayload?.data?.video_url ||
   artifact.rawPayload?.data?.recording_url ||
+  artifact.rawPayload?.data?.media_shortcuts?.video_mixed?.data?.download_url ||
+  artifact.rawPayload?.data?.media_shortcuts?.audio_mixed?.data?.download_url ||
   artifact.rawPayload?.data?.media_shortcuts?.video?.data?.download_url ||
   artifact.rawPayload?.media_shortcuts?.video?.data?.download_url ||
   artifact.rawPayload?.recording_url ||
@@ -48,9 +51,11 @@ export default async (req, res) => {
     const cachedVideoUrl =
       artifact.rawPayload?.data?.video_url ||
       artifact.rawPayload?.data?.recording_url ||
+    artifact.rawPayload?.data?.media_shortcuts?.video_mixed?.data?.download_url ||
       artifact.rawPayload?.data?.media_shortcuts?.video?.data?.download_url;
     const cachedAudioUrl =
       artifact.rawPayload?.data?.audio_url ||
+    artifact.rawPayload?.data?.media_shortcuts?.audio_mixed?.data?.download_url ||
       artifact.rawPayload?.data?.media_shortcuts?.audio?.data?.download_url;
 
     const archivedUrl = artifact.archivedRecordingUrl || null;
@@ -122,6 +127,190 @@ export default async (req, res) => {
       botData = await Recall.getBot(artifact.recallBotId);
     } catch (apiError) {
       console.error(`[GET-RECORDING] Recall API error:`, apiError.message);
+
+      // Try listing recordings directly via v1 if bot lookup failed
+      try {
+        const recordingsResp = await Recall.listRecordingsV1({
+          botId: artifact.recallBotId,
+          statusCode: "done",
+        });
+        const recordings =
+          recordingsResp?.results ||
+          recordingsResp?.recordings ||
+          recordingsResp ||
+          [];
+        if (Array.isArray(recordings) && recordings.length > 0) {
+          const urls = Recall.getRecordingUrlsFromBot({ recordings });
+          if (urls.videoUrl || urls.audioUrl) {
+            console.log(
+              `[GET-RECORDING] Found recording URLs via listRecordingsV1: video=${urls.videoUrl ? "present" : "N/A"}, audio=${urls.audioUrl ? "present" : "N/A"}`
+            );
+            await artifact.update({
+              sourceRecordingUrl: urls.videoUrl || urls.audioUrl,
+              rawPayload: {
+                ...artifact.rawPayload,
+                data: {
+                  ...artifact.rawPayload?.data,
+                  video_url: urls.videoUrl,
+                  audio_url: urls.audioUrl,
+                  recording_url: urls.videoUrl || urls.audioUrl,
+                  recordings,
+                  media_shortcuts: recordings[0]?.media_shortcuts,
+                },
+              },
+            });
+
+            const updatedSourceUrl =
+              resolveSourceUrl(artifact) || urls.videoUrl || urls.audioUrl;
+            return res.json({
+              videoUrl: urls.videoUrl,
+              audioUrl: urls.audioUrl,
+              teamsVideoUrl: teamsVideoUrl || null,
+              archivedUrl,
+              sourceUrl: updatedSourceUrl,
+              proxyUrl: updatedSourceUrl
+                ? `/api/meetings/${artifact.id}/recording/stream`
+                : null,
+              source: "recall",
+              cached: false,
+              isArchived: !!archivedUrl,
+              archiveStatus: archivedUrl ? "completed" : null,
+              canArchive,
+            });
+          }
+        }
+      } catch (listErr) {
+        console.log(
+          `[GET-RECORDING] listRecordingsV1 fallback failed: ${listErr.message}`
+        );
+      }
+      
+      // Try fetching recording URLs from calendar event's bots array
+      console.log(`[GET-RECORDING] Attempting to fetch recording from calendar event's bots array...`);
+      try {
+        const calendarEvent = artifact.CalendarEvent;
+        if (calendarEvent && calendarEvent.recallId) {
+          const { getClient } = await import("../../services/recall/api-client.js");
+          const recallClient = getClient();
+          
+          // Fetch calendar event from Recall API to get bots array
+          const recallEvent = await recallClient.request({
+            path: `/api/v2/calendar-events/${calendarEvent.recallId}/`,
+            method: "GET",
+          });
+          
+          console.log(`[GET-RECORDING] Fetched calendar event, bots count: ${recallEvent?.bots?.length || 0}`);
+          
+          if (recallEvent?.bots && Array.isArray(recallEvent.bots) && recallEvent.bots.length > 0) {
+            // Check each bot - calendar event bots array only has bot_id, not full bot data
+            // Try fetching each bot_id to get full bot data with recordings
+            for (const botRef of recallEvent.bots) {
+              const botId = botRef.bot_id || botRef.id;
+              if (!botId) continue;
+              
+              console.log(`[GET-RECORDING] Trying to fetch full bot data for ${botId}...`);
+              try {
+                const fullBot = await Recall.getBot(botId);
+                const urls = Recall.getRecordingUrlsFromBot(fullBot);
+                
+                if (urls.videoUrl || urls.audioUrl) {
+                  console.log(`[GET-RECORDING] Found recording URLs in bot ${botId}: video=${urls.videoUrl ? 'present' : 'N/A'}, audio=${urls.audioUrl ? 'present' : 'N/A'}`);
+                  
+                  // Update artifact with recording URLs
+                  await artifact.update({
+                    sourceRecordingUrl: urls.videoUrl || urls.audioUrl,
+                    rawPayload: {
+                      ...artifact.rawPayload,
+                      data: {
+                        ...artifact.rawPayload?.data,
+                        video_url: urls.videoUrl,
+                        audio_url: urls.audioUrl,
+                        recording_url: urls.videoUrl || urls.audioUrl,
+                        recordings: fullBot.recordings,
+                        media_shortcuts: fullBot.recordings?.[0]?.media_shortcuts || fullBot.media_shortcuts,
+                      },
+                    },
+                  });
+                  
+                  const updatedSourceUrl = resolveSourceUrl(artifact) || urls.videoUrl || urls.audioUrl;
+                  
+                  return res.json({
+                    videoUrl: urls.videoUrl,
+                    audioUrl: urls.audioUrl,
+                    teamsVideoUrl: teamsVideoUrl || null,
+                    archivedUrl,
+                    sourceUrl: updatedSourceUrl,
+                    proxyUrl: updatedSourceUrl ? `/api/meetings/${artifact.id}/recording/stream` : null,
+                    source: "recall",
+                    cached: false,
+                    isArchived: !!archivedUrl,
+                    archiveStatus: archivedUrl ? "completed" : null,
+                    canArchive,
+                  });
+                }
+              } catch (botFetchError) {
+                // Bot might also return 404, continue to next bot
+                console.log(`[GET-RECORDING] Bot ${botId} fetch failed: ${botFetchError.message}`);
+                continue;
+              }
+            }
+          }
+        }
+      } catch (calendarEventError) {
+        console.error(`[GET-RECORDING] Calendar event fetch error:`, calendarEventError.message);
+      }
+      
+      // Try fetching Teams recording metadata as fallback
+      console.log(`[GET-RECORDING] Attempting to fetch Teams recording metadata as fallback...`);
+      try {
+        const calendarEvent = artifact.CalendarEvent;
+        if (calendarEvent && calendarEvent.platform === "microsoft_outlook") {
+          const teamsMetadata = await fetchTeamsRecordingMetadata(calendarEvent);
+          if (teamsMetadata && teamsMetadata.recordings && teamsMetadata.recordings.length > 0) {
+            const firstRecording = teamsMetadata.recordings[0];
+            const teamsRecordingUrl = firstRecording.contentDownloadUrl || 
+                                     firstRecording.downloadUrl || 
+                                     firstRecording.recordingContentUrl ||
+                                     null;
+            
+            if (teamsRecordingUrl) {
+              console.log(`[GET-RECORDING] Found Teams recording URL: ${teamsRecordingUrl}`);
+              
+              // Update artifact with Teams recording URL
+              await artifact.update({
+                sourceRecordingUrl: teamsRecordingUrl,
+                rawPayload: {
+                  ...artifact.rawPayload,
+                  data: {
+                    ...artifact.rawPayload?.data,
+                    teamsRecordingUrl: teamsRecordingUrl,
+                    teamsRecordingMetadata: teamsMetadata.recordings,
+                  },
+                },
+              });
+              
+              const updatedSourceUrl = resolveSourceUrl(artifact) || teamsRecordingUrl;
+              
+              return res.json({
+                videoUrl: null,
+                audioUrl: null,
+                teamsVideoUrl: teamsRecordingUrl,
+                archivedUrl,
+                sourceUrl: updatedSourceUrl,
+                proxyUrl: updatedSourceUrl ? `/api/meetings/${artifact.id}/recording/stream` : null,
+                source: "teams",
+                cached: false,
+                isArchived: !!archivedUrl,
+                archiveStatus: archivedUrl ? "completed" : null,
+                canArchive,
+              });
+            }
+          }
+        }
+      } catch (teamsError) {
+        console.error(`[GET-RECORDING] Teams recording fetch error:`, teamsError.message);
+      }
+      
       return res.json({
         videoUrl: null,
         audioUrl: null,
@@ -131,7 +320,7 @@ export default async (req, res) => {
         isArchived: !!archivedUrl,
         archiveStatus: archivedUrl ? "completed" : null,
         canArchive,
-        message: "Could not fetch recording from Recall API",
+        message: "Could not fetch recording from Recall API, calendar event bots, or Teams",
       });
     }
 
@@ -155,22 +344,12 @@ export default async (req, res) => {
       }`
     );
 
-    // Extract video and audio URLs from media_shortcuts
-    let videoUrl = null;
-    let audioUrl = null;
-
-    if (botData.recordings && botData.recordings.length > 0) {
-      const shortcuts = botData.recordings[0].media_shortcuts;
-      if (shortcuts) {
-        videoUrl = shortcuts.video?.data?.download_url || null;
-        audioUrl = shortcuts.audio?.data?.download_url || null;
-        console.log(
-          `[GET-RECORDING] Found URLs: video=${videoUrl ? "present" : "N/A"}, audio=${
-            audioUrl ? "present" : "N/A"
-          }`
-        );
-      }
-    }
+    const { videoUrl, audioUrl } = Recall.getRecordingUrlsFromBot(botData);
+    console.log(
+      `[GET-RECORDING] Found URLs: video=${videoUrl ? "present" : "N/A"}, audio=${
+        audioUrl ? "present" : "N/A"
+      }`
+    );
 
     if (!videoUrl && !audioUrl) {
       return res.json({

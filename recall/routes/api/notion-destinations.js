@@ -67,6 +67,7 @@ export async function listDestinations(req, res) {
  * - destinationId: string (required) - Notion page or database ID
  * - destinationType: "page" | "database" (optional, auto-detected if not provided)
  * - createNewPage: boolean (optional) - If true and destination is a database, create a new page
+ * - titleTemplate: string (optional) - Custom title to use for the created page/subpage
  */
 export async function publishToNotionDestination(req, res) {
   if (!req.authenticated) {
@@ -74,7 +75,7 @@ export async function publishToNotionDestination(req, res) {
   }
 
   const { meetingId } = req.params;
-  const { destinationId, destinationType, createNewPage } = req.body;
+  const { destinationId, destinationType, createNewPage, titleTemplate } = req.body;
   const userId = req.authentication.user.id;
 
   if (!destinationId) {
@@ -137,6 +138,7 @@ export async function publishToNotionDestination(req, res) {
           destinationId,
           destinationType: destinationType || destinationInfo.type,
           createNewPage: createNewPage || false,
+          titleTemplate: titleTemplate || null,
         },
       });
 
@@ -155,6 +157,7 @@ export async function publishToNotionDestination(req, res) {
         destinationId,
         destinationType: destinationType || destinationInfo.type,
         createNewPage: createNewPage || false,
+        titleTemplate: titleTemplate || null,
       },
     });
 

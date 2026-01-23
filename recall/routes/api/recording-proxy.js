@@ -25,6 +25,8 @@ function resolveSourceUrl(artifact) {
     artifact.sourceRecordingUrl ||
     artifact.rawPayload?.data?.video_url ||
     artifact.rawPayload?.data?.recording_url ||
+    artifact.rawPayload?.data?.media_shortcuts?.video_mixed?.data?.download_url ||
+    artifact.rawPayload?.data?.media_shortcuts?.audio_mixed?.data?.download_url ||
     artifact.rawPayload?.data?.media_shortcuts?.video?.data?.download_url ||
     artifact.rawPayload?.media_shortcuts?.video?.data?.download_url ||
     artifact.rawPayload?.recording_url ||
@@ -41,6 +43,7 @@ function resolveVideoUrl(artifact) {
   return (
     artifact.rawPayload?.data?.video_url ||
     artifact.rawPayload?.data?.recording_url ||
+    artifact.rawPayload?.data?.media_shortcuts?.video_mixed?.data?.download_url ||
     artifact.rawPayload?.data?.media_shortcuts?.video?.data?.download_url ||
     artifact.rawPayload?.media_shortcuts?.video?.data?.download_url ||
     artifact.sourceRecordingUrl ||
@@ -53,6 +56,7 @@ function resolveAudioUrl(artifact) {
   // For now, prioritize Recall API audio URLs
   return (
     artifact.rawPayload?.data?.audio_url ||
+    artifact.rawPayload?.data?.media_shortcuts?.audio_mixed?.data?.download_url ||
     artifact.rawPayload?.data?.media_shortcuts?.audio?.data?.download_url ||
     artifact.rawPayload?.media_shortcuts?.audio?.data?.download_url ||
     null

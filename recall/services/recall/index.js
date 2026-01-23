@@ -2,53 +2,75 @@ import { getClient } from "./api-client.js";
 import { telemetryEvent } from "../../utils/telemetry.js";
 
 function extractRecordingUrls(bot = {}) {
-  const result = {
-    videoUrl: null,
-    audioUrl: null,
-    transcriptUrl: null,
-  };
+  const result = { videoUrl: null, audioUrl: null, transcriptUrl: null };
 
-  // Prefer recordings array media_shortcuts
   const recordings = bot.recordings || bot?.outputs?.recordings || [];
   const recordingList = Array.isArray(recordings) ? recordings : [];
-  for (const recording of recordingList) {
-    if (!result.videoUrl) {
-      result.videoUrl =
-        recording?.media_shortcuts?.video?.data?.download_url ||
-        recording?.video_url ||
-        recording?.recording_url;
-    }
-    if (!result.audioUrl) {
-      result.audioUrl =
-        recording?.media_shortcuts?.audio?.data?.download_url ||
-        recording?.audio_url;
-    }
-    if (!result.transcriptUrl) {
-      result.transcriptUrl =
-        recording?.media_shortcuts?.transcript?.data?.download_url ||
-        recording?.transcript_url;
-    }
-    if (result.videoUrl || result.audioUrl) break;
+
+  // Prefer completed recordings first
+  const preferredRecordings =
+    recordingList.filter(
+      (r) =>
+        r?.status?.code === "done" ||
+        r?.status_code === "done" ||
+        r?.status === "done"
+    ) || [];
+  const candidates =
+    preferredRecordings.length > 0 ? preferredRecordings : recordingList;
+
+  const pickFromRecording = (recording = {}) => {
+    const shortcuts = recording.media_shortcuts || {};
+    const videoMixed = shortcuts.video_mixed?.data?.download_url;
+    const audioMixed = shortcuts.audio_mixed?.data?.download_url;
+    const video = shortcuts.video?.data?.download_url;
+    const audio = shortcuts.audio?.data?.download_url;
+    const transcript = shortcuts.transcript?.data?.download_url;
+
+    return {
+      videoUrl:
+        videoMixed ||
+        video ||
+        recording.video_url ||
+        recording.recording_url ||
+        null,
+      audioUrl: audioMixed || audio || recording.audio_url || null,
+      transcriptUrl: transcript || recording.transcript_url || null,
+    };
+  };
+
+  for (const recording of candidates) {
+    if (result.videoUrl && result.audioUrl && result.transcriptUrl) break;
+    const picked = pickFromRecording(recording);
+    if (!result.videoUrl && picked.videoUrl) result.videoUrl = picked.videoUrl;
+    if (!result.audioUrl && picked.audioUrl) result.audioUrl = picked.audioUrl;
+    if (!result.transcriptUrl && picked.transcriptUrl)
+      result.transcriptUrl = picked.transcriptUrl;
   }
 
-  // Fallbacks
+  // Fallbacks on bot-level media_shortcuts/outputs
   if (!result.videoUrl) {
     result.videoUrl =
+      bot?.media_shortcuts?.video_mixed?.data?.download_url ||
       bot?.media_shortcuts?.video?.data?.download_url ||
       bot?.outputs?.video?.download_url ||
-      bot?.recording_url;
+      bot?.recording_url ||
+      bot?.video_url ||
+      null;
   }
   if (!result.audioUrl) {
     result.audioUrl =
+      bot?.media_shortcuts?.audio_mixed?.data?.download_url ||
       bot?.media_shortcuts?.audio?.data?.download_url ||
       bot?.outputs?.audio?.download_url ||
-      bot?.audio_url;
+      bot?.audio_url ||
+      null;
   }
   if (!result.transcriptUrl) {
     result.transcriptUrl =
       bot?.media_shortcuts?.transcript?.data?.download_url ||
       bot?.transcript_url ||
-      bot?.outputs?.transcript?.download_url;
+      bot?.outputs?.transcript?.download_url ||
+      null;
   }
 
   return result;
@@ -192,11 +214,40 @@ const recallService = {
   },
   
   // Bot and Notepad API methods
-  getBot: async (botId) => {
+  getBotV1: async (botId) => {
     return await client.request({
-      path: `/api/v2/bots/${botId}/`,
+      path: `/api/v1/bot/${botId}/`,
       method: "GET",
     });
+  },
+
+  listRecordingsV1: async ({ botId, statusCode = "done" } = {}) => {
+    return await client.request({
+      path: `/api/v1/recording/`,
+      method: "GET",
+      queryParams: {
+        ...(botId ? { bot_id: botId } : {}),
+        ...(statusCode ? { status_code: statusCode } : {}),
+      },
+    });
+  },
+
+  getBot: async (botId) => {
+    // Prefer v1 (includes recordings/media_shortcuts), fall back to v2.
+    try {
+      return await client.request({
+        path: `/api/v1/bot/${botId}/`,
+        method: "GET",
+      });
+    } catch (e) {
+      console.log(
+        `[RECALL] v1 bot fetch failed for ${botId}, trying v2: ${e.message}`
+      );
+      return await client.request({
+        path: `/api/v2/bots/${botId}/`,
+        method: "GET",
+      });
+    }
   },
   
   getBotNotes: async (botId) => {
@@ -387,10 +438,7 @@ const recallService = {
    * Convenience: fetch bot and return extracted recording URLs.
    */
   getBotRecordingUrls: async (botId) => {
-    const bot = await client.request({
-      path: `/api/v2/bots/${botId}/`,
-      method: "GET",
-    });
+    const bot = await recallService.getBot(botId);
     return {
       bot,
       ...extractRecordingUrls(bot),

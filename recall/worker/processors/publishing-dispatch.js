@@ -11,6 +11,7 @@ export default async (job) => {
       destinationId: notionOverride.destinationId?.substring(0, 8) + "...",
       destinationType: notionOverride.destinationType,
       createNewPage: notionOverride.createNewPage,
+      titleTemplate: notionOverride.titleTemplate ? `${notionOverride.titleTemplate.substring(0,30)}...` : null,
     });
   }
   
@@ -153,6 +154,7 @@ async function publishToNotionWithOverride(meetingSummary, userId, notionOverrid
       destinationId: notionOverride.destinationId,
       destinationType: notionOverride.destinationType || "database",
       createNewPage: notionOverride.createNewPage || false,
+      titleTemplate: notionOverride.titleTemplate || null,
     },
   };
 

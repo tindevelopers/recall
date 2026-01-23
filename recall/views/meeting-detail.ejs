@@ -1351,6 +1351,7 @@
   let selectedDestinationId = null;
   let selectedDestinationType = null;
   let createNewPage = false;
+  let customSubpageTitle = '';
   let publishArtifactId = null;
 
   async function openNotionDestinationPicker(artifactId) {
@@ -1365,6 +1366,7 @@
     selectedDestinationId = null;
     selectedDestinationType = null;
     createNewPage = false;
+    customSubpageTitle = '';
     searchInput.value = '';
     listContainer.innerHTML = '';
     loadingEl.classList.remove('hidden');
@@ -1489,6 +1491,7 @@
 
   function updateCreateNewPageOption() {
     const container = document.getElementById('create-new-page-option');
+    const titleInput = document.getElementById('create-new-page-title');
     if (!container) return;
     
     // Only show "create new page" option for page destinations
@@ -1496,14 +1499,25 @@
       container.classList.remove('hidden');
       const checkbox = document.getElementById('create-new-page-checkbox');
       if (checkbox) checkbox.checked = createNewPage;
+      if (titleInput && !titleInput.value) {
+        titleInput.value = '<%= meeting.title.replace(/'/g, "\\'") %>';
+        customSubpageTitle = titleInput.value;
+      }
     } else {
       container.classList.add('hidden');
       createNewPage = false;
+      customSubpageTitle = '';
+      if (titleInput) titleInput.value = '';
     }
   }
 
   function toggleCreateNewPage() {
     createNewPage = document.getElementById('create-new-page-checkbox')?.checked || false;
+    const titleInput = document.getElementById('create-new-page-title');
+    if (createNewPage && titleInput && !titleInput.value) {
+      titleInput.value = '<%= meeting.title.replace(/'/g, "\\'") %>';
+      customSubpageTitle = titleInput.value;
+    }
   }
 
   function filterNotionDestinations() {
@@ -1526,6 +1540,8 @@
     
     try {
       const selectedDest = notionDestinations.find(d => d.id === selectedDestinationId);
+      const titleTemplate = (document.getElementById('create-new-page-title')?.value || '').trim();
+      customSubpageTitle = titleTemplate;
       
       const response = await fetch(`/api/meetings/${publishArtifactId}/publish/notion`, {
         method: 'POST',
@@ -1534,6 +1550,7 @@
           destinationId: selectedDestinationId,
           destinationType: selectedDest?.type || 'database',
           createNewPage: createNewPage,
+          titleTemplate: titleTemplate || undefined,
         }),
       });
       
@@ -1677,6 +1694,18 @@
             <p class="text-xs text-gray-500">Creates a new page under the selected page instead of appending content</p>
           </div>
         </label>
+        <div class="mt-3">
+          <label for="create-new-page-title" class="block text-xs font-medium text-gray-700 mb-1">
+            Subpage title (optional)
+          </label>
+          <input
+            type="text"
+            id="create-new-page-title"
+            placeholder="Defaults to meeting title"
+            class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+            oninput="customSubpageTitle = this.value"
+          />
+        </div>
       </div>
       
       <!-- Actions -->
