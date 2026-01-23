@@ -25,8 +25,6 @@ import slackTarget from "./integrations/slack-target.js";
 import teamworkTarget from "./integrations/teamwork-target.js";
 import slackConnect from "./oauth/slack-connect.js";
 import oauthCallbackSlack from "./oauth-callback/slack.js";
-import slackConnect from "./oauth/slack-connect.js";
-import oauthCallbackSlack from "./oauth-callback/slack.js";
 import slackChannels from "./api/slack-channels.js";
 import slackChannelsCreate from "./api/slack-channels-create.js";
 import publishSlack from "./api/publish-slack.js";
@@ -85,8 +83,6 @@ router.get("/oauth-callback/google-calendar", oauthCallbackGoogleCalendar);
 router.get("/oauth-callback/microsoft-outlook", oauthCallbackMicrosoftOutlook);
 router.get("/oauth/notion", notionConnect);
 router.get("/oauth-callback/notion", oauthCallbackNotion);
-router.get("/oauth/slack", slackConnect);
-router.get("/oauth-callback/slack", oauthCallbackSlack);
 router.get("/oauth/slack", slackConnect);
 router.get("/oauth-callback/slack", oauthCallbackSlack);
 
