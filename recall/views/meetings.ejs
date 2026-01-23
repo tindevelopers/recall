@@ -896,10 +896,20 @@ async function openPlayerModal(meetingId, videoUrl, audioUrl, title) {
           </div>
         `;
       } else {
-        content.innerHTML = '<p class="text-gray-500 text-center py-8">No recording available for this meeting</p>';
+        content.innerHTML = `
+          <div class="text-center py-8">
+            <p class="text-gray-500 mb-2">No recording available for this meeting.</p>
+            <p class="text-xs text-gray-400">Teams recordings are stored in OneDrive/SharePoint and may need to be accessed directly from Microsoft Teams.</p>
+          </div>
+        `;
       }
     } else {
-      content.innerHTML = '<p class="text-gray-500 text-center py-8">No recording available for this meeting</p>';
+      content.innerHTML = `
+        <div class="text-center py-8">
+          <p class="text-gray-500 mb-2">No recording available for this meeting.</p>
+          <p class="text-xs text-gray-400">Teams recordings are stored in OneDrive/SharePoint and may need to be accessed directly from Microsoft Teams.</p>
+        </div>
+      `;
     }
   } catch (error) {
     console.error('Error fetching recording:', error);
