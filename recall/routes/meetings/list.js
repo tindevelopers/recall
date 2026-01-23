@@ -1529,6 +1529,12 @@ export default async (req, res) => {
       ],
     });
 
+    // Check if calendar has auto-recording enabled
+    const calendar = calendarEvent?.Calendar;
+    const hasAutoRecordEnabled = calendar ? 
+      (calendar.autoRecordExternalEvents || calendar.autoRecordInternalEvents) : 
+      false;
+
     meetingsMap.set(key, {
       id: artifact.id,
       type: "artifact",
@@ -1576,6 +1582,8 @@ export default async (req, res) => {
       meetingUrl: metadata.meetingUrl,
       createdAt: artifact.createdAt,
       syncedFromApi: !!artifact.rawPayload?.synced_from_api,
+      // Auto-record settings for showing video icon
+      hasAutoRecordEnabled: hasAutoRecordEnabled,
     });
   }
 
@@ -1604,6 +1612,12 @@ export default async (req, res) => {
         calendarEvent?.recallData?.raw?.onlineMeeting?.meetingId,
       ],
     });
+
+    // Check if calendar has auto-recording enabled
+    const summaryCalendar = calendarEvent?.Calendar;
+    const summaryHasAutoRecordEnabled = summaryCalendar ? 
+      (summaryCalendar.autoRecordExternalEvents || summaryCalendar.autoRecordInternalEvents) : 
+      false;
 
     meetingsMap.set(key, {
       id: summary.id,
@@ -1637,6 +1651,8 @@ export default async (req, res) => {
       meetingUrl: metadata.meetingUrl,
       summaryId: summary.id,
       createdAt: summary.createdAt,
+      // Auto-record settings for showing video icon
+      hasAutoRecordEnabled: summaryHasAutoRecordEnabled,
     });
   }
 

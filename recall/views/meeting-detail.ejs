@@ -146,11 +146,15 @@
 
                   <!-- Download Buttons -->
                   <div class="flex flex-wrap gap-3 pt-4 border-t border-gray-200">
-                    <% if (meeting.videoUrl) { %>
+                    <% if (meeting.videoUrl || meeting.artifactId) { %>
+                      <% 
+                        const videoDownloadUrl = meeting.isShared && meeting.shareInfo?.shareToken 
+                          ? `/api/meetings/shared/${meeting.shareInfo.shareToken}/recording/download/video`
+                          : `/api/meetings/${meeting.artifactId || meeting.id}/recording/download/video`;
+                      %>
                       <a
-                        href="<%= meeting.videoUrl %>"
-                        target="_blank"
-                        rel="noopener noreferrer"
+                        href="<%= videoDownloadUrl %>"
+                        download
                         class="inline-flex items-center rounded-md bg-green-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-green-500"
                       >
                         <svg class="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -159,11 +163,15 @@
                         Download Video
                       </a>
                     <% } %>
-                    <% if (meeting.audioUrl) { %>
+                    <% if (meeting.audioUrl || meeting.artifactId) { %>
+                      <% 
+                        const audioDownloadUrl = meeting.isShared && meeting.shareInfo?.shareToken 
+                          ? `/api/meetings/shared/${meeting.shareInfo.shareToken}/recording/download/audio`
+                          : `/api/meetings/${meeting.artifactId || meeting.id}/recording/download/audio`;
+                      %>
                       <a
-                        href="<%= meeting.audioUrl %>"
-                        target="_blank"
-                        rel="noopener noreferrer"
+                        href="<%= audioDownloadUrl %>"
+                        download
                         class="inline-flex items-center rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-500"
                       >
                         <svg class="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

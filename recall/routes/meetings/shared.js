@@ -74,6 +74,18 @@ export default async (req, res) => {
     const transcriptChunks = artifact.MeetingTranscriptChunks || [];
     const calendarEvent = artifact.CalendarEvent;
 
+    // Recording URLs - check multiple locations including media_shortcuts
+    const videoUrl = 
+      artifact?.rawPayload?.data?.video_url || 
+      artifact?.rawPayload?.data?.recording_url || 
+      artifact?.rawPayload?.data?.media_shortcuts?.video?.data?.download_url ||
+      artifact?.archivedRecordingUrl ||
+      null;
+    const audioUrl = 
+      artifact?.rawPayload?.data?.audio_url || 
+      artifact?.rawPayload?.data?.media_shortcuts?.audio?.data?.download_url ||
+      null;
+
     // Build meeting object for the view
     const meeting = {
       id: artifact.id,
@@ -84,6 +96,8 @@ export default async (req, res) => {
       endTime: calendarEvent?.endTime,
       calendarEmail: calendarEvent?.Calendar?.email,
       participants: calendarEvent?.recallData?.raw?.attendees || [],
+      videoUrl,
+      audioUrl,
       isShared: true,
       shareInfo: {
         sharedBy: share.sharedByUser,

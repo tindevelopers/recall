@@ -161,11 +161,14 @@ export default async (req, res) => {
     calendarEmail: calendarEvent?.Calendar?.email || null,
     platform: calendarEvent?.platform || null,
     
-    // Recording URLs - check multiple locations including media_shortcuts
+    // Recording URLs - check multiple locations including media_shortcuts and archived recordings
+    // Prioritize archived recordings, then cached URLs, then source URLs
     videoUrl: 
+      artifact?.archivedRecordingUrl ||
       artifact?.rawPayload?.data?.video_url || 
       artifact?.rawPayload?.data?.recording_url || 
       artifact?.rawPayload?.data?.media_shortcuts?.video?.data?.download_url ||
+      artifact?.sourceRecordingUrl ||
       null,
     audioUrl: 
       artifact?.rawPayload?.data?.audio_url || 
