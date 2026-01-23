@@ -688,7 +688,7 @@
                           <% } %>
                           <span class="ml-2 text-sm text-gray-700 capitalize"><%= delivery.PublishTarget?.type || 'Unknown' %></span>
                         </div>
-                        <% if (delivery.status === 'delivered') { %>
+                        <% if (delivery.status === 'delivered' || delivery.status === 'success') { %>
                           <span class="inline-flex items-center rounded-full bg-green-50 px-2 py-1 text-xs font-medium text-green-700">
                             <svg class="mr-1 h-3 w-3" fill="currentColor" viewBox="0 0 20 20">
                               <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
@@ -710,6 +710,11 @@
                             </svg>
                             Pending
                           </span>
+                        <% } %>
+                        <% if (delivery.url) { %>
+                          <a href="<%= delivery.url %>" target="_blank" rel="noopener" class="ml-3 text-xs text-indigo-600 hover:text-indigo-800 underline">
+                            Open
+                          </a>
                         <% } %>
                       </li>
                     <% }); %>
