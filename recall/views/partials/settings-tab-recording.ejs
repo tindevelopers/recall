@@ -70,6 +70,71 @@
       </div>
     </div>
 
+    <!-- Storage / Archival Settings -->
+    <div class="bg-gray-50 rounded-xl p-6 space-y-4">
+      <h3 class="text-sm font-semibold text-gray-900 uppercase tracking-wide flex items-center">
+        <svg class="w-5 h-5 mr-2 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 5a2 2 0 012-2h8l6 6v10a2 2 0 01-2 2H6a2 2 0 01-2-2V5z" />
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 3v4a2 2 0 002 2h4" />
+        </svg>
+        Storage & Archival (Optional)
+      </h3>
+
+      <p class="text-sm text-gray-500">Stream from source by default. Configure S3-compatible storage (AWS S3, Wasabi, Backblaze, MinIO) to archive recordings on demand.</p>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <label class="block text-sm font-medium text-gray-700">Storage Provider</label>
+          <select name="storageProvider" class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+            <option value="" <%= !calendar.storageProvider ? "selected" : "" %>>Stream from source only</option>
+            <option value="aws_s3" <%= calendar.storageProvider === "aws_s3" ? "selected" : "" %>>AWS S3</option>
+            <option value="wasabi" <%= calendar.storageProvider === "wasabi" ? "selected" : "" %>>Wasabi</option>
+            <option value="backblaze" <%= calendar.storageProvider === "backblaze" ? "selected" : "" %>>Backblaze B2</option>
+            <option value="minio" <%= calendar.storageProvider === "minio" ? "selected" : "" %>>MinIO / Self-hosted</option>
+            <option value="custom" <%= calendar.storageProvider === "custom" ? "selected" : "" %>>Custom S3-compatible</option>
+          </select>
+          <p class="text-xs text-gray-400 mt-1">If empty, recordings stay at the source (Teams/Recall/etc.)</p>
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700">Bucket</label>
+          <input type="text" name="storageBucket" value="<%= calendar.storageBucket || '' %>" class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500" placeholder="my-recordings-bucket">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700">Region</label>
+          <input type="text" name="storageRegion" value="<%= calendar.storageRegion || '' %>" class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500" placeholder="us-east-1">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700">Endpoint (for Wasabi/Backblaze/MinIO)</label>
+          <input type="text" name="storageEndpoint" value="<%= calendar.storageEndpoint || '' %>" class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500" placeholder="https://s3.wasabisys.com">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700">Access Key</label>
+          <input type="text" name="storageAccessKey" value="<%= calendar.storageAccessKey || '' %>" class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500" placeholder="AKIA...">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700">Secret Key</label>
+          <input type="password" name="storageSecretKey" value="<%= calendar.storageSecretKey || '' %>" class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500" placeholder="********">
+        </div>
+      </div>
+
+      <label class="relative flex items-start bg-white rounded-xl p-4 cursor-pointer hover:shadow-sm transition-shadow border border-gray-200">
+        <div class="flex h-6 items-center">
+          <input 
+            id="autoArchiveRecordings" 
+            name="autoArchiveRecordings" 
+            type="checkbox" 
+            value="on"
+            <%= calendar.autoArchiveRecordings ? "checked" : "" %>
+            class="h-5 w-5 rounded border-gray-300 text-indigo-600 focus:ring-indigo-600"
+          />
+        </div>
+        <div class="ml-4">
+          <span class="text-sm font-semibold text-gray-900">Auto-archive recordings to storage</span>
+          <p class="text-sm text-gray-500 mt-0.5">When enabled, recordings will be downloaded to your configured storage after meetings.</p>
+        </div>
+      </label>
+    </div>
+
     <!-- Media Settings -->
     <div class="bg-gray-50 rounded-xl p-6 space-y-4">
       <h3 class="text-sm font-semibold text-gray-900 uppercase tracking-wide flex items-center">

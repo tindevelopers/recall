@@ -168,6 +168,39 @@ export async function createPageInDatabase({
   });
 }
 
+/**
+ * Create a new subpage under an existing page
+ */
+export async function createSubpage({
+  accessToken,
+  parentPageId,
+  title,
+  children,
+  icon,
+}) {
+  const pageId = normalizeNotionId(parentPageId);
+  return notionRequest({
+    accessToken,
+    path: "/pages",
+    body: {
+      parent: { page_id: pageId },
+      icon: icon ? { type: "emoji", emoji: icon } : { type: "emoji", emoji: "📝" },
+      properties: {
+        title: {
+          title: [
+            {
+              text: {
+                content: title,
+              },
+            },
+          ],
+        },
+      },
+      children,
+    },
+  });
+}
+
 export async function appendBlocksToPage({ accessToken, pageId, children }) {
   const blockIdNormalized = normalizeNotionId(pageId);
   const blockIdHyphenated = pageId;

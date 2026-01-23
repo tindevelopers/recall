@@ -212,6 +212,47 @@ class MicrosoftGraphApi {
     const meeting = await this.getOnlineMeeting(userId, meetingId);
     return meeting?.recordingInfo || null;
   }
+
+  /**
+   * List recordings for a meeting (Graph beta exposes recordings collection)
+   * Falls back to recordingInfo if collection not available.
+   */
+  async listMeetingRecordings(userId, meetingId) {
+    const endpoints = [
+      `/me/onlineMeetings/${meetingId}/recordings`,
+      `/users/${userId}/onlineMeetings/${meetingId}/recordings`,
+    ];
+
+    for (const path of endpoints) {
+      try {
+        const response = await this.request({ path, method: "GET" });
+        if (response?.value?.length) return response.value;
+        if (Array.isArray(response)) return response;
+      } catch (error) {
+        if (error.status === 403 || error.status === 404) {
+          continue;
+        }
+        throw error;
+      }
+    }
+
+    // Fallback to recordingInfo on meeting object
+    const info = await this.getMeetingRecordings(userId, meetingId);
+    return info ? [info] : [];
+  }
+
+  /**
+   * Download recording content (binary) for a specific recordingId.
+   * Note: This returns response body as text; for streaming, use the proxy layer.
+   */
+  async getRecordingContent(userId, meetingId, recordingId) {
+    const path = `/users/${userId}/onlineMeetings/${meetingId}/recordings/${recordingId}/content`;
+    return await this.request({
+      path,
+      method: "GET",
+      headers: { Accept: "application/octet-stream" },
+    });
+  }
 }
 
 export default MicrosoftGraphApi;

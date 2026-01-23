@@ -266,6 +266,43 @@ export async function fetchTeamsTranscript(calendarEvent) {
 }
 
 /**
+ * Fetch Teams recording metadata (not content) for a calendar event.
+ * Returns list of recordings (if available) with meeting/user identifiers.
+ */
+export async function fetchTeamsRecordingMetadata(calendarEvent) {
+  try {
+    const meetingInfo = extractTeamsMeetingInfo(calendarEvent);
+    if (!meetingInfo) {
+      return null;
+    }
+
+    const client = getGraphClient(calendarEvent.Calendar || await calendarEvent.getCalendar());
+    if (!client) return null;
+
+    let actualMeetingId = meetingInfo.meetingId;
+    if (meetingInfo.joinWebUrl) {
+      const meeting = await client.findMeetingByJoinUrl(meetingInfo.userId, meetingInfo.joinWebUrl);
+      if (meeting?.id) {
+        actualMeetingId = meeting.id;
+      }
+    }
+
+    const recordings = await client.listMeetingRecordings(meetingInfo.userId, actualMeetingId);
+    if (!recordings || recordings.length === 0) return null;
+
+    return {
+      recordings,
+      meetingId: actualMeetingId,
+      userId: meetingInfo.userId,
+      joinWebUrl: meetingInfo.joinWebUrl,
+    };
+  } catch (error) {
+    console.error(`[MS Graph] Error fetching Teams recording metadata:`, error);
+    return null;
+  }
+}
+
+/**
  * Check if a calendar event is a Teams meeting with recording available
  * @param {Object} calendarEvent - CalendarEvent model instance
  * @returns {Promise<boolean>} True if Teams meeting with recording
@@ -288,12 +325,12 @@ export async function hasTeamsRecording(calendarEvent) {
     }
 
     // Check if meeting has recordings
-    const recordings = await client.getMeetingRecordings(
+    const recordings = await client.listMeetingRecordings(
       meetingInfo.userId,
       meetingInfo.meetingId
     );
 
-    return !!recordings;
+    return Array.isArray(recordings) && recordings.length > 0;
   } catch (error) {
     console.error(`[MS Graph] Error checking Teams recording:`, error);
     return false;
@@ -393,6 +430,7 @@ export function parseVTTTranscript(vttContent) {
 
 export default {
   fetchTeamsTranscript,
+  fetchTeamsRecordingMetadata,
   hasTeamsRecording,
   parseVTTTranscript,
   extractTeamsMeetingInfo,

@@ -22,6 +22,8 @@
   "author": "Dhruv Parmar",
   "license": "ISC",
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.974.0",
+    "@aws-sdk/s3-request-presigner": "^3.525.0",
     "bull": "^4.10.4",
     "console-stamp": "^3.1.1",
     "cookie-parser": "^1.4.6",

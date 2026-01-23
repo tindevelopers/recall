@@ -863,15 +863,19 @@ async function openPlayerModal(meetingId, videoUrl, audioUrl, title) {
       fetch('http://127.0.0.1:7250/ingest/bf0206c3-6e13-4499-92a3-7fb2b7527fcf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'views/meetings.ejs:openPlayerModal',message:'Recording API response',data:{meetingId,hasVideoUrl:!!data.videoUrl,hasAudioUrl:!!data.audioUrl,hasTeamsVideoUrl:!!data.teamsVideoUrl,source:data.source},timestamp:Date.now(),sessionId:'debug-session',runId:'play-button',hypothesisId:'B'})}).catch(()=>{});
       // #endregion
       
+      const playbackUrl = data.videoUrl || data.archivedUrl || data.sourceUrl || data.proxyUrl || data.teamsVideoUrl || null;
+      const downloadUrl = data.archivedUrl || data.sourceUrl || data.teamsVideoUrl || data.videoUrl || data.audioUrl || null;
+
       // Prioritize Recall video
-      if (data.videoUrl) {
+      if (playbackUrl) {
         content.innerHTML = `
           <video controls class="w-full rounded-lg" autoplay>
-            <source src="${data.videoUrl}" type="video/mp4">
+            <source src="${playbackUrl}" type="video/mp4">
             Your browser does not support the video tag.
           </video>
           ${data.audioUrl ? `<p class="mt-3 text-sm text-gray-500"><a href="${data.audioUrl}" target="_blank" class="text-indigo-600 hover:underline">Download audio only</a></p>` : ''}
-          ${data.teamsVideoUrl ? `<p class="mt-3 text-sm text-gray-500"><a href="${data.teamsVideoUrl}" target="_blank" class="text-blue-600 hover:underline">Also available: View Teams recording on Microsoft</a></p>` : ''}
+          ${downloadUrl ? `<p class="mt-2 text-sm text-gray-500"><a href="${downloadUrl}" target="_blank" class="text-indigo-600 hover:underline">Download</a></p>` : ''}
+          ${data.archivedUrl ? `<p class="mt-2 text-xs text-gray-400">Playing archived copy</p>` : ''}
         `;
       } else if (data.audioUrl) {
         content.innerHTML = `
@@ -879,27 +883,13 @@ async function openPlayerModal(meetingId, videoUrl, audioUrl, title) {
             <source src="${data.audioUrl}" type="audio/mpeg">
             Your browser does not support the audio element.
           </audio>
-          ${data.teamsVideoUrl ? `<p class="mt-3 text-sm text-gray-500"><a href="${data.teamsVideoUrl}" target="_blank" class="text-blue-600 hover:underline">Also available: View Teams recording on Microsoft</a></p>` : ''}
-        `;
-      } else if (data.teamsVideoUrl) {
-        // No Recall recording, but Teams recording available
-        content.innerHTML = `
-          <div class="text-center py-8">
-            <p class="text-gray-600 mb-4">No Recall recording available for this meeting.</p>
-            <p class="text-sm text-gray-500 mb-6">The recording is available on Microsoft Teams.</p>
-            <a href="${data.teamsVideoUrl}" target="_blank" class="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
-              <svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
-                <path d="M2 6a2 2 0 012-2h6a2 2 0 012 2v8a2 2 0 01-2 2H4a2 2 0 01-2-2V6zM14.553 7.106A1 1 0 0014 8v4a1 1 0 00.553.894l2 1A1 1 0 0018 13V7a1 1 0 00-1.447-.894l-2 1z"></path>
-              </svg>
-              View Teams Recording on Microsoft
-            </a>
-          </div>
+          ${downloadUrl ? `<p class="mt-3 text-sm text-gray-500"><a href="${downloadUrl}" target="_blank" class="text-indigo-600 hover:underline">Download</a></p>` : ''}
         `;
       } else {
         content.innerHTML = `
           <div class="text-center py-8">
             <p class="text-gray-500 mb-2">No recording available for this meeting.</p>
-            <p class="text-xs text-gray-400">Teams recordings are stored in OneDrive/SharePoint and may need to be accessed directly from Microsoft Teams.</p>
+            <p class="text-xs text-gray-400">Recordings may be accessible from the source platform (Teams/Zoom/Webex) or after archiving.</p>
           </div>
         `;
       }

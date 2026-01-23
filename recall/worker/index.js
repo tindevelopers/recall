@@ -50,6 +50,7 @@ import meetingEnrich from "./processors/meeting-enrich.js";
 import publishingDispatch from "./processors/publishing-dispatch.js";
 import periodicCalendarSync from "./processors/periodic-calendar-sync.js";
 import teamsRecordingIngest from "./processors/teams-recording-ingest.js";
+import recordingArchive from "./processors/recording-archive.js";
 
 dotenv.config();
 consoleStamp(console);
@@ -123,6 +124,7 @@ const processors = [
   { name: "publishing.dispatch", concurrency: 2, handler: publishingDispatch },
   { name: "periodic.calendar.sync", concurrency: 1, handler: periodicCalendarSync },
   { name: "teams.recording.ingest", concurrency: 2, handler: teamsRecordingIngest },
+  { name: "recording.archive", concurrency: 1, handler: recordingArchive },
 ];
 
 processors.forEach(({ name, concurrency, handler }) => {

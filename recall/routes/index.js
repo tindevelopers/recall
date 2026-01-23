@@ -43,9 +43,11 @@ import { getTranscript, getSummary, getActionItems, triggerEnrichment } from "./
 import refreshRecording from "./api/refresh-recording.js";
 import getRecording from "./api/get-recording.js";
 import publishMeeting from "./api/publish-meeting.js";
+import { listDestinations as apiNotionDestinations, publishToNotionDestination } from "./api/notion-destinations.js";
 import settingsGet from "./settings/get.js";
 import apiWebhooks from "./api/webhooks.js";
 import meetingSharesRouter from "./api/meeting-shares.js";
+import recordingProxyRouter from "./api/recording-proxy.js";
 
 const router = Router();
 
@@ -107,11 +109,15 @@ router.post("/api/meetings/enrich", triggerEnrichment);
 router.get("/api/meetings/:meetingId/recording", getRecording);
 router.post("/api/meetings/:meetingId/refresh-recording", refreshRecording);
 router.post("/api/meetings/:meetingId/publish", publishMeeting);
+router.get("/api/notion/destinations", apiNotionDestinations);
+router.post("/api/meetings/:meetingId/publish/notion", publishToNotionDestination);
 
 router.get("/api/webhooks", apiWebhooks);
 
 // Meeting sharing API
 router.use("/api", meetingSharesRouter);
+// Recording proxy/URL API
+router.use("/api", recordingProxyRouter);
 
 router.get("/settings", settingsGet);
 

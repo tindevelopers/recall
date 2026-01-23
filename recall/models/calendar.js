@@ -124,6 +124,46 @@ export default (sequelize) => {
         field: "auto_publish_to_notion",
       },
 
+      // Storage / archiving settings (optional; supports S3-compatible providers)
+      storageProvider: {
+        type: DataTypes.ENUM("aws_s3", "wasabi", "backblaze", "minio", "custom"),
+        allowNull: true,
+        field: "storage_provider",
+      },
+      storageEndpoint: {
+        type: DataTypes.STRING,
+        allowNull: true,
+        field: "storage_endpoint",
+        comment: "Custom endpoint for S3-compatible storage (Wasabi, Backblaze, MinIO, etc.)",
+      },
+      storageBucket: {
+        type: DataTypes.STRING,
+        allowNull: true,
+        field: "storage_bucket",
+      },
+      storageAccessKey: {
+        type: DataTypes.STRING,
+        allowNull: true,
+        field: "storage_access_key",
+      },
+      storageSecretKey: {
+        type: DataTypes.STRING,
+        allowNull: true,
+        field: "storage_secret_key",
+      },
+      storageRegion: {
+        type: DataTypes.STRING,
+        allowNull: true,
+        field: "storage_region",
+      },
+      autoArchiveRecordings: {
+        type: DataTypes.BOOLEAN,
+        allowNull: false,
+        defaultValue: false,
+        field: "auto_archive_recordings",
+        comment: "Automatically download recordings to configured storage after meetings",
+      },
+
       // Bot behavior settings
       joinBeforeStartMinutes: {
         type: DataTypes.INTEGER,

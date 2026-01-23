@@ -22,6 +22,13 @@ export default async (req, res) => {
         useRetellTranscription = "off",
         recordVideo = "off",
         recordAudio = "off",
+        storageProvider,
+        storageEndpoint,
+        storageBucket,
+        storageAccessKey,
+        storageSecretKey,
+        storageRegion,
+        autoArchiveRecordings = "off",
       } = req.body || {};
 
       calendar.autoRecordExternalEvents = autoRecordExternalEvents === "on" ? true : false;
@@ -44,6 +51,20 @@ export default async (req, res) => {
           ? req.body.recordAudio.includes("on") ? "on" : "off"
           : req.body.recordAudio;
         calendar.recordAudio = recordAudioValue === "on";
+      }
+
+      // Storage configuration (optional)
+      calendar.storageProvider = storageProvider || null;
+      calendar.storageEndpoint = storageEndpoint || null;
+      calendar.storageBucket = storageBucket || null;
+      calendar.storageAccessKey = storageAccessKey || null;
+      calendar.storageSecretKey = storageSecretKey || null;
+      calendar.storageRegion = storageRegion || null;
+      calendar.autoArchiveRecordings = autoArchiveRecordings === "on";
+
+      // If provider not set, disable auto-archive
+      if (!calendar.storageProvider || !calendar.storageBucket) {
+        calendar.autoArchiveRecordings = false;
       }
       await calendar.save();
       // Verify by reloading from database

@@ -1,6 +1,7 @@
 import {
   appendBlocksToPage,
   createPageInDatabase,
+  createSubpage,
   getPageOrDatabase,
 } from "../../services/notion/api-client.js";
 import { BasePublisher } from "../base-publisher.js";
@@ -118,11 +119,13 @@ class NotionPublisher extends BasePublisher {
     const config = target.config || {};
     let destinationType = config.destinationType || "database";
     const destinationId = config.destinationId;
+    const createNewPage = config.createNewPage || false;
 
     console.log(`[NOTION] Config:`, {
       destinationType,
       destinationId: destinationId ? `${destinationId.substring(0, 8)}...` : null,
       hasTitleTemplate: !!config.titleTemplate,
+      createNewPage,
     });
 
     if (!destinationId) {
@@ -157,8 +160,13 @@ class NotionPublisher extends BasePublisher {
       destinationType = "database";
     }
 
-    const title =
-      config.titleTemplate || payload.summary?.slice(0, 100) || "Meeting Notes";
+    // Build the meeting title from artifact data
+    const meetingTitle = meetingSummary.MeetingArtifact?.title || 
+                         meetingSummary.MeetingArtifact?.meetingTitle ||
+                         payload.summary?.slice(0, 100) || 
+                         "Meeting Notes";
+    const title = config.titleTemplate || meetingTitle;
+    
     const children = buildBlocks({
       summary: payload.summary,
       actionItems: payload.actionItems,
@@ -174,6 +182,8 @@ class NotionPublisher extends BasePublisher {
     );
 
     let result = null;
+    
+    // Create new page in database
     if (destinationType === "database") {
       console.log(
         `[NOTION] Creating page in database ${destinationId.substring(0, 8)}...`
@@ -203,7 +213,38 @@ class NotionPublisher extends BasePublisher {
       }
     }
 
-    // default: append to page
+    // Create new subpage under the selected page
+    if (createNewPage && destinationType === "page") {
+      console.log(
+        `[NOTION] Creating new subpage under ${destinationId.substring(0, 8)}...`
+      );
+      try {
+        result = await createSubpage({
+          accessToken: integration.accessToken,
+          parentPageId: destinationId,
+          title,
+          children,
+          icon: "📝",
+        });
+        console.log(
+          `[NOTION] Successfully created subpage. Page ID: ${result?.id}, URL: ${result?.url}`
+        );
+        return {
+          externalId: result?.id,
+          url: result?.url,
+        };
+      } catch (err) {
+        console.error(`[NOTION] Error creating subpage:`, {
+          message: err.message,
+          status: err.status,
+          code: err.code,
+          response: err.response?.data || err.body,
+        });
+        throw err;
+      }
+    }
+
+    // Default: append to existing page
     console.log(
       `[NOTION] Appending blocks to page ${destinationId.substring(0, 8)}...`
     );

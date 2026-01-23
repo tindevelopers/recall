@@ -1,8 +1,61 @@
 import { getClient } from "./api-client.js";
 import { telemetryEvent } from "../../utils/telemetry.js";
 
+function extractRecordingUrls(bot = {}) {
+  const result = {
+    videoUrl: null,
+    audioUrl: null,
+    transcriptUrl: null,
+  };
+
+  // Prefer recordings array media_shortcuts
+  const recordings = bot.recordings || bot?.outputs?.recordings || [];
+  const recordingList = Array.isArray(recordings) ? recordings : [];
+  for (const recording of recordingList) {
+    if (!result.videoUrl) {
+      result.videoUrl =
+        recording?.media_shortcuts?.video?.data?.download_url ||
+        recording?.video_url ||
+        recording?.recording_url;
+    }
+    if (!result.audioUrl) {
+      result.audioUrl =
+        recording?.media_shortcuts?.audio?.data?.download_url ||
+        recording?.audio_url;
+    }
+    if (!result.transcriptUrl) {
+      result.transcriptUrl =
+        recording?.media_shortcuts?.transcript?.data?.download_url ||
+        recording?.transcript_url;
+    }
+    if (result.videoUrl || result.audioUrl) break;
+  }
+
+  // Fallbacks
+  if (!result.videoUrl) {
+    result.videoUrl =
+      bot?.media_shortcuts?.video?.data?.download_url ||
+      bot?.outputs?.video?.download_url ||
+      bot?.recording_url;
+  }
+  if (!result.audioUrl) {
+    result.audioUrl =
+      bot?.media_shortcuts?.audio?.data?.download_url ||
+      bot?.outputs?.audio?.download_url ||
+      bot?.audio_url;
+  }
+  if (!result.transcriptUrl) {
+    result.transcriptUrl =
+      bot?.media_shortcuts?.transcript?.data?.download_url ||
+      bot?.transcript_url ||
+      bot?.outputs?.transcript?.download_url;
+  }
+
+  return result;
+}
+
 let client = null;
-export default {
+const recallService = {
   initialize() {
     client = getClient();
   },
@@ -323,6 +376,28 @@ export default {
   },
 
   /**
+   * Extract downloadable recording URLs (video/audio) from a bot payload.
+   * Handles v1/v2 structures and media_shortcuts.
+   */
+  getRecordingUrlsFromBot: (bot = {}) => {
+    return extractRecordingUrls(bot);
+  },
+
+  /**
+   * Convenience: fetch bot and return extracted recording URLs.
+   */
+  getBotRecordingUrls: async (botId) => {
+    const bot = await client.request({
+      path: `/api/v2/bots/${botId}/`,
+      method: "GET",
+    });
+    return {
+      bot,
+      ...extractRecordingUrls(bot),
+    };
+  },
+
+  /**
    * List all bots (with pagination support)
    */
   listBots: async ({ status, limit = 100 } = {}) => {
@@ -350,3 +425,5 @@ export default {
     return bots.slice(0, limit);
   },
 };
+
+export default recallService;

@@ -19,7 +19,7 @@ async function ensureChunkEmbeddings(chunks) {
 }
 
 export default async (job) => {
-  const { meetingArtifactId } = job.data;
+  const { meetingArtifactId, publishAfterEnrich, notionOverride } = job.data;
   
   const artifact = await db.MeetingArtifact.findByPk(meetingArtifactId, {
     include: [
@@ -111,8 +111,16 @@ export default async (job) => {
   // mark artifact status
   await artifact.update({ status: "enriched" });
 
-  // enqueue publishing only if auto-publish is enabled
-  if (enrichmentSettings.autoPublishToNotion) {
+  // If publishAfterEnrich is set (from manual publish with override), always publish
+  if (publishAfterEnrich && notionOverride) {
+    console.log(`INFO: Publishing to Notion with override after enrichment`);
+    job.queue.add("publishing.dispatch", {
+      meetingSummaryId: meetingSummary.id || meetingSummary?.dataValues?.id,
+      notionOverride,
+    });
+  }
+  // Otherwise, enqueue publishing only if auto-publish is enabled
+  else if (enrichmentSettings.autoPublishToNotion) {
     job.queue.add("publishing.dispatch", {
       meetingSummaryId: meetingSummary.id || meetingSummary?.dataValues?.id,
     });
