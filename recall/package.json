@@ -14,7 +14,7 @@
     "start:worker": "NODE_ENV=production node worker/index.js",
     "dev": "NODE_ENV=development nodemon index.js",
     "dev:worker": "NODE_ENV=development nodemon worker/index.js",
-    "migrate": "node recall/run-migrations.js",
+    "migrate": "node run-migrations.js",
     "disconnect-v1-bot": "node disconnect-v1-bot.js",
     "stop-v1-scheduler": "node stop-v1-scheduler.js",
     "check-v2-bot-scheduling": "node check-v2-bot-scheduling.js"

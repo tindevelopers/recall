@@ -1111,12 +1111,42 @@ export default async (req, res) => {
   }
 
   // Get all meeting artifacts for this user with their summaries
+  // Include both owned meetings and shared meetings
   let artifacts = [];
+  let sharedArtifactIds = [];
+  
+  // First, get IDs of meetings shared with this user
+  try {
+    const user = await db.User.findByPk(userId);
+    const shareWhereClause = {
+      status: "accepted",
+      [Op.or]: [{ sharedWithUserId: userId }],
+    };
+    if (user?.email) {
+      shareWhereClause[Op.or].push({ sharedWithEmail: user.email.toLowerCase() });
+    }
+    
+    const shares = await db.MeetingShare.findAll({
+      where: shareWhereClause,
+      attributes: ["meetingArtifactId"],
+    });
+    sharedArtifactIds = shares.map(s => s.meetingArtifactId);
+  } catch (shareError) {
+    console.error("[MEETINGS] Error fetching shared meetings:", shareError);
+    // Continue without shared meetings if there's an error
+  }
+  
   try {
     // OPTIMIZATION: Don't include MeetingTranscriptChunk - it can have thousands of rows per artifact
     // Instead, we'll check for transcript existence separately using a count query
     const artifactResult = await db.MeetingArtifact.findAndCountAll({
-      where: { userId },
+      where: {
+        [Op.or]: [
+          { userId }, // Meetings created by this user
+          { ownerUserId: userId }, // Meetings owned by this user
+          ...(sharedArtifactIds.length > 0 ? [{ id: { [Op.in]: sharedArtifactIds } }] : []), // Shared meetings
+        ],
+      },
       distinct: true,
       include: [
         {
@@ -1533,6 +1563,10 @@ export default async (req, res) => {
       calendarEmail: calendarEvent?.Calendar?.email || null,
       platform: calendarEvent?.Calendar?.platform || null,
       summaryId: summary?.id || null,
+      // Ownership and sharing info
+      isOwner: artifact.ownerUserId === userId || artifact.userId === userId,
+      isShared: sharedArtifactIds.includes(artifact.id),
+      ownerUserId: artifact.ownerUserId || artifact.userId,
       meetingPlatform: artifact.meetingPlatform || metadata.meetingPlatform,
       meetingId: artifact.meetingId || metadata.meetingId,
       displayMeetingId:

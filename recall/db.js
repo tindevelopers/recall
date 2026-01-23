@@ -15,6 +15,7 @@ import initMeetingSummaryModel from "./models/meeting-summary.js";
 import initIntegrationModel from "./models/integration.js";
 import initPublishTargetModel from "./models/publish-target.js";
 import initPublishDeliveryModel from "./models/publish-delivery.js";
+import initMeetingShareModel from "./models/meeting-share.js";
 
 let db = {};
 let sequelize = null;
@@ -177,6 +178,45 @@ function initializeModels() {
   });
   db.PublishDelivery.belongsTo(db.PublishTarget, {
     foreignKey: "publishTargetId",
+  });
+
+  // Meeting sharing associations
+  db.MeetingShare = initMeetingShareModel(sequelize);
+  
+  db.MeetingArtifact.hasMany(db.MeetingShare, {
+    foreignKey: "meetingArtifactId",
+    as: "shares",
+  });
+  db.MeetingShare.belongsTo(db.MeetingArtifact, {
+    foreignKey: "meetingArtifactId",
+  });
+  
+  db.User.hasMany(db.MeetingShare, {
+    foreignKey: "sharedWithUserId",
+    as: "sharedMeetings",
+  });
+  db.MeetingShare.belongsTo(db.User, {
+    foreignKey: "sharedWithUserId",
+    as: "sharedWithUser",
+  });
+  
+  db.User.hasMany(db.MeetingShare, {
+    foreignKey: "sharedByUserId",
+    as: "meetingsSharedByMe",
+  });
+  db.MeetingShare.belongsTo(db.User, {
+    foreignKey: "sharedByUserId",
+    as: "sharedByUser",
+  });
+
+  // Owner association for MeetingArtifact
+  db.MeetingArtifact.belongsTo(db.User, {
+    foreignKey: "ownerUserId",
+    as: "owner",
+  });
+  db.User.hasMany(db.MeetingArtifact, {
+    foreignKey: "ownerUserId",
+    as: "ownedMeetings",
   });
 }
 

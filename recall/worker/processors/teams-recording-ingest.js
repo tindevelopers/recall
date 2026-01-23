@@ -87,13 +87,33 @@ export default async (job) => {
       },
     });
 
-    const userId = calendarEvent.Calendar?.userId || null;
+    const calendarUserId = calendarEvent.Calendar?.userId || null;
+    
+    // Determine the owner based on meeting organizer
+    // The organizer should be the primary owner, the calendar user is the creator
+    let ownerUserId = calendarUserId;
+    const organizerEmail = calendarEvent.recallData?.raw?.organizer?.emailAddress?.address;
+    
+    if (organizerEmail) {
+      // Try to find the organizer in our user database
+      const organizerUser = await db.User.findOne({
+        where: db.sequelize.where(
+          db.sequelize.fn('LOWER', db.sequelize.col('email')),
+          organizerEmail.toLowerCase()
+        ),
+      });
+      if (organizerUser) {
+        ownerUserId = organizerUser.id;
+        console.log(`[Teams Recording] Set owner to organizer: ${organizerEmail} (${ownerUserId})`);
+      }
+    }
 
     // Create or update meeting artifact
     const artifactPayload = {
       recallEventId: calendarEvent.recallId,
       calendarEventId: calendarEvent.id,
-      userId,
+      userId: calendarUserId, // Creator (who triggered the recording)
+      ownerUserId, // Owner (meeting organizer)
       eventType: "teams_recording",
       status: "received",
     ...meetingMetadata,
@@ -127,7 +147,7 @@ export default async (job) => {
       db.MeetingTranscriptChunk.create({
         meetingArtifactId: meetingArtifact.id,
         calendarEventId: calendarEvent.id,
-        userId,
+        userId: calendarUserId,
         sequence: chunk.sequence ?? index,
         startTimeMs: chunk.startTimeMs,
         endTimeMs: chunk.endTimeMs,

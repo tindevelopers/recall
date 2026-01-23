@@ -45,6 +45,7 @@ import getRecording from "./api/get-recording.js";
 import publishMeeting from "./api/publish-meeting.js";
 import settingsGet from "./settings/get.js";
 import apiWebhooks from "./api/webhooks.js";
+import meetingSharesRouter from "./api/meeting-shares.js";
 
 const router = Router();
 
@@ -108,6 +109,9 @@ router.post("/api/meetings/:meetingId/refresh-recording", refreshRecording);
 router.post("/api/meetings/:meetingId/publish", publishMeeting);
 
 router.get("/api/webhooks", apiWebhooks);
+
+// Meeting sharing API
+router.use("/api", meetingSharesRouter);
 
 router.get("/settings", settingsGet);
 

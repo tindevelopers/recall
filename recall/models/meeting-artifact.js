@@ -26,6 +26,12 @@ export default (sequelize) => {
       userId: {
         type: DataTypes.UUID,
         allowNull: true,
+        comment: "User who created/triggered the recording",
+      },
+      ownerUserId: {
+        type: DataTypes.UUID,
+        allowNull: true,
+        comment: "Primary owner of the meeting (usually the organizer)",
       },
       eventType: {
         type: DataTypes.STRING,

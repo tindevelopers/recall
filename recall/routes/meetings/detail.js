@@ -18,9 +18,14 @@ export default async (req, res) => {
   const artifactQueryStart = Date.now();
   fetch('http://127.0.0.1:7250/ingest/bf0206c3-6e13-4499-92a3-7fb2b7527fcf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'routes/meetings/detail.js:artifact_query_start',message:'Starting artifact query',data:{meetingId},timestamp:Date.now(),sessionId:'debug-session',runId:'detail-perf',hypothesisId:'B'})}).catch(()=>{});
   // #endregion
+  // First, check if user has access via ownership or sharing
+  let hasAccess = false;
+  let isOwner = false;
+  let shareInfo = null;
+  
+  // Try to find the artifact first (without user filter to check sharing)
   let artifact = await db.MeetingArtifact.findOne({
     where: {
-      userId,
       [Op.or]: [
         { id: meetingId },
         { readableId: meetingId },
@@ -42,6 +47,40 @@ export default async (req, res) => {
       },
     ],
   });
+  
+  if (artifact) {
+    // Check if user owns this meeting
+    isOwner = artifact.userId === userId || artifact.ownerUserId === userId;
+    
+    if (isOwner) {
+      hasAccess = true;
+    } else {
+      // Check if user has shared access
+      const user = await db.User.findByPk(userId);
+      const shareWhereClause = {
+        meetingArtifactId: artifact.id,
+        status: "accepted",
+        [Op.or]: [{ sharedWithUserId: userId }],
+      };
+      if (user?.email) {
+        shareWhereClause[Op.or].push({ sharedWithEmail: user.email.toLowerCase() });
+      }
+      
+      shareInfo = await db.MeetingShare.findOne({
+        where: shareWhereClause,
+        include: [{ model: db.User, as: "sharedByUser", attributes: ["id", "name", "email"] }],
+      });
+      
+      if (shareInfo) {
+        hasAccess = true;
+      }
+    }
+    
+    if (!hasAccess) {
+      // User doesn't have access to this meeting
+      artifact = null;
+    }
+  }
   // #region agent log
   const artifactQueryEnd = Date.now();
   fetch('http://127.0.0.1:7250/ingest/bf0206c3-6e13-4499-92a3-7fb2b7527fcf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'routes/meetings/detail.js:artifact_query_end',message:'Artifact query completed',data:{meetingId,queryTimeMs:artifactQueryEnd-artifactQueryStart,hasArtifact:!!artifact,chunkCount:artifact?.MeetingTranscriptChunks?.length||0},timestamp:Date.now(),sessionId:'debug-session',runId:'detail-perf',hypothesisId:'B'})}).catch(()=>{});
@@ -162,6 +201,18 @@ export default async (req, res) => {
     // For enrichment trigger
     artifactId: artifact?.id || null,
     hasBeenEnriched: !!summary,
+    
+    // Ownership and sharing
+    isOwner,
+    isShared: !!shareInfo,
+    shareInfo: shareInfo ? {
+      accessLevel: shareInfo.accessLevel,
+      sharedBy: shareInfo.sharedByUser ? {
+        name: shareInfo.sharedByUser.name,
+        email: shareInfo.sharedByUser.email,
+      } : null,
+      sharedAt: shareInfo.createdAt,
+    } : null,
   };
 
   // Get publish deliveries for this meeting
