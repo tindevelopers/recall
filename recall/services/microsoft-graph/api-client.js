@@ -133,12 +133,11 @@ class MicrosoftGraphApi {
    * @returns {Promise<string>} Transcript content as VTT text
    */
   async getTranscriptContent(userId, meetingId, transcriptId) {
+    // Microsoft Graph requires $format query parameter for transcript content
+    // Valid formats: text/vtt (default), application/vnd.openxmlformats-officedocument.wordprocessingml.document
     return await this.request({
-      path: `/users/${userId}/onlineMeetings/${meetingId}/transcripts/${transcriptId}/content`,
+      path: `/users/${userId}/onlineMeetings/${meetingId}/transcripts/${transcriptId}/content?$format=text/vtt`,
       method: "GET",
-      headers: {
-        "Accept": "text/vtt, application/vtt, */*",
-      },
     });
   }
 

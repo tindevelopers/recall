@@ -307,7 +307,9 @@ export async function hasTeamsRecording(calendarEvent) {
  */
 export function parseVTTTranscript(vttContent) {
   const chunks = [];
-  const lines = vttContent.split("\n");
+  // Normalize line endings (handle CRLF, CR, and LF)
+  const normalizedContent = vttContent.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+  const lines = normalizedContent.split("\n");
   
   let currentChunk = null;
   let sequence = 0;
@@ -342,14 +344,30 @@ export function parseVTTTranscript(vttContent) {
       continue;
     }
 
-    // Speaker identification (e.g., "<v Speaker Name>")
-    const speakerMatch = line.match(/<v\s+([^>]+)>/);
+    // Speaker identification and text (e.g., "<v Speaker Name>Text here</v>")
+    // Teams VTT format has speaker and text on the same line
+    const speakerMatch = line.match(/<v\s+([^>]+)>(.+?)<\/v>/);
     if (speakerMatch && currentChunk) {
       currentChunk.speaker = speakerMatch[1].trim();
+      const text = speakerMatch[2].trim();
+      if (text) {
+        currentChunk.text += (currentChunk.text ? " " : "") + text;
+      }
+      // Save the chunk immediately after processing speaker+text line
+      if (currentChunk.text) {
+        chunks.push(currentChunk);
+        currentChunk = null;
+      }
       continue;
     }
 
-    // Text content
+    // Fallback: Speaker tag without closing tag
+    const speakerOnlyMatch = line.match(/<v\s+([^>]+)>/);
+    if (speakerOnlyMatch && currentChunk && !currentChunk.speaker) {
+      currentChunk.speaker = speakerOnlyMatch[1].trim();
+    }
+
+    // Text content (lines without speaker tags)
     if (currentChunk && line && !line.startsWith("<")) {
       // Remove any remaining VTT tags
       const cleanText = line.replace(/<[^>]+>/g, "").trim();

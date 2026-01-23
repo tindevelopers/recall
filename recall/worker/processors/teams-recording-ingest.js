@@ -58,13 +58,23 @@ export default async (job) => {
     }
 
     console.log(`[Teams Recording] Successfully fetched transcript for ${calendarEventId}`);
+    console.log(`[Teams Recording] Transcript content type: ${typeof transcriptData.content}`);
+    console.log(`[Teams Recording] Transcript content length: ${transcriptData.content?.length || 0}`);
+    
+    // Debug: Show first 1000 chars with visible line endings
+    const debugPreview = transcriptData.content?.substring(0, 1000)
+      .replace(/\r\n/g, '[CRLF]\n')
+      .replace(/\r/g, '[CR]\n')
+      .replace(/\n/g, '[LF]\n');
+    console.log(`[Teams Recording] Transcript content preview (with line endings):\n${debugPreview}`);
 
     // Parse VTT transcript into chunks
     const transcriptChunks = parseVTTTranscript(transcriptData.content);
 
     if (transcriptChunks.length === 0) {
       console.warn(`[Teams Recording] No transcript chunks parsed from VTT content`);
-      return;
+      // Don't return early - still create the artifact with empty transcript
+      // The transcript might be in a different format or still processing
     }
 
     console.log(`[Teams Recording] Parsed ${transcriptChunks.length} transcript chunks`);
