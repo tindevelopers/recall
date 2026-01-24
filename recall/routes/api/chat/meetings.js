@@ -175,22 +175,84 @@ export default async (req, res) => {
     });
   }
 
-  // Use PostgreSQL vector operator for similarity search
-  const topContexts = await db.sequelize.query(
-    `
-    SELECT mtc.id, mtc."calendarEventId", mtc."meetingArtifactId", mtc."userId", mtc.sequence, mtc."startTimeMs",
-           mtc."endTimeMs", mtc.speaker, mtc.text, mtc.embedding <=> CAST(:queryVec AS vector) AS distance
-    FROM meeting_transcript_chunks mtc
-    JOIN meeting_artifacts ma ON ma.id = mtc."meetingArtifactId"
-    WHERE ${whereClauses.join(" AND ")}
-    ORDER BY mtc.embedding <=> CAST(:queryVec AS vector)
-    LIMIT 8;
-    `,
-    {
-      replacements,
-      type: db.Sequelize.QueryTypes.SELECT,
-    }
-  );
+  // Check if pgvector extension is available
+  let usePgVector = false;
+  try {
+    const [pgvectorCheck] = await db.sequelize.query(
+      "SELECT 1 FROM pg_extension WHERE extname = 'vector';",
+      { type: db.Sequelize.QueryTypes.SELECT }
+    );
+    usePgVector = !!pgvectorCheck;
+  } catch (err) {
+    console.warn("[chat/meetings] Could not check for pgvector extension:", err?.message);
+  }
+
+  let topContexts;
+  
+  if (usePgVector) {
+    // Use PostgreSQL pgvector operator for fast similarity search
+    topContexts = await db.sequelize.query(
+      `
+      SELECT mtc.id, mtc."calendarEventId", mtc."meetingArtifactId", mtc."userId", mtc.sequence, mtc."startTimeMs",
+             mtc."endTimeMs", mtc.speaker, mtc.text, mtc.embedding <=> CAST(:queryVec AS vector) AS distance
+      FROM meeting_transcript_chunks mtc
+      JOIN meeting_artifacts ma ON ma.id = mtc."meetingArtifactId"
+      WHERE ${whereClauses.join(" AND ")}
+      ORDER BY mtc.embedding <=> CAST(:queryVec AS vector)
+      LIMIT 8;
+      `,
+      {
+        replacements,
+        type: db.Sequelize.QueryTypes.SELECT,
+      }
+    );
+  } else {
+    // Fallback: Use JSON-based cosine similarity (slower but works without pgvector)
+    // Fetch all matching chunks and compute similarity in JavaScript
+    const allChunks = await db.sequelize.query(
+      `
+      SELECT mtc.id, mtc."calendarEventId", mtc."meetingArtifactId", mtc."userId", mtc.sequence, mtc."startTimeMs",
+             mtc."endTimeMs", mtc.speaker, mtc.text, mtc.embedding
+      FROM meeting_transcript_chunks mtc
+      JOIN meeting_artifacts ma ON ma.id = mtc."meetingArtifactId"
+      WHERE ${whereClauses.join(" AND ")}
+      LIMIT 500;
+      `,
+      {
+        replacements,
+        type: db.Sequelize.QueryTypes.SELECT,
+      }
+    );
+
+    // Compute cosine similarity in JavaScript
+    const cosineSimilarity = (a, b) => {
+      let dotProduct = 0;
+      let normA = 0;
+      let normB = 0;
+      for (let i = 0; i < a.length; i++) {
+        dotProduct += a[i] * b[i];
+        normA += a[i] * a[i];
+        normB += b[i] * b[i];
+      }
+      return dotProduct / (Math.sqrt(normA) * Math.sqrt(normB));
+    };
+
+    // Calculate similarity for each chunk
+    const chunksWithDistance = allChunks.map((chunk) => {
+      const embedding = Array.isArray(chunk.embedding) 
+        ? chunk.embedding 
+        : JSON.parse(chunk.embedding || "[]");
+      const similarity = cosineSimilarity(queryEmbedding, embedding);
+      // Convert similarity to distance (1 - similarity for cosine distance)
+      const distance = 1 - similarity;
+      return { ...chunk, distance };
+    });
+
+    // Sort by distance (ascending) and take top 8
+    topContexts = chunksWithDistance
+      .sort((a, b) => a.distance - b.distance)
+      .slice(0, 8);
+  }
 
   if (!topContexts.length) {
     return res.status(200).json({ answer: "No matching meeting transcripts available for this query." });
