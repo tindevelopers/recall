@@ -47,6 +47,7 @@ import calendarEventDeleteBot from './processors/calendar-event-delete-bot.js';
 import recallCalendarUpdate from "./processors/recall-calendar-update.js";
 import recallCalendarSyncEvents from "./processors/recall-calendar-sync-events.js";
 import meetingEnrich from "./processors/meeting-enrich.js";
+import meetingEmbedChunks from "./processors/meeting-embed-chunks.js";
 import publishingDispatch from "./processors/publishing-dispatch.js";
 import periodicCalendarSync from "./processors/periodic-calendar-sync.js";
 import teamsRecordingIngest from "./processors/teams-recording-ingest.js";
@@ -121,6 +122,7 @@ const processors = [
   { name: "recall.calendar.update", concurrency: 2, handler: recallCalendarUpdate },
   { name: "recall.calendar.sync_events", concurrency: 2, handler: recallCalendarSyncEvents },
   { name: "meeting.enrich", concurrency: 2, handler: meetingEnrich },
+  { name: "meeting.embed_chunks", concurrency: 2, handler: meetingEmbedChunks },
   { name: "publishing.dispatch", concurrency: 2, handler: publishingDispatch },
   { name: "periodic.calendar.sync", concurrency: 1, handler: periodicCalendarSync },
   { name: "teams.recording.ingest", concurrency: 2, handler: teamsRecordingIngest },

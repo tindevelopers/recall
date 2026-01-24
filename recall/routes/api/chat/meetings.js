@@ -2,24 +2,11 @@ import db from "../../../db.js";
 import { embed } from "../../../services/openai/index.js";
 import { chatWithRouter } from "../../../services/query-router/index.js";
 import { cacheGet, cacheSet, hashKey } from "../../../services/cache/index.js";
-
-function cosineSimilarity(a = [], b = []) {
-  if (!a.length || !b.length || a.length !== b.length) return 0;
-  let dot = 0;
-  let normA = 0;
-  let normB = 0;
-  for (let i = 0; i < a.length; i++) {
-    dot += a[i] * b[i];
-    normA += a[i] * a[i];
-    normB += b[i] * b[i];
-  }
-  if (!normA || !normB) return 0;
-  return dot / (Math.sqrt(normA) * Math.sqrt(normB));
-}
-
-function isValidText(value) {
-  return typeof value === "string" && value.trim().length > 0;
-}
+import { backgroundQueue } from "../../../queue.js";
+import {
+  buildAccessSql,
+  findAccessibleArtifact,
+} from "../../../services/meetings/access.js";
 
 function buildAnswerPrompt(query, contexts) {
   const contextText = contexts
@@ -53,33 +40,20 @@ export default async (req, res) => {
   }
 
   const userId = req.authentication.user.id;
+  const userEmail = req.authentication.user.email || null;
   const meetingArtifactId = req.body?.meetingArtifactId || req.body?.meetingId;
   const calendarEventId = req.body?.calendarEventId;
-  const chunks = await db.MeetingTranscriptChunk.findAll({
-    where: { userId },
-    limit: 500,
-  });
 
-  if (!chunks.length) {
-    return res.status(200).json({ answer: "No meeting transcripts available yet." });
-  }
-
-  // Ensure chunk embeddings (skip invalid/empty texts)
-  const validChunks = chunks.filter((c) => isValidText(c.text));
-  const chunksNeedingEmbedding = validChunks.filter((c) => !c.embedding);
-  if (chunksNeedingEmbedding.length) {
-    try {
-      const embeds = await embed(chunksNeedingEmbedding.map((c) => c.text.trim()));
-      await Promise.all(
-        chunksNeedingEmbedding.map((c, idx) =>
-          c.update({ embedding: embeds[idx] || null })
-        )
-      );
-    } catch (err) {
-      console.error("[chat/meetings] embedding chunks failed:", err?.message || err);
+  if (meetingArtifactId) {
+    const artifact = await findAccessibleArtifact({
+      meetingIdOrReadableId: meetingArtifactId,
+      userId,
+      userEmail,
+    });
+    if (!artifact) {
       return res
-        .status(500)
-        .json({ error: "Failed to generate embeddings for meeting chunks" });
+        .status(404)
+        .json({ error: "Meeting not found or you don't have access." });
     }
   }
 
@@ -105,27 +79,111 @@ export default async (req, res) => {
 
   const queryVector = `[${queryEmbedding.join(",")}]`;
 
-  const whereClauses = ['"userId" = :userId', "embedding IS NOT NULL"];
-  const replacements = { queryVec: queryVector, userId };
+  const accessSql = buildAccessSql({
+    userId,
+    userEmail: userEmail?.toLowerCase(),
+    artifactAlias: "ma",
+  });
+
+  const whereClauses = ["mtc.embedding IS NOT NULL", `(${accessSql})`];
+  const replacements = {
+    queryVec: queryVector,
+    userId,
+    userEmail: userEmail?.toLowerCase(),
+  };
 
   if (meetingArtifactId) {
-    whereClauses.push('"meetingArtifactId" = :meetingArtifactId');
+    whereClauses.push('mtc."meetingArtifactId" = :meetingArtifactId');
     replacements.meetingArtifactId = meetingArtifactId;
+  } else {
+    whereClauses.push("ma.status IN ('completed','done','enriched')");
   }
 
   if (calendarEventId) {
-    whereClauses.push('"calendarEventId" = :calendarEventId');
+    whereClauses.push('mtc."calendarEventId" = :calendarEventId');
     replacements.calendarEventId = calendarEventId;
+  }
+
+  // Ensure we actually have embeddings to search; if not, queue embed job(s)
+  const countResult = await db.sequelize.query(
+    `
+      SELECT COUNT(*)::int AS count
+      FROM meeting_transcript_chunks mtc
+      JOIN meeting_artifacts ma ON ma.id = mtc."meetingArtifactId"
+      WHERE ${whereClauses.join(" AND ")};
+    `,
+    { replacements, type: db.Sequelize.QueryTypes.SELECT }
+  );
+
+  const embeddingCount = countResult?.[0]?.count || 0;
+  if (embeddingCount === 0) {
+    if (meetingArtifactId) {
+      try {
+        await backgroundQueue.add(
+          "meeting.embed_chunks",
+          { meetingArtifactId },
+          { jobId: `embed-${meetingArtifactId}`, removeOnComplete: true }
+        );
+      } catch (err) {
+        console.warn(
+          `[chat/meetings] Failed to enqueue embed job for ${meetingArtifactId}:`,
+          err?.message || err
+        );
+      }
+      return res.status(202).json({
+        answer:
+          "Indexing this meeting's transcript. Please try again in a moment.",
+        indexing: true,
+      });
+    }
+
+    // Global: queue a few accessible meetings that lack embeddings
+    const meetingsNeedingEmbeds = await db.sequelize.query(
+      `
+        SELECT ma.id
+        FROM meeting_artifacts ma
+        JOIN meeting_transcript_chunks mtc ON mtc."meetingArtifactId" = ma.id
+        WHERE (${accessSql})
+          AND ma.status IN ('completed','done','enriched')
+        GROUP BY ma.id
+        HAVING SUM(CASE WHEN mtc.embedding IS NOT NULL THEN 1 ELSE 0 END) = 0
+        LIMIT 3;
+      `,
+      {
+        replacements,
+        type: db.Sequelize.QueryTypes.SELECT,
+      }
+    );
+
+    for (const row of meetingsNeedingEmbeds || []) {
+      try {
+        await backgroundQueue.add(
+          "meeting.embed_chunks",
+          { meetingArtifactId: row.id },
+          { jobId: `embed-${row.id}`, removeOnComplete: true }
+        );
+      } catch (err) {
+        console.warn(
+          `[chat/meetings] Failed to enqueue embed job for ${row.id}:`,
+          err?.message || err
+        );
+      }
+    }
+
+    return res.status(200).json({
+      answer: "No indexed meeting transcripts available yet.",
+    });
   }
 
   // Use PostgreSQL vector operator for similarity search
   const topContexts = await db.sequelize.query(
     `
-    SELECT id, "calendarEventId", "meetingArtifactId", "userId", sequence, "startTimeMs",
-           "endTimeMs", speaker, text, embedding <=> CAST(:queryVec AS vector) AS distance
-    FROM meeting_transcript_chunks
+    SELECT mtc.id, mtc."calendarEventId", mtc."meetingArtifactId", mtc."userId", mtc.sequence, mtc."startTimeMs",
+           mtc."endTimeMs", mtc.speaker, mtc.text, mtc.embedding <=> CAST(:queryVec AS vector) AS distance
+    FROM meeting_transcript_chunks mtc
+    JOIN meeting_artifacts ma ON ma.id = mtc."meetingArtifactId"
     WHERE ${whereClauses.join(" AND ")}
-    ORDER BY embedding <=> CAST(:queryVec AS vector)
+    ORDER BY mtc.embedding <=> CAST(:queryVec AS vector)
     LIMIT 8;
     `,
     {

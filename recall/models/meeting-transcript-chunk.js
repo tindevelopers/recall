@@ -1,4 +1,5 @@
 import { DataTypes } from "sequelize";
+import { normalizeEmbeddingInput } from "../utils/vector.js";
 
 export default (sequelize) => {
   return sequelize.define(
@@ -48,6 +49,10 @@ export default (sequelize) => {
         // Sequelize doesn't have native vector type; use raw definition
         type: "VECTOR(1536)",
         allowNull: true,
+        set(value) {
+          const normalized = normalizeEmbeddingInput(value);
+          this.setDataValue("embedding", normalized);
+        },
       },
     },
     {

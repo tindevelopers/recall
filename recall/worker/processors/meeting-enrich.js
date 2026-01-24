@@ -1,6 +1,7 @@
 import db from "../../db.js";
 import { embed } from "../../services/openai/index.js";
 import Notepad from "../../services/notepad/index.js";
+import { backgroundQueue } from "../../queue.js";
 import { v4 as uuidv4 } from "uuid";
 
 // Removed buildPrompt and safeParseJson - now handled by Notepad service
@@ -117,6 +118,20 @@ export default async (job) => {
   
 
   await ensureChunkEmbeddings(chunks);
+
+  // Kick off a dedicated embed job to backfill any remaining missing embeddings
+  try {
+    await backgroundQueue.add(
+      "meeting.embed_chunks",
+      { meetingArtifactId: artifact.id },
+      { jobId: `embed-${artifact.id}`, removeOnComplete: true, removeOnFail: false }
+    );
+  } catch (err) {
+    console.warn(
+      `[meeting.enrich] Failed to enqueue embed job for artifact ${artifact.id}:`,
+      err?.message || err
+    );
+  }
 
   // mark artifact status
   await artifact.update({ status: "enriched" });

@@ -1,6 +1,6 @@
 import db from "../../db.js";
 import { backgroundQueue } from "../../queue.js";
-import { Op } from "sequelize";
+import { findAccessibleArtifact } from "../../services/meetings/access.js";
 
 /**
  * Get transcript for a meeting
@@ -13,15 +13,18 @@ export async function getTranscript(req, res) {
 
   const { meetingId } = req.params;
   const userId = req.authentication.user.id;
+  const userEmail = req.authentication.user.email || null;
 
   try {
-    // Find the meeting artifact
-    const artifact = await db.MeetingArtifact.findOne({
-      where: { id: meetingId, userId },
+    // Find the meeting artifact (id or readableId) with access (owner, creator, or accepted share)
+    const artifact = await findAccessibleArtifact({
+      meetingIdOrReadableId: meetingId,
+      userId,
+      userEmail,
     });
 
     if (!artifact) {
-      console.log(`[API] Transcript: Meeting ${meetingId} not found for user ${userId}`);
+      console.log(`[API] Transcript: Meeting ${meetingId} not accessible for user ${userId}`);
       return res.status(404).json({ error: "Meeting not found" });
     }
 
@@ -135,17 +138,13 @@ export async function getSummary(req, res) {
 
   const { meetingId } = req.params;
   const userId = req.authentication.user.id;
+  const userEmail = req.authentication.user.email || null;
 
   try {
-    // Find the meeting artifact first - support both UUID and readableId
-    const artifact = await db.MeetingArtifact.findOne({
-      where: {
-        userId,
-        [Op.or]: [
-          { id: meetingId },
-          { readableId: meetingId }
-        ],
-      },
+    const artifact = await findAccessibleArtifact({
+      meetingIdOrReadableId: meetingId,
+      userId,
+      userEmail,
     });
 
     if (!artifact) {
@@ -194,17 +193,13 @@ export async function getActionItems(req, res) {
 
   const { meetingId } = req.params;
   const userId = req.authentication.user.id;
+  const userEmail = req.authentication.user.email || null;
 
   try {
-    // Find the meeting artifact first - support both UUID and readableId
-    const artifact = await db.MeetingArtifact.findOne({
-      where: {
-        userId,
-        [Op.or]: [
-          { id: meetingId },
-          { readableId: meetingId }
-        ],
-      },
+    const artifact = await findAccessibleArtifact({
+      meetingIdOrReadableId: meetingId,
+      userId,
+      userEmail,
     });
 
     if (!artifact) {
@@ -239,19 +234,22 @@ export async function triggerEnrichment(req, res) {
 
   const { artifactId } = req.body;
   const userId = req.authentication.user.id;
+  const userEmail = req.authentication.user.email || null;
 
   if (!artifactId) {
     return res.status(400).json({ error: "artifactId is required" });
   }
 
   try {
-    // Find the meeting artifact
-    const artifact = await db.MeetingArtifact.findOne({
-      where: { id: artifactId, userId },
+    // Find the meeting artifact (id or readableId) with access
+    const artifact = await findAccessibleArtifact({
+      meetingIdOrReadableId: artifactId,
+      userId,
+      userEmail,
     });
 
     if (!artifact) {
-      console.log(`[API] Enrich: Artifact ${artifactId} not found for user ${userId}`);
+      console.log(`[API] Enrich: Artifact ${artifactId} not accessible for user ${userId}`);
       return res.status(404).json({ error: "Meeting artifact not found" });
     }
 

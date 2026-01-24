@@ -25,3 +25,4 @@ ALTER TABLE calendars
   ADD COLUMN IF NOT EXISTS storage_region TEXT,
   ADD COLUMN IF NOT EXISTS auto_archive_recordings BOOLEAN NOT NULL DEFAULT FALSE;
 
+
