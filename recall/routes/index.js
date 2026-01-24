@@ -25,7 +25,6 @@ import slackTarget from "./integrations/slack-target.js";
 import teamworkTarget from "./integrations/teamwork-target.js";
 import slackConnect from "./oauth/slack-connect.js";
 import oauthCallbackSlack from "./oauth-callback/slack.js";
-import publishingTargetsGet from "./publishing-targets/get.js";
 import apiChatMeetings from "./api/chat/meetings.js";
 import apiNotionPages, { getNotionPageDetails } from "./api/notion-pages.js";
 import apiCheckBot from "./api/check-bot.js";
@@ -82,6 +81,10 @@ const slackChannelsCreate = await loadRouteModule(
 const publishSlack = await loadRouteModule(
   "./api/publish-slack.js",
   "Slack publish API"
+);
+const publishingTargetsGet = await loadRouteModule(
+  "./publishing-targets/get.js",
+  "Publishing targets page"
 );
 const apiSlackChannels = slackChannels;
 
