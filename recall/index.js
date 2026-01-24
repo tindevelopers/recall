@@ -1,6 +1,7 @@
 import dotenv from "dotenv";
 // Load environment variables immediately before any other imports that depend on them
 dotenv.config();
+// Redeploy marker - 2026-01-24
 
 import path from "path";
 import { fileURLToPath } from "url";
