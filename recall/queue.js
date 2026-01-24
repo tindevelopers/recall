@@ -1,4 +1,9 @@
 import Queue from 'bull';
+import { EventEmitter } from 'events';
+
+// Increase the default max listeners globally to prevent warnings
+// This affects all EventEmitters in the application, including ioredis Commander
+EventEmitter.defaultMaxListeners = 20;
 
 const backgroundQueue = new Queue(
   "background-queue",
@@ -8,20 +13,16 @@ const backgroundQueue = new Queue(
 // Increase max listeners to prevent warnings when multiple processors register
 backgroundQueue.setMaxListeners(20);
 
-// Also increase max listeners on the underlying Redis clients to prevent warnings
-// Bull uses multiple Redis clients internally (client, subscriber, bclient)
-backgroundQueue.on('ready', () => {
-  if (backgroundQueue.client) {
-    backgroundQueue.client.setMaxListeners(20);
-  }
-  if (backgroundQueue.bclient) {
-    backgroundQueue.bclient.setMaxListeners(20);
-  }
-  // The eclient is used for events/subscriptions
-  const eclient = backgroundQueue.clients?.[0];
-  if (eclient) {
-    eclient.setMaxListeners(20);
-  }
-});
+// Increase max listeners on all underlying Redis clients
+// Bull uses ioredis internally, which has Commander objects that emit events
+if (backgroundQueue.client) {
+  backgroundQueue.client.setMaxListeners(20);
+}
+if (backgroundQueue.bclient) {
+  backgroundQueue.bclient.setMaxListeners(20);
+}
+if (backgroundQueue.eclient) {
+  backgroundQueue.eclient.setMaxListeners(20);
+}
 
 export { backgroundQueue };
