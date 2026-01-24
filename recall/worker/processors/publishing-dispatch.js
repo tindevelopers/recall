@@ -56,7 +56,7 @@ export default async (job) => {
   for (const target of targets) {
     console.log(`[PUBLISHING] Processing target ${target.type} (id: ${target.id})`);
     
-    const publisher = getPublisher(target.type);
+    const publisher = await getPublisher(target.type);
     if (!publisher) {
       console.warn(`WARN: No publisher found for type ${target.type}`);
       continue;
@@ -137,7 +137,7 @@ export default async (job) => {
  * Publish to Notion with a specific destination override
  */
 async function publishToNotionWithOverride(meetingSummary, userId, notionOverride) {
-  const publisher = getPublisher("notion");
+  const publisher = await getPublisher("notion");
   if (!publisher) {
     console.error(`[PUBLISHING] No Notion publisher found`);
     return;
@@ -213,7 +213,7 @@ async function publishToNotionWithOverride(meetingSummary, userId, notionOverrid
 }
 
 async function publishToSlackWithOverride(meetingSummary, userId, slackOverride) {
-  const publisher = getPublisher("slack");
+  const publisher = await getPublisher("slack");
   if (!publisher) {
     console.error(`[PUBLISHING] No Slack publisher found`);
     return;
