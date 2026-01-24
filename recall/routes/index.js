@@ -80,6 +80,10 @@ const slackChannelsCreate = await loadRouteModule(
   "./api/slack-channels-create.js",
   "Slack channel creation API"
 );
+const publishSlack = await loadRouteModule(
+  "./api/publish-slack.js",
+  "Slack publish API"
+);
 const apiSlackChannels = slackChannels;
 
 router.get("/", root);
