@@ -11,9 +11,23 @@ if (!OPENAI_API_KEY) {
   );
 }
 
-async function chatCompletion(messages, { responseFormat = "json_object" } = {}) {
+function normalizeTexts(texts = []) {
+  return texts
+    .filter((t) => typeof t === "string")
+    .map((t) => t.trim())
+    .filter((t) => t.length > 0);
+}
+
+async function chatCompletion(
+  messages,
+  { responseFormat = "json_object", model = CHAT_MODEL } = {}
+) {
+  if (!OPENAI_API_KEY) {
+    throw new Error("OPENAI_API_KEY is not configured");
+  }
+
   const body = {
-    model: CHAT_MODEL,
+    model,
     messages,
     response_format:
       responseFormat === "json_object"
@@ -42,7 +56,13 @@ async function chatCompletion(messages, { responseFormat = "json_object" } = {})
 }
 
 async function embed(texts = []) {
-  if (!texts.length) return [];
+  if (!OPENAI_API_KEY) {
+    throw new Error("OPENAI_API_KEY is not configured");
+  }
+
+  const normalizedTexts = normalizeTexts(texts);
+  if (!normalizedTexts.length) return [];
+
   const res = await fetch("https://api.openai.com/v1/embeddings", {
     method: "POST",
     headers: {
@@ -51,7 +71,7 @@ async function embed(texts = []) {
     },
     body: JSON.stringify({
       model: EMBEDDING_MODEL,
-      input: texts,
+      input: normalizedTexts,
     }),
   });
 

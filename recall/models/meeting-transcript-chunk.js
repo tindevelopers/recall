@@ -44,7 +44,9 @@ export default (sequelize) => {
         allowNull: false,
       },
       embedding: {
-        type: DataTypes.JSON,
+        // Stored as pgvector (vector(1536)) in the database
+        // Sequelize doesn't have native vector type; use raw definition
+        type: "VECTOR(1536)",
         allowNull: true,
       },
     },

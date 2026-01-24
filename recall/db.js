@@ -16,6 +16,7 @@ import initIntegrationModel from "./models/integration.js";
 import initPublishTargetModel from "./models/publish-target.js";
 import initPublishDeliveryModel from "./models/publish-delivery.js";
 import initMeetingShareModel from "./models/meeting-share.js";
+import initActionItemModel from "./models/action-item.js";
 
 let db = {};
 let sequelize = null;
@@ -128,6 +129,7 @@ function initializeModels() {
   db.Integration = initIntegrationModel(sequelize);
   db.PublishTarget = initPublishTargetModel(sequelize);
   db.PublishDelivery = initPublishDeliveryModel(sequelize);
+  db.ActionItem = initActionItemModel(sequelize);
 
   db.User.hasMany(db.Calendar, { foreignKey: "userId" });
   db.Calendar.belongsTo(db.User, { foreignKey: "userId" });
@@ -159,6 +161,13 @@ function initializeModels() {
   });
   db.MeetingSummary.belongsTo(db.User, {
     foreignKey: "userId",
+  });
+
+  db.MeetingSummary.hasMany(db.ActionItem, {
+    foreignKey: "meetingSummaryId",
+  });
+  db.ActionItem.belongsTo(db.MeetingSummary, {
+    foreignKey: "meetingSummaryId",
   });
 
   db.User.hasMany(db.Integration, { foreignKey: "userId" });

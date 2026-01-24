@@ -5,17 +5,26 @@ import { v4 as uuidv4 } from "uuid";
 
 // Removed buildPrompt and safeParseJson - now handled by Notepad service
 
+function isValidText(value) {
+  return typeof value === "string" && value.trim().length > 0;
+}
+
 async function ensureChunkEmbeddings(chunks) {
-  const missing = chunks.filter((c) => !c.embedding);
+  const missing = chunks.filter((c) => !c.embedding && isValidText(c.text));
   if (!missing.length) return;
 
-  const texts = missing.map((c) => c.text);
-  const embeddings = await embed(texts);
-  await Promise.all(
-    missing.map((chunk, idx) =>
-      chunk.update({ embedding: embeddings[idx] || null })
-    )
-  );
+  const texts = missing.map((c) => c.text.trim());
+  try {
+    const embeddings = await embed(texts);
+    await Promise.all(
+      missing.map((chunk, idx) =>
+        chunk.update({ embedding: embeddings[idx] || null })
+      )
+    );
+  } catch (err) {
+    console.error("[meeting-enrich] embedding chunks failed:", err?.message || err);
+    // Do not throw to avoid failing the entire job; leave embeddings null
+  }
 }
 
 export default async (job) => {
@@ -54,9 +63,10 @@ export default async (job) => {
     order: [["sequence", "ASC"]],
   });
 
+  const validChunkTexts = chunks.filter((c) => isValidText(c.text)).map((c) => c.text.trim());
   const transcriptText =
-    chunks.length > 0
-      ? chunks.map((c) => c.text).join("\n")
+    validChunkTexts.length > 0
+      ? validChunkTexts.join("\n")
       : JSON.stringify(artifact.rawPayload);
 
   const metadata = {

@@ -1,5 +1,7 @@
 import db from "../../../db.js";
-import { chatCompletion, embed } from "../../../services/openai/index.js";
+import { embed } from "../../../services/openai/index.js";
+import { chatWithRouter } from "../../../services/query-router/index.js";
+import { cacheGet, cacheSet, hashKey } from "../../../services/cache/index.js";
 
 function cosineSimilarity(a = [], b = []) {
   if (!a.length || !b.length || a.length !== b.length) return 0;
@@ -13,6 +15,10 @@ function cosineSimilarity(a = [], b = []) {
   }
   if (!normA || !normB) return 0;
   return dot / (Math.sqrt(normA) * Math.sqrt(normB));
+}
+
+function isValidText(value) {
+  return typeof value === "string" && value.trim().length > 0;
 }
 
 function buildAnswerPrompt(query, contexts) {
@@ -40,12 +46,15 @@ export default async (req, res) => {
     return res.status(401).json({ error: "unauthorized" });
   }
 
-  const query = req.body?.query || req.body?.q;
+  const rawQuery = req.body?.query || req.body?.q;
+  const query = typeof rawQuery === "string" ? rawQuery.trim() : "";
   if (!query) {
     return res.status(400).json({ error: "query is required" });
   }
 
   const userId = req.authentication.user.id;
+  const meetingArtifactId = req.body?.meetingArtifactId || req.body?.meetingId;
+  const calendarEventId = req.body?.calendarEventId;
   const chunks = await db.MeetingTranscriptChunk.findAll({
     where: { userId },
     limit: 500,
@@ -55,30 +64,92 @@ export default async (req, res) => {
     return res.status(200).json({ answer: "No meeting transcripts available yet." });
   }
 
-  // Ensure chunk embeddings
-  const chunksNeedingEmbedding = chunks.filter((c) => !c.embedding);
+  // Ensure chunk embeddings (skip invalid/empty texts)
+  const validChunks = chunks.filter((c) => isValidText(c.text));
+  const chunksNeedingEmbedding = validChunks.filter((c) => !c.embedding);
   if (chunksNeedingEmbedding.length) {
-    const embeds = await embed(chunksNeedingEmbedding.map((c) => c.text));
-    await Promise.all(
-      chunksNeedingEmbedding.map((c, idx) =>
-        c.update({ embedding: embeds[idx] || null })
-      )
-    );
+    try {
+      const embeds = await embed(chunksNeedingEmbedding.map((c) => c.text.trim()));
+      await Promise.all(
+        chunksNeedingEmbedding.map((c, idx) =>
+          c.update({ embedding: embeds[idx] || null })
+        )
+      );
+    } catch (err) {
+      console.error("[chat/meetings] embedding chunks failed:", err?.message || err);
+      return res
+        .status(500)
+        .json({ error: "Failed to generate embeddings for meeting chunks" });
+    }
   }
 
-  const queryEmbedding = (await embed([query]))[0];
-  const scored = chunks.map((c) => ({
-    chunk: c,
-    score: cosineSimilarity(queryEmbedding, c.embedding || []),
-  }));
+  const queryEmbeddingCacheKey = `embed:query:${hashKey(query)}`;
+  let queryEmbedding = await cacheGet(queryEmbeddingCacheKey);
+  if (!queryEmbedding) {
+    try {
+      queryEmbedding = (await embed([query]))?.[0];
+      if (queryEmbedding) {
+        await cacheSet(queryEmbeddingCacheKey, queryEmbedding, 60 * 60); // 1 hour
+      }
+    } catch (err) {
+      console.error("[chat/meetings] embedding query failed:", err?.message || err);
+      return res
+        .status(500)
+        .json({ error: "Failed to generate embedding for query" });
+    }
+  }
 
-  const topContexts = scored
-    .sort((a, b) => b.score - a.score)
-    .slice(0, 8)
-    .map((s) => s.chunk);
+  if (!queryEmbedding) {
+    return res.status(500).json({ error: "Unable to compute query embedding" });
+  }
+
+  const queryVector = `[${queryEmbedding.join(",")}]`;
+
+  const whereClauses = ['"userId" = :userId', "embedding IS NOT NULL"];
+  const replacements = { queryVec: queryVector, userId };
+
+  if (meetingArtifactId) {
+    whereClauses.push('"meetingArtifactId" = :meetingArtifactId');
+    replacements.meetingArtifactId = meetingArtifactId;
+  }
+
+  if (calendarEventId) {
+    whereClauses.push('"calendarEventId" = :calendarEventId');
+    replacements.calendarEventId = calendarEventId;
+  }
+
+  // Use PostgreSQL vector operator for similarity search
+  const topContexts = await db.sequelize.query(
+    `
+    SELECT id, "calendarEventId", "meetingArtifactId", "userId", sequence, "startTimeMs",
+           "endTimeMs", speaker, text, embedding <=> CAST(:queryVec AS vector) AS distance
+    FROM meeting_transcript_chunks
+    WHERE ${whereClauses.join(" AND ")}
+    ORDER BY embedding <=> CAST(:queryVec AS vector)
+    LIMIT 8;
+    `,
+    {
+      replacements,
+      type: db.Sequelize.QueryTypes.SELECT,
+    }
+  );
+
+  if (!topContexts.length) {
+    return res.status(200).json({ answer: "No matching meeting transcripts available for this query." });
+  }
+
+  const answerCacheKey = `answer:${hashKey(
+    `${query}|${topContexts.map((c) => c.id).join(",")}`
+  )}`;
+  const cachedAnswer = await cacheGet(answerCacheKey);
+  if (cachedAnswer) {
+    return res.status(200).json({ answer: cachedAnswer, cached: true });
+  }
 
   const prompt = buildAnswerPrompt(query, topContexts);
-  const answer = await chatCompletion(prompt, { responseFormat: null });
+  const { response: answer } = await chatWithRouter(prompt, { query });
+
+  await cacheSet(answerCacheKey, answer, 60 * 15); // cache answers for 15 minutes
 
   return res.status(200).json({ answer });
 };
