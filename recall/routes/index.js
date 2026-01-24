@@ -25,7 +25,6 @@ import slackTarget from "./integrations/slack-target.js";
 import teamworkTarget from "./integrations/teamwork-target.js";
 import slackConnect from "./oauth/slack-connect.js";
 import oauthCallbackSlack from "./oauth-callback/slack.js";
-import publishSlack from "./api/publish-slack.js";
 import publishingTargetsGet from "./publishing-targets/get.js";
 import apiChatMeetings from "./api/chat/meetings.js";
 import apiNotionPages, { getNotionPageDetails } from "./api/notion-pages.js";
