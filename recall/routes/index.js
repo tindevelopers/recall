@@ -25,8 +25,6 @@ import slackTarget from "./integrations/slack-target.js";
 import teamworkTarget from "./integrations/teamwork-target.js";
 import slackConnect from "./oauth/slack-connect.js";
 import oauthCallbackSlack from "./oauth-callback/slack.js";
-import slackChannels from "./api/slack-channels.js";
-import slackChannelsCreate from "./api/slack-channels-create.js";
 import publishSlack from "./api/publish-slack.js";
 import publishingTargetsGet from "./publishing-targets/get.js";
 import apiChatMeetings from "./api/chat/meetings.js";
@@ -42,7 +40,6 @@ import apiTriggerTeamsIngest from "./api/trigger-teams-ingest.js";
 import apiTestWebhook from "./api/test-webhook.js";
 import apiCheckMeetingPayload from "./api/check-meeting-payload.js";
 import apiUpdateWebhookUrl from "./api/update-webhook-url.js";
-import apiSlackChannels from "./api/slack-channels.js";
 import meetingsList from "./meetings/list.js";
 import meetingsDetail from "./meetings/detail.js";
 import meetingsShared from "./meetings/shared.js";
@@ -57,7 +54,33 @@ import apiWebhooks from "./api/webhooks.js";
 import meetingSharesRouter from "./api/meeting-shares.js";
 import recordingProxyRouter from "./api/recording-proxy.js";
 
+const fallbackRoute = (featureName) => (req, res) =>
+  res.status(503).json({ error: `${featureName} is temporarily unavailable` });
+
+async function loadRouteModule(modulePath, featureName) {
+  try {
+    const module = await import(modulePath);
+    if (module?.default) {
+      return module.default;
+    }
+    console.warn(`[routes/index.js] ${featureName} loaded but has no default export`);
+  } catch (error) {
+    console.warn(`[routes/index.js] ${featureName} disabled:`, error?.message || error);
+  }
+  return fallbackRoute(featureName);
+}
+
 const router = Router();
+
+const slackChannels = await loadRouteModule(
+  "./api/slack-channels.js",
+  "Slack channels API"
+);
+const slackChannelsCreate = await loadRouteModule(
+  "./api/slack-channels-create.js",
+  "Slack channel creation API"
+);
+const apiSlackChannels = slackChannels;
 
 router.get("/", root);
 router.get("/publishing-targets", publishingTargetsGet);
