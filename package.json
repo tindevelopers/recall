@@ -4,7 +4,9 @@
   "description": "Recall Calendar Integration Demo",
   "private": true,
   "scripts": {
-    "start": "cd recall && npm start"
+    "start": "cd recall && npm start",
+    "dev": "cd recall && npm run dev",
+    "build": "cd recall && npm install"
   },
   "engines": {
     "node": ">=19.0.0"

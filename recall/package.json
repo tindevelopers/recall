@@ -10,6 +10,7 @@
     "test:headless": "playwright test --headless",
     "test:ui": "playwright test --ui",
     "test:debug": "playwright test --debug",
+    "build": "echo 'No build step required for server-side application'",
     "start": "NODE_ENV=production node index.js",
     "start:worker": "NODE_ENV=production node worker/index.js",
     "dev": "NODE_ENV=development nodemon index.js",
