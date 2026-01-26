@@ -9,6 +9,7 @@ const { sequelize } = db;
 // Key: `sync-${userId}`, Value: { lastSyncTime: Date, inProgress: boolean }
 const syncCache = new Map();
 const SYNC_THROTTLE_MS = 5 * 60 * 1000; // 5 minutes - only sync if last sync was > 5 min ago
+const SYNC_THROTTLE_PAST_MEETINGS_MS = 1 * 60 * 1000; // 1 minute for past meetings tab - more frequent sync to catch newly finished meetings
 
 // Generic/placeholder titles we should ignore when deriving a display name
 function isGenericMeetingTitle(title) {
@@ -758,7 +759,11 @@ export default async (req, res) => {
   const syncCacheKey = `sync-${userId}`;
   const cachedSync = syncCache.get(syncCacheKey);
   const now = Date.now();
-  const shouldSync = !cachedSync || (now - cachedSync.lastSyncTime > SYNC_THROTTLE_MS);
+  // Use shorter throttle for past meetings tab to catch newly finished meetings faster
+  // Check if user is viewing past meetings (has hash #past or is on page > 1, which suggests past meetings)
+  const isViewingPastMeetings = req.url.includes('#past') || page > 1;
+  const throttleMs = isViewingPastMeetings ? SYNC_THROTTLE_PAST_MEETINGS_MS : SYNC_THROTTLE_MS;
+  const shouldSync = !cachedSync || (now - cachedSync.lastSyncTime > throttleMs);
   
   // #region agent log
   perfTimings.syncSkipped = !shouldSync;
@@ -896,26 +901,42 @@ export default async (req, res) => {
   if (to) {
     dateFilters[Op.lte] = new Date(to);
   }
+  
+  // Filter for past meetings: only include artifacts with calendar events that have startTime < now
+  // This ensures we only fetch past meetings, not upcoming ones
+  // Reuse nowDate from above (line 799)
+  
+  // Combine date filters with past meeting filter for CalendarEvent
+  const calendarEventWhere = {
+    startTime: { [Op.lt]: nowDate } // Only past meetings
+  };
+  if (Object.keys(dateFilters).length > 0) {
+    calendarEventWhere[Op.and] = [
+      { startTime: dateFilters },
+      { startTime: { [Op.lt]: nowDate } }
+    ];
+  }
 
   // Get all meeting artifacts for this user with their summaries
+  // IMPORTANT: Filter by past meetings (startTime < now) BEFORE applying limit to ensure pagination works correctly
   let artifacts = [];
+  let totalArtifactsCount = 0;
   // #region agent log
   const artifactsStart = Date.now();
   // #endregion
   try {
     // OPTIMIZATION: Don't include MeetingTranscriptChunk - it can have thousands of rows per artifact
     // Instead, we'll check for transcript existence separately using a count query
+    // Filter artifacts by requiring they have a CalendarEvent with startTime < now
+    // This ensures we only get past meetings, not upcoming ones
     const artifactResult = await db.MeetingArtifact.findAndCountAll({
       where: { userId },
       distinct: true,
       include: [
         {
           model: db.CalendarEvent,
-          required: false,
-          where:
-            Object.keys(dateFilters).length > 0
-              ? { startTime: dateFilters }
-              : undefined,
+          required: true, // Only include artifacts that have a calendar event (past meetings)
+          where: calendarEventWhere,
           include: [{ model: db.Calendar, required: false }],
         },
         {
@@ -930,6 +951,7 @@ export default async (req, res) => {
       offset,
     });
     artifacts = artifactResult.rows;
+    totalArtifactsCount = artifactResult.count;
     
     // Check for transcript chunks existence in batch (much faster than loading all chunks)
     if (artifacts.length > 0) {
@@ -1016,7 +1038,9 @@ export default async (req, res) => {
   }
 
   // Also get summaries that might not have artifacts (edge case)
+  // Filter summaries by past meetings too (only include summaries with calendar events that are past)
   let summaries = [];
+  let totalSummariesCount = 0;
   // #region agent log
   const summariesStart = Date.now();
   // #endregion
@@ -1030,11 +1054,8 @@ export default async (req, res) => {
         },
         {
           model: db.CalendarEvent,
-          required: false,
-          where:
-            Object.keys(dateFilters).length > 0
-              ? { startTime: dateFilters }
-              : undefined,
+          required: true, // Only include summaries that have a calendar event (past meetings)
+          where: calendarEventWhere,
         },
       ],
       order: [["createdAt", "DESC"]],
@@ -1042,6 +1063,7 @@ export default async (req, res) => {
       offset,
     });
     summaries = summaryResult.rows;
+    totalSummariesCount = summaryResult.count;
     // #region agent log
     perfTimings.fetchSummaries = Date.now() - summariesStart;
     // #endregion
@@ -1264,11 +1286,22 @@ export default async (req, res) => {
     return new Date(b.startTime || b.createdAt) - new Date(a.startTime || a.createdAt);
   });
 
-  const totalCount = meetings.length;
+  // Calculate totalCount from database counts, not filtered array length
+  // This ensures pagination works correctly even after filtering
+  // Note: We need to account for duplicates (artifacts that also have summaries)
+  // For simplicity, use the larger of the two counts as an approximation
+  // In practice, most artifacts have summaries, so totalArtifactsCount is usually accurate
+  // After applying search/filter filters, we may have fewer meetings than totalCount
+  // But totalCount represents the total available in the database for pagination
+  const totalCount = Math.max(totalArtifactsCount, totalSummariesCount);
   const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
-  const hasNext = page < totalPages;
+  const hasNext = page < totalPages && meetings.length >= PAGE_SIZE;
   const hasPrev = page > 1;
-  const paginatedMeetings = meetings.slice(offset, offset + PAGE_SIZE);
+  
+  // Apply pagination to the already-filtered meetings array
+  // Note: Since we're filtering in SQL, we should already have the correct page
+  // But we still need to slice in case filters/search reduced the results
+  const paginatedMeetings = meetings.slice(0, PAGE_SIZE);
   
   // Calculate total time for all meetings (in seconds)
   const totalTimeSeconds = meetings.reduce((sum, m) => {
