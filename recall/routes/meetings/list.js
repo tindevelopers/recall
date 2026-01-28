@@ -1171,7 +1171,8 @@ export default async (req, res) => {
   const upcomingQFilter = (upcomingQ || "").trim();
   const upcomingFromFilter = upcomingFrom || "";
   const upcomingToFilter = upcomingTo || "";
-  const upcomingSortFilter = upcomingSort || "newest";
+  // Default to chronological order (earliest/soonest first) for upcoming meetings
+  const upcomingSortFilter = upcomingSort || "oldest";
   const upcomingHasMeetingUrlFilter = upcomingHasMeetingUrl === "true" ? true : upcomingHasMeetingUrl === "false" ? false : null;
   const upcomingHasBotFilter = upcomingHasBot === "true" ? true : upcomingHasBot === "false" ? false : null;
   const upcomingHasRecordingFilter = upcomingHasRecording === "true" ? true : upcomingHasRecording === "false" ? false : null;
@@ -1677,11 +1678,12 @@ export default async (req, res) => {
 
     // Sorting
     filteredUpcomingEvents.sort((a, b) => {
-      if (upcomingSortFilter === "oldest") {
-        return new Date(a.startTime || 0) - new Date(b.startTime || 0);
+      if (upcomingSortFilter === "newest") {
+        // Newest first: sort by descending startTime (latest meeting first)
+        return new Date(b.startTime || 0) - new Date(a.startTime || 0);
       }
-      // default newest (most recent first)
-      return new Date(b.startTime || 0) - new Date(a.startTime || 0);
+      // Default: chronological order (earliest/soonest first) - next meeting from today appears first
+      return new Date(a.startTime || 0) - new Date(b.startTime || 0);
     });
 
     // Update upcomingEvents with filtered results
