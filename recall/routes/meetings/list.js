@@ -1148,7 +1148,9 @@ export default async (req, res) => {
 
   // Get upcoming events from all calendars (future events only)
   const nowDate = new Date();
-  const upcomingEvents = [];
+  let upcomingEvents = [];
+  
+  console.log(`[MEETINGS] Fetching upcoming events: calendars=${calendars.length}, nowDate=${nowDate.toISOString()}`);
   
   if (calendars.length > 0) {
     const calendarIds = calendars.map(c => c.id);
@@ -1330,9 +1332,15 @@ export default async (req, res) => {
 
     // Update upcomingEvents with filtered results
     console.log(`[MEETINGS] Upcoming events: ${upcomingEvents.length} before filters, ${filteredUpcomingEvents.length} after filters`);
+    console.log(`[MEETINGS] Filter details: q="${upcomingQFilter}", from="${upcomingFromFilter}", to="${upcomingToFilter}", hasMeetingUrl=${upcomingHasMeetingUrlFilter}, hasBot=${upcomingHasBotFilter}, hasRecording=${upcomingHasRecordingFilter}`);
     upcomingEvents.length = 0;
     upcomingEvents.push(...filteredUpcomingEvents);
     console.log(`[MEETINGS] Final upcoming events count: ${upcomingEvents.length}`);
+    if (upcomingEvents.length > 0) {
+      console.log(`[MEETINGS] Sample upcoming events:`, upcomingEvents.slice(0, 3).map(e => ({ id: e.id, title: e.title, startTime: e.startTime })));
+    }
+  } else {
+    console.log(`[MEETINGS] No calendars found, skipping upcoming events fetch`);
   }
 
   // Build common where for time filters
