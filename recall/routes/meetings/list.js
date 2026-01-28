@@ -1194,12 +1194,13 @@ export default async (req, res) => {
     try {
       // Fetch all events for these calendars, then filter in memory
       // This ensures we don't miss any events due to database date type issues
+      // NOTE: startTime is a VIRTUAL field (computed from recallData), so we can't order by it in the database
+      // We'll sort in memory after fetching
       const allEventsUnfiltered = await db.CalendarEvent.findAll({
         where: {
           calendarId: { [Op.in]: calendarIds },
         },
         include: [{ model: db.Calendar }],
-        order: [['startTime', 'ASC']], // Order by startTime ascending
         limit: 1000, // Fetch enough to ensure we get all future events
       });
       
@@ -1256,8 +1257,25 @@ export default async (req, res) => {
       });
       
       console.log(`[MEETINGS] Filtered to ${allEvents.length} future events (out of ${allEventsUnfiltered.length} total)`);
+      
+      // Sort by start time (in memory, since startTime is a virtual field)
+      allEvents.sort((a, b) => {
+        try {
+          const aTime = a.startTime ? new Date(a.startTime) : new Date(0);
+          const bTime = b.startTime ? new Date(b.startTime) : new Date(0);
+          return aTime - bTime;
+        } catch (error) {
+          return 0;
+        }
+      });
     } catch (error) {
       console.error(`[MEETINGS] Error fetching calendar events:`, error);
+      console.error(`[MEETINGS] Error details:`, {
+        message: error.message,
+        stack: error.stack,
+        name: error.name,
+        calendarIds: calendarIds,
+      });
       allEvents = [];
     }
     
@@ -1265,7 +1283,7 @@ export default async (req, res) => {
     const futureEvents = allEvents;
     console.log(`[MEETINGS] Found ${futureEvents.length} future events after filtering`);
     
-    // Sort by start time
+    // Sort by start time (already sorted above, but keep this for consistency)
     futureEvents.sort((a, b) => {
       try {
         const aTime = new Date(a.startTime);
