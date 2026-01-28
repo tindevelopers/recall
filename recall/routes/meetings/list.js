@@ -1139,7 +1139,8 @@ export default async (req, res) => {
   try {
     // OPTIMIZATION: Don't include MeetingTranscriptChunk - it can have thousands of rows per artifact
     // Instead, we'll check for transcript existence separately using a count query
-    const artifactResult = await db.MeetingArtifact.findAndCountAll({
+    // Fetch ALL artifacts (we'll paginate after filtering in JavaScript)
+    const artifactResult = await db.MeetingArtifact.findAll({
       where: {
         [Op.or]: [
           { userId }, // Meetings created by this user
@@ -1166,10 +1167,9 @@ export default async (req, res) => {
         // We'll check for transcript existence separately below
       ],
       order: [["createdAt", "DESC"]],
-      limit: PAGE_SIZE,
-      offset,
+      // Remove limit/offset - we'll paginate after filtering
     });
-    artifacts = artifactResult.rows;
+    artifacts = artifactResult;
     
     // Check for transcript chunks existence in batch (much faster than loading all chunks)
     if (artifacts.length > 0) {
@@ -1701,6 +1701,7 @@ export default async (req, res) => {
     return new Date(b.startTime || b.createdAt) - new Date(a.startTime || a.createdAt);
   });
 
+  // Pagination: Calculate totals and slice after filtering/sorting
   const totalCount = meetings.length;
   const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
   const hasNext = page < totalPages;
@@ -1737,6 +1738,28 @@ export default async (req, res) => {
     totalPages,
     syncSkipped: !shouldSync || syncInProgress,
   });
+
+  // Helper function to build pagination URL with filters preserved
+  const buildPaginationUrl = (pageNum) => {
+    const params = new URLSearchParams();
+    params.set('page', String(pageNum));
+    if (q) params.set('q', q);
+    if (from) params.set('from', from);
+    if (to) params.set('to', to);
+    if (hasTranscriptFilter !== null) params.set('hasTranscript', String(hasTranscriptFilter));
+    if (hasSummaryFilter !== null) params.set('hasSummary', String(hasSummaryFilter));
+    if (hasRecordingFilter !== null) params.set('hasRecording', String(hasRecordingFilter));
+    if (hasRecallRecordingFilter !== null) params.set('hasRecallRecording', String(hasRecallRecordingFilter));
+    if (hasTeamsRecordingFilter !== null) params.set('hasTeamsRecording', String(hasTeamsRecordingFilter));
+    if (sort) params.set('sort', sort);
+    return `/meetings?${params.toString()}#past`;
+  };
+
+  // Build pagination URLs for all pages (for template rendering)
+  const paginationUrls = {};
+  for (let p = 1; p <= totalPages; p++) {
+    paginationUrls[p] = buildPaginationUrl(p);
+  }
   
   return res.render("meetings.ejs", {
     notice: req.notice,
@@ -1763,5 +1786,8 @@ export default async (req, res) => {
       hasTeamsRecording: hasTeamsRecordingFilter,
       sort: sort || "newest",
     },
+    paginationUrls, // Pre-built pagination URLs for all pages
+    prevPageUrl: hasPrev ? buildPaginationUrl(page - 1) : null,
+    nextPageUrl: hasNext ? buildPaginationUrl(page + 1) : null,
   });
 };
