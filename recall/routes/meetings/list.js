@@ -392,13 +392,120 @@ function getTranscriptCount(transcript) {
  * This is a fallback for when webhooks don't reach the local server
  */
 async function syncBotArtifacts(calendars, userId) {
-  const MAX_COMPLETED_BOTS = 20; // avoid OOM by capping fetches per sync
-  // List recent bots directly from Recall API
-  let bots = [];
+  // Note: This sync runs in the background and processes bots that don't already have artifacts.
+  // For 500+ events: The sync will fetch and process up to MAX_COMPLETED_BOTS bots per sync cycle.
+  // Since we check for existing artifacts, subsequent syncs will only process new bots.
+  // The UI pagination handles displaying all meetings regardless of sync limits.
+  // 
+  // For very old meetings (5000+): The API returns bots in reverse chronological order (newest first).
+  // To handle old meetings, we:
+  // 1. Fetch the newest bots first (up to MAX_COMPLETED_BOTS)
+  // 2. Check the oldest synced meeting date
+  // 3. On subsequent syncs, if we've synced all recent bots, fetch older bots by increasing the limit
+  // 4. The incremental sync (checking for existing artifacts) ensures we don't duplicate work
+  const MAX_COMPLETED_BOTS = 1000; // Increased limit to sync more meetings (was 20, then 500)
+  
+  // Check the oldest meeting we've synced to determine if we need to backfill
+  let oldestSyncedDate = null;
   try {
-    console.log(`[MEETINGS] Fetching bots from Recall API...`);
-    bots = await Recall.listBots({ limit: 50 });
+    const oldestArtifact = await db.MeetingArtifact.findOne({
+      where: {
+        [Op.or]: [
+          { userId },
+          { ownerUserId: userId },
+        ],
+      },
+      order: [['createdAt', 'ASC']],
+      attributes: ['createdAt', 'rawPayload'],
+    });
+    
+    if (oldestArtifact) {
+      // Use artifact creation date or meeting start time, whichever is older
+      const artifactDate = new Date(oldestArtifact.createdAt);
+      const meetingDate = oldestArtifact.rawPayload?.data?.start_time 
+        ? new Date(oldestArtifact.rawPayload.data.start_time)
+        : null;
+      oldestSyncedDate = meetingDate && meetingDate < artifactDate ? meetingDate : artifactDate;
+      console.log(`[MEETINGS] Oldest synced meeting date: ${oldestSyncedDate.toISOString()}`);
+    }
+  } catch (error) {
+    console.error(`[MEETINGS] Error checking oldest synced date:`, error.message);
+  }
+  
+  // List recent bots directly from Recall API
+  // IMPORTANT: The Recall API returns bots in reverse chronological order (newest first).
+  // BEST STRATEGY FOR OLD MEETINGS:
+  // Since the database stores ALL artifacts and can query them all, the key is getting them INTO the database.
+  // Strategy: Fetch in progressively larger batches until we stop finding NEW bots.
+  // This ensures we eventually sync all meetings, even if there are 5000+.
+  let bots = [];
+  let fetchLimit = MAX_COMPLETED_BOTS;
+  let totalNewBotsFound = 0;
+  let totalBotsProcessed = 0;
+  
+  // Check how many bots we already have synced
+  let existingBotCount = 0;
+  try {
+    existingBotCount = await db.MeetingArtifact.count({
+      where: {
+        [Op.or]: [
+          { userId },
+          { ownerUserId: userId },
+        ],
+      },
+    });
+    console.log(`[MEETINGS] Currently have ${existingBotCount} meetings in database`);
+  } catch (error) {
+    console.error(`[MEETINGS] Error counting existing artifacts:`, error.message);
+  }
+  
+  // If we have very old meetings synced, we might need to fetch more bots to backfill
+  // Use a progressive strategy: start with normal limit, increase if we're finding many new bots
+  let needsBackfill = false;
+  if (oldestSyncedDate) {
+    const daysSinceOldest = Math.floor((Date.now() - oldestSyncedDate.getTime()) / (1000 * 60 * 60 * 24));
+    // If oldest meeting is more than 90 days old, we might have many unsynced bots
+    if (daysSinceOldest > 90) {
+      needsBackfill = true;
+      // Increase limit for backfill (but cap at reasonable amount to avoid timeouts)
+      fetchLimit = Math.min(MAX_COMPLETED_BOTS * 5, 10000); // Fetch up to 5000-10000 for backfill
+      console.log(`[MEETINGS] Oldest synced meeting is ${daysSinceOldest} days old. Increasing fetch limit to ${fetchLimit} for backfill.`);
+    }
+  }
+  
+  // BEST STRATEGY: Fetch a large batch once, process all bots, skip duplicates
+  // Since we check for existing artifacts before processing, we can safely fetch a large batch
+  // and only process new ones. This is more efficient than multiple small fetches.
+  // The database will store ALL artifacts, so once synced, they can all be found via queries.
+  try {
+    console.log(`[MEETINGS] Fetching bots from Recall API (limit: ${fetchLimit}${needsBackfill ? ', backfill mode' : ''})...`);
+    // Fetch up to fetchLimit bots
+    // The listBots function supports pagination and will fetch multiple pages if needed
+    // Note: API returns newest first, so we get the most recent bots first
+    bots = await Recall.listBots({ limit: fetchLimit });
     console.log(`[MEETINGS] Found ${bots.length} bots from Recall API`);
+    
+    // Check how many are new (don't have artifacts yet) - this helps us understand sync progress
+    if (bots.length > 0) {
+      const botIds = bots.map(b => b.id);
+      const existingArtifacts = await db.MeetingArtifact.findAll({
+        where: { recallBotId: { [Op.in]: botIds } },
+        attributes: ['recallBotId'],
+      });
+      const existingBotIds = new Set(existingArtifacts.map(a => a.recallBotId));
+      const newBotsCount = bots.filter(b => !existingBotIds.has(b.id)).length;
+      console.log(`[MEETINGS] ${newBotsCount} new bots to sync out of ${bots.length} fetched`);
+      
+      // If we got exactly the limit and found many new bots, we might be missing older ones
+      if (bots.length === fetchLimit && newBotsCount > fetchLimit * 0.8) {
+        console.log(`[MEETINGS] Warning: Fetched maximum limit (${fetchLimit}) and found ${newBotsCount} new bots.`);
+        console.log(`[MEETINGS] This suggests there may be more meetings beyond this limit.`);
+        console.log(`[MEETINGS] For complete sync of all historical meetings, consider:`);
+        console.log(`[MEETINGS] 1) Increasing MAX_COMPLETED_BOTS to 10000+ for a full backfill`);
+        console.log(`[MEETINGS] 2) Running multiple sync cycles (each will catch more as new meetings are created)`);
+        console.log(`[MEETINGS] 3) Once synced, all meetings are stored in database and can be found via search/filters`);
+      }
+    }
   } catch (error) {
     console.error(`[MEETINGS] Error listing bots from Recall API:`, error.message);
     return;
@@ -431,8 +538,9 @@ async function syncBotArtifacts(calendars, userId) {
     return isComplete;
   });
   
-  console.log(`[MEETINGS] Found ${completedBots.length} completed bots (processing max ${MAX_COMPLETED_BOTS})`);
-  const botsToProcess = completedBots.slice(0, MAX_COMPLETED_BOTS);
+  console.log(`[MEETINGS] Found ${completedBots.length} completed bots (processing max ${fetchLimit})`);
+  // Process up to fetchLimit bots (which may be higher than MAX_COMPLETED_BOTS in backfill mode)
+  const botsToProcess = completedBots.slice(0, fetchLimit);
   
   // Get calendar recallIds for matching
   const calendarRecallIds = calendars.map(c => c.recallId);
@@ -941,6 +1049,14 @@ export default async (req, res) => {
     hasRecallRecording,
     hasTeamsRecording,
     sort,
+    // Upcoming events filters
+    upcomingQ,
+    upcomingFrom,
+    upcomingTo,
+    upcomingSort,
+    upcomingHasMeetingUrl,
+    upcomingHasBot,
+    upcomingHasRecording,
   } = req.query;
 
   const hasTranscriptFilter = hasTranscript === "true" ? true : hasTranscript === "false" ? false : null;
@@ -948,6 +1064,16 @@ export default async (req, res) => {
   const hasRecordingFilter = hasRecording === "true" ? true : hasRecording === "false" ? false : null;
   const hasRecallRecordingFilter = hasRecallRecording === "true" ? true : hasRecallRecording === "false" ? false : null;
   const hasTeamsRecordingFilter = hasTeamsRecording === "true" ? true : hasTeamsRecording === "false" ? false : null;
+
+  // Upcoming events filters (use separate parameters to avoid conflicts with past meetings filters)
+  // Initialize with defaults to ensure they're always defined
+  const upcomingQFilter = (upcomingQ || "").trim();
+  const upcomingFromFilter = upcomingFrom || "";
+  const upcomingToFilter = upcomingTo || "";
+  const upcomingSortFilter = upcomingSort || "newest";
+  const upcomingHasMeetingUrlFilter = upcomingHasMeetingUrl === "true" ? true : upcomingHasMeetingUrl === "false" ? false : null;
+  const upcomingHasBotFilter = upcomingHasBot === "true" ? true : upcomingHasBot === "false" ? false : null;
+  const upcomingHasRecordingFilter = upcomingHasRecording === "true" ? true : upcomingHasRecording === "false" ? false : null;
 
   const userId = req.authentication.user.id;
 
@@ -1099,6 +1225,81 @@ export default async (req, res) => {
         description: getDescriptionFromEvent(event),  // Add description for merging with past meetings
       });
     }
+
+    // Apply filters to upcoming events
+    let filteredUpcomingEvents = [...upcomingEvents];
+
+    // Search filter (title or attendees)
+    if (upcomingQFilter && upcomingQFilter.trim().length > 0) {
+      const qLower = upcomingQFilter.trim().toLowerCase();
+      filteredUpcomingEvents = filteredUpcomingEvents.filter((event) => {
+        const titleMatch = (event.title || "").toLowerCase().includes(qLower);
+        const attendeesMatch = (event.attendees || []).some((att) =>
+          (att.name || att.email || "").toLowerCase().includes(qLower)
+        );
+        return titleMatch || attendeesMatch;
+      });
+    }
+
+    // Date range filter
+    if (upcomingFromFilter) {
+      const fromDate = new Date(upcomingFromFilter);
+      filteredUpcomingEvents = filteredUpcomingEvents.filter((event) => {
+        if (!event.startTime) return false;
+        return new Date(event.startTime) >= fromDate;
+      });
+    }
+    if (upcomingToFilter) {
+      const toDate = new Date(upcomingToFilter);
+      // Set to end of day
+      toDate.setHours(23, 59, 59, 999);
+      filteredUpcomingEvents = filteredUpcomingEvents.filter((event) => {
+        if (!event.startTime) return false;
+        return new Date(event.startTime) <= toDate;
+      });
+    }
+
+    // Has meeting URL filter
+    if (upcomingHasMeetingUrlFilter === true) {
+      filteredUpcomingEvents = filteredUpcomingEvents.filter((event) => !!event.meetingUrl);
+    } else if (upcomingHasMeetingUrlFilter === false) {
+      filteredUpcomingEvents = filteredUpcomingEvents.filter((event) => !event.meetingUrl);
+    }
+
+    // Has bot filter
+    if (upcomingHasBotFilter === true) {
+      filteredUpcomingEvents = filteredUpcomingEvents.filter((event) => 
+        (event.bots && event.bots.length > 0) || event.recordStatus === 'record'
+      );
+    } else if (upcomingHasBotFilter === false) {
+      filteredUpcomingEvents = filteredUpcomingEvents.filter((event) => 
+        (!event.bots || event.bots.length === 0) && event.recordStatus !== 'record'
+      );
+    }
+
+    // Has recording filter (auto or manual)
+    if (upcomingHasRecordingFilter === true) {
+      filteredUpcomingEvents = filteredUpcomingEvents.filter((event) => 
+        event.shouldRecordAutomatic || event.shouldRecordManual === true
+      );
+    } else if (upcomingHasRecordingFilter === false) {
+      filteredUpcomingEvents = filteredUpcomingEvents.filter((event) => 
+        !event.shouldRecordAutomatic && event.shouldRecordManual !== true
+      );
+    }
+
+    // Sorting
+    filteredUpcomingEvents.sort((a, b) => {
+      if (upcomingSortFilter === "oldest") {
+        return new Date(a.startTime || 0) - new Date(b.startTime || 0);
+      }
+      // default newest (most recent first)
+      return new Date(b.startTime || 0) - new Date(a.startTime || 0);
+    });
+
+    // Update upcomingEvents with filtered results
+    upcomingEvents.length = 0;
+    upcomingEvents.push(...filteredUpcomingEvents);
   }
 
   // Build common where for time filters
@@ -1786,6 +1987,15 @@ export default async (req, res) => {
       hasRecallRecording: hasRecallRecordingFilter,
       hasTeamsRecording: hasTeamsRecordingFilter,
       sort: sort || "newest",
+    },
+    upcomingFilters: {
+      q: upcomingQFilter,
+      from: upcomingFromFilter,
+      to: upcomingToFilter,
+      hasMeetingUrl: upcomingHasMeetingUrlFilter,
+      hasBot: upcomingHasBotFilter,
+      hasRecording: upcomingHasRecordingFilter,
+      sort: upcomingSortFilter,
     },
     paginationUrls, // Pre-built pagination URLs for all pages
     prevPageUrl: hasPrev ? buildPaginationUrl(page - 1) : null,

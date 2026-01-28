@@ -100,9 +100,9 @@
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                   </svg>
                   Past Meetings
-                  <% if (meetings && meetings.length > 0) { %>
+                  <% if (typeof totalCount !== 'undefined' && totalCount > 0) { %>
                     <span class="ml-2 inline-flex items-center rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-600 group-hover:bg-gray-200">
-                      <%= meetings.length %>
+                      <%= totalCount %>
                     </span>
                   <% } %>
                 </button>
@@ -113,6 +113,79 @@
             <div class="p-6">
               <!-- Upcoming Events Tab -->
               <div id="content-upcoming" class="meetings-tab-content">
+                <!-- Filters for Upcoming Events -->
+                <% 
+                  // Ensure upcomingFilters is always defined with defaults
+                  // Use try-catch to handle cases where upcomingFilters might not be defined
+                  let uf;
+                  try {
+                    uf = upcomingFilters || {
+                      q: '',
+                      from: '',
+                      to: '',
+                      hasMeetingUrl: null,
+                      hasBot: null,
+                      hasRecording: null,
+                      sort: 'newest'
+                    };
+                  } catch (e) {
+                    uf = {
+                      q: '',
+                      from: '',
+                      to: '',
+                      hasMeetingUrl: null,
+                      hasBot: null,
+                      hasRecording: null,
+                      sort: 'newest'
+                    };
+                  }
+                %>
+                <form method="GET" action="/meetings#upcoming" id="upcoming-filter-form" class="mb-4 bg-gray-50 border border-gray-200 rounded-lg p-3 space-y-2">
+                  <div class="flex flex-col sm:flex-row sm:items-center sm:space-x-3 space-y-2 sm:space-y-0">
+                    <input
+                      type="text"
+                      name="upcomingQ"
+                      value="<%= uf.q || '' %>"
+                      placeholder="Search title or attendee"
+                      class="w-full sm:w-1/3 rounded-md border-gray-300 text-sm focus:border-indigo-500 focus:ring-indigo-500"
+                    />
+                    <div class="flex items-center space-x-2">
+                      <label class="text-xs text-gray-600">From</label>
+                      <input type="date" name="upcomingFrom" value="<%= uf.from || '' %>" class="rounded-md border-gray-300 text-sm focus:border-indigo-500 focus:ring-indigo-500" />
+                      <label class="text-xs text-gray-600">To</label>
+                      <input type="date" name="upcomingTo" value="<%= uf.to || '' %>" class="rounded-md border-gray-300 text-sm focus:border-indigo-500 focus:ring-indigo-500" />
+                    </div>
+                    <select name="upcomingSort" class="rounded-md border-gray-300 text-sm focus:border-indigo-500 focus:ring-indigo-500">
+                      <option value="newest" <%= uf.sort === 'newest' ? 'selected' : '' %>>Newest first</option>
+                      <option value="oldest" <%= uf.sort === 'oldest' ? 'selected' : '' %>>Oldest first</option>
+                    </select>
+                    <button type="submit" class="inline-flex items-center rounded-md bg-indigo-600 px-3 py-1.5 text-xs font-medium text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600">
+                      Apply
+                    </button>
+                  </div>
+                  <div class="flex flex-wrap gap-3 text-xs text-gray-700">
+                    <label class="inline-flex items-center space-x-1">
+                      <input type="checkbox" name="upcomingHasMeetingUrl" value="true" <%= uf.hasMeetingUrl === true ? 'checked' : '' %> class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
+                      <span>Has meeting URL</span>
+                    </label>
+                    <label class="inline-flex items-center space-x-1">
+                      <input type="checkbox" name="upcomingHasBot" value="true" <%= uf.hasBot === true ? 'checked' : '' %> class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
+                      <span>Has bot scheduled</span>
+                    </label>
+                    <label class="inline-flex items-center space-x-1">
+                      <input type="checkbox" name="upcomingHasRecording" value="true" <%= uf.hasRecording === true ? 'checked' : '' %> class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
+                      <span>Has recording enabled</span>
+                    </label>
+                  </div>
+                </form>
+                <!-- Results count for upcoming events -->
+                <% if (upcomingEvents && upcomingEvents.length > 0) { %>
+                  <div class="mb-4 pb-2 border-b border-gray-200">
+                    <div class="text-sm text-gray-600">
+                      Showing <%= upcomingEvents.length %> upcoming event<%= upcomingEvents.length !== 1 ? 's' : '' %>
+                    </div>
+                  </div>
+                <% } %>
                 <% if (!upcomingEvents || upcomingEvents.length === 0) { %>
                   <div class="text-center py-12">
                     <svg class="mx-auto h-12 w-12 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -120,7 +193,11 @@
                     </svg>
                     <h3 class="mt-4 text-lg font-semibold text-gray-900">No upcoming meetings</h3>
                     <p class="mt-2 text-sm text-gray-500">
-                      Your upcoming calendar events with meeting links will appear here.
+                      <% if (uf && (uf.q || uf.from || uf.to || uf.hasMeetingUrl !== null || uf.hasBot !== null || uf.hasRecording !== null)) { %>
+                        No upcoming events match your filters. Try adjusting your search criteria.
+                      <% } else { %>
+                        Your upcoming calendar events with meeting links will appear here.
+                      <% } %>
                     </p>
                   </div>
                 <% } else { %>
