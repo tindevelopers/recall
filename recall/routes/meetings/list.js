@@ -5,11 +5,36 @@ import { backgroundQueue } from "../../queue.js";
 import { telemetryEvent } from "../../utils/telemetry.js";
 import { generateUniqueReadableMeetingId } from "../../utils/meeting-id.js";
 import { v4 as uuidv4 } from "uuid";
+import fs from "fs";
+import path from "path";
+import { fileURLToPath } from "url";
 import {
   extractMeetingMetadata,
   normalizeMeetingUrl as normalizeMeetingUrlUtil,
 } from "../../utils/meeting-metadata-extractor.js";
 const { sequelize } = db;
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const DEBUG_LOG_PATH = path.join(__dirname, "..", "..", ".cursor", "debug.log");
+
+function debugLog(location, message, data, hypothesisId) {
+  const logEntry = {
+    id: `log_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+    timestamp: Date.now(),
+    location,
+    message,
+    data,
+    sessionId: "debug-session",
+    runId: "upcoming-missing",
+    hypothesisId,
+  };
+  try {
+    fs.appendFileSync(DEBUG_LOG_PATH, JSON.stringify(logEntry) + "\n");
+  } catch (err) {
+    // Silently fail if log file can't be written
+  }
+}
 
 function formatDigitsAsGroups(digits) {
   if (!digits || digits.length < 6) return null;
@@ -1165,6 +1190,28 @@ export default async (req, res) => {
   }
   
   console.log(`[MEETINGS] Found ${calendars.length} calendars for user ${userId}`);
+  
+  // #region agent log
+  const calendarsDebug = calendars.map(c => ({
+    id: c.id,
+    recallId: c.recallId,
+    email: c.email,
+    platform: c.platform,
+    userId: c.userId,
+  }));
+  const expectedBackendCalendarId = '039a4ad4-1257-4ad1-9ef4-3096bc1c8f98';
+  const matchesById = calendars.some(c => c.id === expectedBackendCalendarId);
+  const matchesByRecallId = calendars.some(c => c.recallId === expectedBackendCalendarId);
+  debugLog('routes/meetings/list.js:calendarsFetched', 'Calendars fetched for user', { 
+    userId, 
+    calendarsCount: calendars.length, 
+    calendars: calendarsDebug,
+    expectedBackendCalendarId,
+    matchesById,
+    matchesByRecallId,
+    matchingCalendar: calendars.find(c => c.id === expectedBackendCalendarId || c.recallId === expectedBackendCalendarId),
+  }, 'H1');
+  // #endregion
 
   // On-demand sync: fetch latest events from Recall.ai
   // OPTIMIZATION: Run sync in BACKGROUND (non-blocking) to return page instantly
@@ -1268,7 +1315,29 @@ export default async (req, res) => {
   
   if (calendars.length > 0) {
     const calendarIds = calendars.map(c => c.id);
+    const calendarRecallIds = calendars.map(c => c.recallId).filter(Boolean);
     console.log(`[MEETINGS] Calendar IDs:`, calendarIds);
+    console.log(`[MEETINGS] Calendar Recall IDs:`, calendarRecallIds);
+    
+    // #region agent log
+    const expectedBackendCalendarId = '039a4ad4-1257-4ad1-9ef4-3096bc1c8f98';
+    const matchesById = calendarIds.includes(expectedBackendCalendarId);
+    const matchesByRecallId = calendarRecallIds.includes(expectedBackendCalendarId);
+    const matchingCalendar = calendars.find(c => c.id === expectedBackendCalendarId || c.recallId === expectedBackendCalendarId);
+    debugLog('routes/meetings/list.js:calendarIdsExtracted', 'Calendar IDs extracted for query', { 
+      calendarIds, 
+      calendarRecallIds, 
+      expectedBackendCalendarId,
+      matchesById,
+      matchesByRecallId,
+      matchingCalendar: matchingCalendar ? {
+        id: matchingCalendar.id,
+        recallId: matchingCalendar.recallId,
+        email: matchingCalendar.email,
+        platform: matchingCalendar.platform,
+      } : null,
+    }, 'H2');
+    // #endregion
     
     // Get future events - query with a reasonable future date range (up to 2 years ahead)
     // This ensures we capture all upcoming meetings, even those scheduled far in advance
@@ -1293,6 +1362,28 @@ export default async (req, res) => {
       });
       
       console.log(`[MEETINGS] Fetched ${allEventsUnfiltered.length} total events from database`);
+      
+      // #region agent log
+      // Count events per calendar
+      const eventsPerCalendar = {};
+      for (const event of allEventsUnfiltered) {
+        const calId = event.calendarId;
+        if (!eventsPerCalendar[calId]) {
+          eventsPerCalendar[calId] = { count: 0, events: [] };
+        }
+        eventsPerCalendar[calId].count++;
+        if (eventsPerCalendar[calId].events.length < 3) {
+          eventsPerCalendar[calId].events.push({
+            id: event.id,
+            recallId: event.recallId,
+            title: event.title,
+            startTime: event.startTime,
+            calendarId: event.calendarId,
+          });
+        }
+      }
+      debugLog('routes/meetings/list.js:eventsPerCalendar', 'Events count per calendar', { totalEvents: allEventsUnfiltered.length, eventsPerCalendar, calendarIds }, 'H3');
+      // #endregion
       
       // Log sample events to see what we're working with
       if (allEventsUnfiltered.length > 0) {
@@ -1328,8 +1419,17 @@ export default async (req, res) => {
       allEvents = allEventsUnfiltered.filter(event => {
         try {
           const startTime = event.startTime;
+          const recallDataStartTime = event.recallData?.start_time;
+          const calendarId = event.calendarId;
+          
+          // #region agent log
+          if (!startTime || allEventsUnfiltered.indexOf(event) < 10) {
+            debugLog('routes/meetings/list.js:eventFilterCheck', 'Checking event for future filter', { eventId: event.id, recallId: event.recallId, title: event.title, calendarId, startTime, recallDataStartTime, startTimeType: typeof startTime, hasStartTime: !!startTime }, 'H4');
+          }
+          // #endregion
+          
           if (!startTime) {
-            rejectedEvents.push({ id: event.id, reason: 'no_startTime', title: event.title });
+            rejectedEvents.push({ id: event.id, reason: 'no_startTime', title: event.title, calendarId, recallId: event.recallId });
             console.log(`[MEETINGS] Event ${event.id} has no startTime`);
             return false;
           }
@@ -1339,7 +1439,7 @@ export default async (req, res) => {
           
           // Check if date is valid
           if (isNaN(startDate.getTime())) {
-            rejectedEvents.push({ id: event.id, reason: 'invalid_startTime', startTime, title: event.title });
+            rejectedEvents.push({ id: event.id, reason: 'invalid_startTime', startTime, title: event.title, calendarId, recallId: event.recallId });
             console.log(`[MEETINGS] Event ${event.id} has invalid startTime: ${startTime}`);
             return false;
           }
@@ -1353,15 +1453,21 @@ export default async (req, res) => {
             console.log(`[MEETINGS] Event ${event.id} "${event.title}": startTime=${startTime}, startDate=${startDate.toISOString()}, nowDate=${nowDate.toISOString()}, isFuture=${isFuture}`);
           }
           
+          // #region agent log
+          if (calendarId === '039a4ad4-1257-4ad1-9ef4-3096bc1c8f98' || allEventsUnfiltered.indexOf(event) < 5) {
+            debugLog('routes/meetings/list.js:eventDateComparison', 'Event date comparison result', { eventId: event.id, recallId: event.recallId, title: event.title, calendarId, startTime: startDate.toISOString(), nowTime: nowDate.toISOString(), futureCutoffTime: futureCutoff.toISOString(), isFuture, timeDiffMs: startDate.getTime() - nowDate.getTime() }, 'H5');
+          }
+          // #endregion
+          
           if (isFuture) {
-            filteredEvents.push({ id: event.id, title: event.title, startTime: startDate.toISOString() });
+            filteredEvents.push({ id: event.id, title: event.title, startTime: startDate.toISOString(), calendarId });
           } else {
-            rejectedEvents.push({ id: event.id, reason: 'not_future', startTime: startDate.toISOString(), nowISO: nowDate.toISOString(), title: event.title });
+            rejectedEvents.push({ id: event.id, reason: 'not_future', startTime: startDate.toISOString(), nowISO: nowDate.toISOString(), title: event.title, calendarId, recallId: event.recallId });
           }
           
           return isFuture;
         } catch (error) {
-          rejectedEvents.push({ id: event.id, reason: 'parse_error', error: error.message, title: event.title });
+          rejectedEvents.push({ id: event.id, reason: 'parse_error', error: error.message, title: event.title, calendarId: event.calendarId, recallId: event.recallId });
           console.error(`[MEETINGS] Error parsing start time for event ${event.id}:`, error);
           return false;
         }
@@ -1370,7 +1476,53 @@ export default async (req, res) => {
       console.log(`[MEETINGS] Filtered to ${allEvents.length} future events (out of ${allEventsUnfiltered.length} total)`);
       
       // #region agent log
-      fetch('http://127.0.0.1:7248/ingest/9df62f0f-78c1-44fb-821f-c3c7b9f764cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'routes/meetings/list.js:filterEvents',message:'Events filtered for display',data:{totalEvents:allEventsUnfiltered.length,filteredCount:allEvents.length,rejectedCount:rejectedEvents.length,nowISO:nowDate.toISOString(),futureCutoffISO:futureCutoff.toISOString(),rejectedEvents:rejectedEvents.slice(0, 5),filteredEvents:filteredEvents.slice(0, 5)},timestamp:Date.now(),sessionId:'debug-session',runId:'meetings-missing',hypothesisId:'H5'})}).catch(()=>{});
+      // Check specifically for events from the expected calendar ID (try both database ID and recallId)
+      const expectedBackendCalendarId = '039a4ad4-1257-4ad1-9ef4-3096bc1c8f98';
+      const matchingCalendar = calendars.find(c => c.id === expectedBackendCalendarId || c.recallId === expectedBackendCalendarId);
+      const expectedCalendarDbId = matchingCalendar?.id;
+      
+      // Check events by database calendar ID
+      const expectedCalendarEvents = expectedCalendarDbId 
+        ? allEventsUnfiltered.filter(e => e.calendarId === expectedCalendarDbId)
+        : [];
+      const expectedCalendarFutureEvents = expectedCalendarDbId
+        ? allEvents.filter(e => e.calendarId === expectedCalendarDbId)
+        : [];
+      const expectedCalendarRejectedEvents = expectedCalendarDbId
+        ? rejectedEvents.filter(e => e.calendarId === expectedCalendarDbId)
+        : [];
+      
+      // Also check all events to see their calendar IDs
+      const allCalendarIdsInEvents = [...new Set(allEventsUnfiltered.map(e => e.calendarId))];
+      const eventsByCalendarId = {};
+      for (const calId of allCalendarIdsInEvents) {
+        const cal = calendars.find(c => c.id === calId);
+        eventsByCalendarId[calId] = {
+          calendarDbId: calId,
+          calendarRecallId: cal?.recallId,
+          calendarEmail: cal?.email,
+          totalEvents: allEventsUnfiltered.filter(e => e.calendarId === calId).length,
+          futureEvents: allEvents.filter(e => e.calendarId === calId).length,
+        };
+      }
+      
+      debugLog('routes/meetings/list.js:filterEvents', 'Events filtered for display', { 
+        totalEvents: allEventsUnfiltered.length, 
+        filteredCount: allEvents.length, 
+        rejectedCount: rejectedEvents.length, 
+        nowISO: nowDate.toISOString(), 
+        futureCutoffISO: futureCutoff.toISOString(), 
+        rejectedEvents: rejectedEvents.slice(0, 10), 
+        filteredEvents: filteredEvents.slice(0, 10), 
+        expectedBackendCalendarId,
+        matchingCalendar: matchingCalendar ? { id: matchingCalendar.id, recallId: matchingCalendar.recallId, email: matchingCalendar.email } : null,
+        expectedCalendarDbId,
+        expectedCalendarTotalEvents: expectedCalendarEvents.length, 
+        expectedCalendarFutureEvents: expectedCalendarFutureEvents.length, 
+        expectedCalendarRejectedEvents: expectedCalendarRejectedEvents.length, 
+        expectedCalendarRejectedDetails: expectedCalendarRejectedEvents,
+        eventsByCalendarId,
+      }, 'H6');
       // #endregion
       
       // Sort by start time (in memory, since startTime is a virtual field)
@@ -1535,6 +1687,22 @@ export default async (req, res) => {
     if (upcomingEvents.length > 0) {
       console.log(`[MEETINGS] Sample upcoming events:`, upcomingEvents.slice(0, 3).map(e => ({ id: e.id, title: e.title, startTime: e.startTime })));
     }
+    
+    // #region agent log
+    const finalUpcomingEventsSample = upcomingEvents.slice(0, 10).map(e => ({
+      id: e.id,
+      title: e.title,
+      startTime: e.startTime,
+      calendarEmail: e.calendarEmail,
+      recallEventId: e.recallEventId,
+    }));
+    const expectedCalendarFinalEvents = upcomingEvents.filter(e => {
+      // Try to match by checking if any calendar has the expected ID
+      const matchingCalendar = calendars.find(c => c.id === '039a4ad4-1257-4ad1-9ef4-3096bc1c8f98');
+      return matchingCalendar && e.calendarEmail === matchingCalendar?.email;
+    });
+    debugLog('routes/meetings/list.js:finalUpcomingEvents', 'Final upcoming events being sent to frontend', { totalUpcomingEvents: upcomingEvents.length, beforeFilters: upcomingEvents.length + filteredUpcomingEvents.length - upcomingEvents.length, afterFilters: upcomingEvents.length, filterDetails: { q: upcomingQFilter, from: upcomingFromFilter, to: upcomingToFilter, hasMeetingUrl: upcomingHasMeetingUrlFilter, hasBot: upcomingHasBotFilter, hasRecording: upcomingHasRecordingFilter }, sampleEvents: finalUpcomingEventsSample, expectedCalendarId: '039a4ad4-1257-4ad1-9ef4-3096bc1c8f98', expectedCalendarEventsCount: expectedCalendarFinalEvents.length, expectedCalendarEvents: expectedCalendarFinalEvents }, 'H7');
+    // #endregion
   } else {
     console.log(`[MEETINGS] No calendars found, skipping upcoming events fetch`);
   }
