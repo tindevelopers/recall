@@ -36,6 +36,10 @@ export default async (req, res) => {
     // Refresh calendar data from Recall to get latest status
     // This ensures "connecting" becomes "connected" after Recall finishes
     // Also refresh calendars that don't have a status set yet
+    // Check for disconnected calendars and notify user
+    let hasDisconnectedCalendar = false;
+    let disconnectedCalendarEmails = [];
+    
     for (const calendar of calendars) {
       const currentStatus = calendar.status || calendar.recallData?.status;
       if (currentStatus === "connecting" || !currentStatus) {
@@ -50,6 +54,26 @@ export default async (req, res) => {
           console.error(`Failed to refresh calendar ${calendar.id}:`, err.message);
         }
       }
+      
+      // Check if calendar is disconnected
+      if (currentStatus === "disconnected") {
+        hasDisconnectedCalendar = true;
+        const email = calendar.email || calendar.recallData?.platform_email || "your calendar";
+        const platform = calendar.platform === "google_calendar" ? "Google Calendar" : "Microsoft Outlook";
+        disconnectedCalendarEmails.push(`${platform} (${email})`);
+      }
+    }
+    
+    // Show notification if there are disconnected calendars
+    if (hasDisconnectedCalendar && !req.notice) {
+      const message = disconnectedCalendarEmails.length === 1
+        ? `Your ${disconnectedCalendarEmails[0]} connection has been disconnected. Please reconnect your calendar to continue receiving meeting recordings.`
+        : `Your calendar connections (${disconnectedCalendarEmails.join(", ")}) have been disconnected. Please reconnect them to continue receiving meeting recordings.`;
+      
+      const notice = generateNotice("error", message);
+      req.notice = notice;
+      // Set cookie so notice persists across page loads
+      res.cookie("notice", JSON.stringify(notice));
     }
     
     const notionIntegration = await req.authentication.user.getIntegrations({

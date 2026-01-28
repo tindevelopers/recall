@@ -7,22 +7,43 @@ export default async (req, res) => {
 
   const userId = req.authentication.user.id;
 
-  // Get all calendars for the user, filtering out disconnected ones
+  // Get all calendars for the user
+  // Include disconnected calendars so users can see and reconnect them
   const allCalendars = await db.Calendar.findAll({
     where: { userId },
     order: [["createdAt", "ASC"]],
   });
   
-  // Filter out disconnected calendars - they shouldn't be displayed
-  const calendars = allCalendars.filter((calendar) => {
+  // Check for disconnected calendars and show notification
+  const disconnectedCalendars = allCalendars.filter((calendar) => {
     const status = calendar.status || calendar.recallData?.status;
-    return status !== "disconnected" && status !== null && status !== undefined;
+    return status === "disconnected";
   });
+  
+  // Show all calendars (including disconnected) so users can see status
+  const calendars = allCalendars;
+  
+  // Add notice if there are disconnected calendars
+  let notice = req.notice;
+  if (disconnectedCalendars.length > 0 && !notice) {
+    const { generateNotice } = await import("../utils.js");
+    const disconnectedEmails = disconnectedCalendars.map(cal => {
+      const email = cal.email || cal.recallData?.platform_email || "your calendar";
+      const platform = cal.platform === "google_calendar" ? "Google Calendar" : "Microsoft Outlook";
+      return `${platform} (${email})`;
+    });
+    
+    const message = disconnectedEmails.length === 1
+      ? `Your ${disconnectedEmails[0]} connection has been disconnected. Please reconnect your calendar to continue receiving meeting recordings.`
+      : `Your calendar connections (${disconnectedEmails.join(", ")}) have been disconnected. Please reconnect them to continue receiving meeting recordings.`;
+    
+    notice = generateNotice("error", message);
+  }
 
   // If no calendars, render settings page with empty state
   if (calendars.length === 0) {
     return res.render("settings.ejs", {
-      notice: req.notice,
+      notice: notice || req.notice,
       user: req.authentication.user,
       calendars: [],
       calendar: null,
@@ -59,7 +80,7 @@ export default async (req, res) => {
   const notionTarget = publishTargets.find((t) => t.type === "notion") || null;
 
   return res.render("settings.ejs", {
-    notice: req.notice,
+    notice: notice || req.notice,
     user: req.authentication.user,
     calendars,
     calendar,

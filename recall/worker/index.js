@@ -50,6 +50,7 @@ import meetingEnrich from "./processors/meeting-enrich.js";
 import meetingEmbedChunks from "./processors/meeting-embed-chunks.js";
 import publishingDispatch from "./processors/publishing-dispatch.js";
 import periodicCalendarSync from "./processors/periodic-calendar-sync.js";
+import checkCalendarConnections from "./processors/check-calendar-connections.js";
 import teamsRecordingIngest from "./processors/teams-recording-ingest.js";
 import recordingArchive from "./processors/recording-archive.js";
 
@@ -125,6 +126,7 @@ const processors = [
   { name: "meeting.embed_chunks", concurrency: 2, handler: meetingEmbedChunks },
   { name: "publishing.dispatch", concurrency: 2, handler: publishingDispatch },
   { name: "periodic.calendar.sync", concurrency: 1, handler: periodicCalendarSync },
+  { name: "check.calendar.connections", concurrency: 1, handler: checkCalendarConnections },
   { name: "teams.recording.ingest", concurrency: 2, handler: teamsRecordingIngest },
   { name: "recording.archive", concurrency: 1, handler: recordingArchive },
 ];
@@ -201,6 +203,35 @@ async function schedulePeriodicSync() {
     // Run initial sync immediately (don't wait 2 minutes)
     await backgroundQueue.add("periodic.calendar.sync", {}, { jobId: "periodic-calendar-sync-initial" });
     console.log("🔄 Triggered initial calendar sync");
+
+    // Schedule periodic connection check (every 15 minutes)
+    // Remove any existing connection check jobs to avoid duplicates
+    for (const job of existingJobs) {
+      if (job.name === "check.calendar.connections") {
+        await backgroundQueue.removeRepeatableByKey(job.key);
+        console.log(`🗑️  Removed existing connection check job: ${job.key}`);
+      }
+    }
+
+    await backgroundQueue.add(
+      "check.calendar.connections",
+      {},
+      {
+        repeat: {
+          every: 15 * 60 * 1000, // 15 minutes in milliseconds
+        },
+        jobId: "check-calendar-connections", // Unique ID to prevent duplicates
+      }
+    );
+
+    console.log("⏰ Scheduled periodic connection check (every 15 minutes)");
+    telemetryLog("INFO", "Connection check scheduled", {
+      intervalMinutes: 15,
+    });
+
+    // Run initial connection check immediately (don't wait 15 minutes)
+    await backgroundQueue.add("check.calendar.connections", {}, { jobId: "check-calendar-connections-initial" });
+    console.log("🔄 Triggered initial connection check");
   } catch (error) {
     console.error("❌ Failed to schedule periodic sync:", error);
     telemetryLog("ERROR", "Failed to schedule periodic sync", {

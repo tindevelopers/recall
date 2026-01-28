@@ -45,8 +45,22 @@
     </div>
     
     <div class="space-y-3">
-      <% calendars.forEach(function(cal) { %>
-      <div class="bg-white rounded-xl border border-gray-200 p-4 hover:shadow-md transition-shadow">
+      <% calendars.forEach(function(cal) { 
+        const calStatus = cal.status || cal.recallData?.status;
+        const isDisconnected = calStatus === 'disconnected';
+      %>
+      <div class="bg-white rounded-xl border <%= isDisconnected ? 'border-red-200 bg-red-50/30' : 'border-gray-200' %> p-4 hover:shadow-md transition-shadow">
+        <% if (isDisconnected) { %>
+        <div class="mb-3 flex items-start space-x-2 text-sm text-red-700 bg-red-50 rounded-lg p-2">
+          <svg class="w-5 h-5 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"/>
+          </svg>
+          <div>
+            <p class="font-medium">Connection broken</p>
+            <p class="text-xs text-red-600">Please reconnect your calendar to continue receiving meeting recordings.</p>
+          </div>
+        </div>
+        <% } %>
         <div class="flex items-center justify-between">
           <div class="flex items-center space-x-4">
             <% if (cal.platform === 'google_calendar') { %>
@@ -64,8 +78,8 @@
             </div>
           </div>
           <div class="flex items-center space-x-3">
-            <%- include('calendar-status-badge', {status: cal.status}) %>
-            <% if (cal.recallId && cal.status !== 'disconnected') { %>
+            <%- include('calendar-status-badge', {status: calStatus}) %>
+            <% if (cal.recallId && calStatus !== 'disconnected') { %>
               <form method="post" action="/calendar/<%= cal.id %>/disconnect" class="inline">
                 <button 
                   type="submit" 
@@ -79,6 +93,13 @@
                   Disconnect
                 </button>
               </form>
+            <% } else if (isDisconnected) { %>
+              <a href="/" class="inline-flex items-center text-sm font-medium text-indigo-600 hover:text-indigo-500">
+                <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                </svg>
+                Reconnect
+              </a>
             <% } %>
             <a href="/calendar/<%= cal.id %>" class="text-indigo-600 hover:text-indigo-500 text-sm font-medium">
               Manage →

@@ -119,11 +119,22 @@ app.use((err, req, res, next) => {
 });
 
 const port = process.env.PORT || 3003;
-app.listen(port, '0.0.0.0', () => {
+app.listen(port, '0.0.0.0', async () => {
   console.log(`✅ Started demo app on port ${port}`);
   console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
   console.log(`Server ready at http://0.0.0.0:${port}`);
-        console.log(`Deployment triggered: ${new Date().toISOString()} - Using RECALL_API_HOST: ${process.env.RECALL_API_HOST}`);
+  console.log(`Deployment triggered: ${new Date().toISOString()} - Using RECALL_API_HOST: ${process.env.RECALL_API_HOST}`);
+  
+  // Run initial calendar connection check on startup
+  try {
+    const { checkCalendarConnections } = await import("./utils/check-calendar-connections.js");
+    console.log(`[STARTUP] Running initial calendar connection status check...`);
+    await checkCalendarConnections();
+    console.log(`[STARTUP] ✅ Initial connection check complete`);
+  } catch (error) {
+    console.error(`[STARTUP] ⚠️  Failed to run initial connection check:`, error.message);
+    // Don't fail startup if connection check fails
+  }
 }).on('error', (err) => {
   console.error('❌ Failed to start server:', err);
   process.exit(1);
