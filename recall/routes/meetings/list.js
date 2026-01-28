@@ -969,18 +969,49 @@ async function syncBotArtifacts(calendars, userId) {
  */
 async function syncCalendarEvents(calendar) {
   try {
+    // Fetch events updated in the last 24 hours OR events in the future (up to 1 year ahead)
+    // This ensures we sync both recent changes and upcoming meetings
     const lastUpdatedTimestamp = new Date();
     lastUpdatedTimestamp.setHours(lastUpdatedTimestamp.getHours() - 24);
     
+    // Also fetch future events (up to 1 year ahead) to ensure upcoming meetings are synced
+    const futureCutoff = new Date();
+    futureCutoff.setFullYear(futureCutoff.getFullYear() + 1);
+    
     console.log(`[MEETINGS] On-demand sync for calendar ${calendar.id} (${calendar.email})`);
     
+    // Fetch events updated recently OR events in the future
     const events = await Recall.fetchCalendarEvents({
       id: calendar.recallId,
       lastUpdatedTimestamp: lastUpdatedTimestamp.toISOString(),
+      // Note: The Recall API may not support future date filtering directly,
+      // but we'll filter in memory after fetching
+    });
+    
+    // Filter to include: events updated in last 24h OR events in the future
+    const now = new Date();
+    const relevantEvents = events.filter(event => {
+      if (event["is_deleted"]) return false;
+      
+      // Include if updated recently
+      const updatedAt = event.updated_at || event.updatedAt || event.created_at || event.createdAt;
+      if (updatedAt) {
+        const updatedDate = new Date(updatedAt);
+        if (updatedDate > lastUpdatedTimestamp) return true;
+      }
+      
+      // Include if it's a future event (up to 1 year ahead)
+      const startTime = event.start_time || event.startTime || event.start;
+      if (startTime) {
+        const startDate = new Date(startTime);
+        if (startDate > now && startDate <= futureCutoff) return true;
+      }
+      
+      return false;
     });
 
     let newEventsCount = 0;
-    for (const event of events) {
+    for (const event of relevantEvents) {
       if (!event["is_deleted"]) {
         const [instance, created] = await db.CalendarEvent.upsert({
           recallId: event.id,
@@ -995,12 +1026,12 @@ async function syncCalendarEvents(calendar) {
 
     // Always run auto-record update for all synced events (not just new ones)
     // This ensures events that were synced before but never had auto-record run get processed
-    if (events.length > 0) {
-      console.log(`[MEETINGS] On-demand sync processing ${events.length} event(s) for calendar ${calendar.id} (${newEventsCount} new)`);
+    if (relevantEvents.length > 0) {
+      console.log(`[MEETINGS] On-demand sync processing ${relevantEvents.length} event(s) for calendar ${calendar.id} (${newEventsCount} new)`);
       const { updateAutoRecordStatusForCalendarEvents } = await import("../../logic/autorecord.js");
       const dbEvents = await db.CalendarEvent.findAll({
         where: {
-          recallId: { [Op.in]: events.filter(e => !e.is_deleted).map(e => e.id) },
+          recallId: { [Op.in]: relevantEvents.filter(e => !e.is_deleted).map(e => e.id) },
           calendarId: calendar.id,
         },
       });
@@ -1021,7 +1052,7 @@ async function syncCalendarEvents(calendar) {
       Promise.allSettled(queuePromises).catch(() => {});
     }
 
-    return events.length;
+    return relevantEvents.length;
   } catch (error) {
     console.error(`[MEETINGS] On-demand sync failed for calendar ${calendar.id}:`, error.message);
     return 0;
@@ -1142,27 +1173,90 @@ export default async (req, res) => {
   if (calendars.length > 0) {
     const calendarIds = calendars.map(c => c.id);
     
-    // Get all events first, then filter by start time in JavaScript
-    // This avoids complex SQL casting that might fail
+    // Get future events - query with a reasonable future date range (up to 2 years ahead)
+    // This ensures we capture all upcoming meetings, even those scheduled far in advance
+    const futureCutoff = new Date();
+    futureCutoff.setFullYear(futureCutoff.getFullYear() + 2); // Look up to 2 years ahead
+    
     let allEvents = [];
     try {
+      // Fetch events and filter by startTime in the database if possible, otherwise filter in memory
+      // We'll fetch more events to ensure we don't miss any future meetings
       allEvents = await db.CalendarEvent.findAll({
         where: {
           calendarId: { [Op.in]: calendarIds },
+          // Try to filter by startTime in database, but fallback to memory filtering if it fails
+          startTime: {
+            [Op.gte]: nowDate,
+            [Op.lte]: futureCutoff,
+          },
         },
         include: [{ model: db.Calendar }],
-        limit: 200, // Get more events to filter in memory
+        order: [['startTime', 'ASC']], // Order by startTime ascending to get nearest future events first
+        limit: 500, // Increased limit to ensure we get all future events
       });
+      
+      // If database filtering failed (e.g., startTime is stored as string), filter in memory
+      if (allEvents.length === 0 || allEvents.some(e => !e.startTime || new Date(e.startTime) <= nowDate)) {
+        console.log(`[MEETINGS] Database filtering may have failed, fetching all events and filtering in memory`);
+        const allEventsUnfiltered = await db.CalendarEvent.findAll({
+          where: {
+            calendarId: { [Op.in]: calendarIds },
+          },
+          include: [{ model: db.Calendar }],
+          order: [['startTime', 'ASC']],
+          limit: 1000, // Fetch more to ensure we get future events
+        });
+        
+        // Filter to future events in memory
+        allEvents = allEventsUnfiltered.filter(event => {
+          try {
+            const startTime = event.startTime;
+            if (!startTime) return false;
+            const startDate = new Date(startTime);
+            return startDate > nowDate && startDate <= futureCutoff;
+          } catch (error) {
+            console.error(`[MEETINGS] Error parsing start time for event ${event.id}:`, error);
+            return false;
+          }
+        });
+      }
     } catch (error) {
       console.error(`[MEETINGS] Error fetching calendar events:`, error);
-      // Continue with empty events array
+      // Fallback: try without date filtering
+      try {
+        const allEventsUnfiltered = await db.CalendarEvent.findAll({
+          where: {
+            calendarId: { [Op.in]: calendarIds },
+          },
+          include: [{ model: db.Calendar }],
+          order: [['startTime', 'ASC']],
+          limit: 1000,
+        });
+        
+        // Filter to future events in memory
+        allEvents = allEventsUnfiltered.filter(event => {
+          try {
+            const startTime = event.startTime;
+            return startTime && new Date(startTime) > nowDate && new Date(startTime) <= futureCutoff;
+          } catch (error) {
+            console.error(`[MEETINGS] Error parsing start time for event ${event.id}:`, error);
+            return false;
+          }
+        });
+      } catch (fallbackError) {
+        console.error(`[MEETINGS] Fallback query also failed:`, fallbackError);
+        allEvents = [];
+      }
     }
     
-    // Filter to future events
+    // Filter to future events (already filtered above, but ensure we have the right data)
     const futureEvents = allEvents.filter(event => {
       try {
         const startTime = event.startTime;
-        return startTime && new Date(startTime) > nowDate;
+        if (!startTime) return false;
+        const startDate = new Date(startTime);
+        return startDate > nowDate && startDate <= futureCutoff;
       } catch (error) {
         console.error(`[MEETINGS] Error parsing start time for event ${event.id}:`, error);
         return false;
