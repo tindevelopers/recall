@@ -989,6 +989,24 @@ async function syncCalendarEvents(calendar) {
     
     console.log(`[MEETINGS] Fetched ${events.length} events from Recall API`);
     
+    // #region agent log
+    const futureEventsSample = events.filter(event => {
+      const startTime = event.start_time || event.startTime || event.start;
+      if (!startTime) return false;
+      try {
+        return new Date(startTime) > new Date();
+      } catch {
+        return false;
+      }
+    }).slice(0, 5).map(e => ({
+      id: e.id,
+      title: e.title || e.subject,
+      startTime: e.start_time || e.startTime || e.start,
+      hasMeetingUrl: !!(e.meeting_url || e.onlineMeeting?.joinUrl),
+    }));
+    fetch('http://127.0.0.1:7248/ingest/9df62f0f-78c1-44fb-821f-c3c7b9f764cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'routes/meetings/list.js:syncCalendarEvents',message:'Events fetched from Recall API',data:{calendarId:calendar.id,calendarEmail:calendar.email,eventsCount:events.length,futureEventsCount:futureEventsSample.length,futureEventsSample},timestamp:Date.now(),sessionId:'debug-session',runId:'meetings-missing',hypothesisId:'H2'})}).catch(()=>{});
+    // #endregion
+    
     // Also check if we need to fetch future events that weren't updated recently
     // by checking if any events are in the future
     const now = new Date();
@@ -1009,6 +1027,7 @@ async function syncCalendarEvents(calendar) {
     const relevantEvents = events.filter(event => !event["is_deleted"]);
 
     let newEventsCount = 0;
+    const savedEvents = [];
     for (const event of relevantEvents) {
       if (!event["is_deleted"]) {
         const [instance, created] = await db.CalendarEvent.upsert({
@@ -1019,8 +1038,19 @@ async function syncCalendarEvents(calendar) {
           calendarId: calendar.id,
         });
         if (created) newEventsCount++;
+        savedEvents.push({
+          recallId: event.id,
+          dbId: instance.id,
+          title: event.title || event.subject,
+          startTime: event.start_time || event.startTime || event.start,
+          created,
+        });
       }
     }
+    
+    // #region agent log
+    fetch('http://127.0.0.1:7248/ingest/9df62f0f-78c1-44fb-821f-c3c7b9f764cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'routes/meetings/list.js:syncCalendarEvents',message:'Events saved to database',data:{calendarId:calendar.id,relevantEventsCount:relevantEvents.length,newEventsCount,savedEvents:savedEvents.slice(0, 5)},timestamp:Date.now(),sessionId:'debug-session',runId:'meetings-missing',hypothesisId:'H3'})}).catch(()=>{});
+    // #endregion
 
     // Always run auto-record update for all synced events (not just new ones)
     // This ensures events that were synced before but never had auto-record run get processed
@@ -1048,6 +1078,9 @@ async function syncCalendarEvents(calendar) {
       );
       // Don't await - let these run in background
       Promise.allSettled(queuePromises).catch(() => {});
+      
+      // Note: Teams recording ingestion is now manual-only
+      // Use POST /api/trigger-teams-ingest to pull Teams recordings when needed
     }
 
     return relevantEvents.length;
@@ -1137,6 +1170,10 @@ export default async (req, res) => {
   // Track sync status for UI
   let lastSyncAge = cachedSync ? Math.round((now - cachedSync.lastSyncTime) / 1000) : null;
   
+  // #region agent log
+  fetch('http://127.0.0.1:7248/ingest/9df62f0f-78c1-44fb-821f-c3c7b9f764cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'routes/meetings/list.js:syncDecision',message:'Sync decision check',data:{userId,calendarsCount:calendars.length,shouldSync,lastSyncAge,syncInProgress,now,cachedSyncLastTime:cachedSync?.lastSyncTime,throttleMs:SYNC_THROTTLE_MS},timestamp:Date.now(),sessionId:'debug-session',runId:'meetings-missing',hypothesisId:'H1'})}).catch(()=>{});
+  // #endregion
+
   if (calendars.length > 0 && shouldSync && !syncInProgress) {
     // Mark sync as in progress to prevent concurrent syncs
     syncCache.set(syncCacheKey, { lastSyncTime: now, inProgress: true });
@@ -1220,13 +1257,28 @@ export default async (req, res) => {
         console.log(`[MEETINGS] WARNING: No events found in database for calendars:`, calendarIds);
       }
       
+      // #region agent log
+      const allEventsSample = allEventsUnfiltered.slice(0, 10).map(e => ({
+        id: e.id,
+        title: e.title,
+        startTime: e.startTime,
+        startTimeISO: e.startTime ? new Date(e.startTime).toISOString() : null,
+        calendarId: e.calendarId,
+        hasMeetingUrl: !!e.meetingUrl,
+      }));
+      fetch('http://127.0.0.1:7248/ingest/9df62f0f-78c1-44fb-821f-c3c7b9f764cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'routes/meetings/list.js:queryEvents',message:'Events queried from database',data:{totalEvents:allEventsUnfiltered.length,calendarIds,nowISO:nowDate.toISOString(),sampleEvents:allEventsSample},timestamp:Date.now(),sessionId:'debug-session',runId:'meetings-missing',hypothesisId:'H4'})}).catch(()=>{});
+      // #endregion
+      
       // Filter to future events in memory (more reliable than database filtering)
       // Include events that start now or in the future (>= instead of >)
       // Note: JavaScript Date comparisons work correctly across timezones when using ISO strings
+      const filteredEvents = [];
+      const rejectedEvents = [];
       allEvents = allEventsUnfiltered.filter(event => {
         try {
           const startTime = event.startTime;
           if (!startTime) {
+            rejectedEvents.push({ id: event.id, reason: 'no_startTime', title: event.title });
             console.log(`[MEETINGS] Event ${event.id} has no startTime`);
             return false;
           }
@@ -1236,6 +1288,7 @@ export default async (req, res) => {
           
           // Check if date is valid
           if (isNaN(startDate.getTime())) {
+            rejectedEvents.push({ id: event.id, reason: 'invalid_startTime', startTime, title: event.title });
             console.log(`[MEETINGS] Event ${event.id} has invalid startTime: ${startTime}`);
             return false;
           }
@@ -1249,14 +1302,25 @@ export default async (req, res) => {
             console.log(`[MEETINGS] Event ${event.id} "${event.title}": startTime=${startTime}, startDate=${startDate.toISOString()}, nowDate=${nowDate.toISOString()}, isFuture=${isFuture}`);
           }
           
+          if (isFuture) {
+            filteredEvents.push({ id: event.id, title: event.title, startTime: startDate.toISOString() });
+          } else {
+            rejectedEvents.push({ id: event.id, reason: 'not_future', startTime: startDate.toISOString(), nowISO: nowDate.toISOString(), title: event.title });
+          }
+          
           return isFuture;
         } catch (error) {
+          rejectedEvents.push({ id: event.id, reason: 'parse_error', error: error.message, title: event.title });
           console.error(`[MEETINGS] Error parsing start time for event ${event.id}:`, error);
           return false;
         }
       });
       
       console.log(`[MEETINGS] Filtered to ${allEvents.length} future events (out of ${allEventsUnfiltered.length} total)`);
+      
+      // #region agent log
+      fetch('http://127.0.0.1:7248/ingest/9df62f0f-78c1-44fb-821f-c3c7b9f764cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'routes/meetings/list.js:filterEvents',message:'Events filtered for display',data:{totalEvents:allEventsUnfiltered.length,filteredCount:allEvents.length,rejectedCount:rejectedEvents.length,nowISO:nowDate.toISOString(),futureCutoffISO:futureCutoff.toISOString(),rejectedEvents:rejectedEvents.slice(0, 5),filteredEvents:filteredEvents.slice(0, 5)},timestamp:Date.now(),sessionId:'debug-session',runId:'meetings-missing',hypothesisId:'H5'})}).catch(()=>{});
+      // #endregion
       
       // Sort by start time (in memory, since startTime is a virtual field)
       allEvents.sort((a, b) => {
@@ -1294,8 +1358,9 @@ export default async (req, res) => {
       }
     });
     
-    // Limit to 50
-    const limitedEvents = futureEvents.slice(0, 50);
+    // Limit to 500 to show more upcoming meetings (was 50, which was too restrictive)
+    // Database query already limits to 1000, so this ensures we show a reasonable number
+    const limitedEvents = futureEvents.slice(0, 500);
 
     for (const event of limitedEvents) {
       // Determine effective transcription mode (event override > calendar default > 'realtime')
@@ -1607,17 +1672,159 @@ export default async (req, res) => {
     }
   }
 
+  /**
+   * Generate a deduplication key for an artifact based on meeting identifiers
+   * This groups artifacts that represent the same meeting
+   */
+  function getMeetingDeduplicationKey(artifact, calendarEvent) {
+    const data = artifact.rawPayload?.data || {};
+    const meetingUrl = data.meeting_url || artifact.meetingUrl;
+    
+    // Strategy 1: Use thread_id (most reliable for Teams meetings)
+    const threadId = extractThreadId(meetingUrl);
+    if (threadId) {
+      return `thread:${threadId}`;
+    }
+    
+    // Strategy 2: Use meeting ID (for Zoom, Google Meet, etc.)
+    const meetingId = artifact.meetingId || 
+                     data.meeting_id || 
+                     data.bot_metadata?.meeting_metadata?.meeting_id ||
+                     artifact.displayMeetingId;
+    if (meetingId) {
+      return `meetingId:${meetingId}`;
+    }
+    
+    // Strategy 3: Use recallEventId (if available)
+    const recallEventId = artifact.recallEventId || 
+                         calendarEvent?.recallId ||
+                         data.calendar_event_id ||
+                         data.recall_event_id;
+    if (recallEventId) {
+      return `recallEventId:${recallEventId}`;
+    }
+    
+    // Strategy 4: Use start time + title (within same minute)
+    const startTime = data.start_time || calendarEvent?.startTime || artifact.createdAt;
+    const title = data.title || calendarEvent?.title || "Untitled";
+    if (startTime) {
+      const startDate = new Date(startTime);
+      const startMinute = startDate.toISOString().substring(0, 16); // YYYY-MM-DDTHH:MM
+      return `time+title:${startMinute}:${title}`;
+    }
+    
+    // Fallback: Use artifact ID (no deduplication possible)
+    return `unique:${artifact.id}`;
+  }
+
+  /**
+   * Calculate completeness score for an artifact (higher = more complete)
+   * Used to determine which duplicate artifact to keep
+   */
+  function getArtifactCompletenessScore(artifact, hasTranscriptFlag, summary, hasRecordingFlag) {
+    let score = 0;
+    
+    // Transcript is most valuable (2 points)
+    if (hasTranscriptFlag) {
+      score += 2;
+    }
+    
+    // Summary is valuable (2 points)
+    if (summary) {
+      score += 2;
+    }
+    
+    // Recording is valuable (1 point)
+    if (hasRecordingFlag) {
+      score += 1;
+    }
+    
+    // Prefer artifacts with recallBotId (actual recordings vs placeholders)
+    if (artifact.recallBotId) {
+      score += 1;
+    }
+    
+    // Prefer newer artifacts (they may have more complete data)
+    const ageInDays = (Date.now() - new Date(artifact.createdAt).getTime()) / (1000 * 60 * 60 * 24);
+    score += Math.max(0, 1 - ageInDays / 30); // Bonus for artifacts less than 30 days old
+    
+    return score;
+  }
+
   // Add artifacts
   for (const artifact of artifacts) {
-    const key = artifact.id;
-    
-    // Try to find matching calendar event by thread_id from meeting URL
+    // Generate deduplication key
     const artifactThreadId = extractThreadId(artifact.rawPayload?.data?.meeting_url);
     const calendarEvent =
       artifact.CalendarEvent ||
       (artifactThreadId ? calendarEventsByThreadId.get(artifactThreadId) : null);
+    
+    // We need to calculate some values before generating the key
     const summary = artifact.MeetingSummaries?.[0] || artifact.MeetingSummary || null;
-
+    const hasTranscriptFromPayload = hasTranscriptContent(artifact.rawPayload?.data?.transcript);
+    const hasTranscriptFromChunks = artifact.hasTranscriptChunks || false;
+    const hasTranscriptFlag = hasTranscriptFromPayload || hasTranscriptFromChunks;
+    const hasRecordingFlag = !!(
+      artifact.rawPayload?.data?.video_url ||
+      artifact.rawPayload?.data?.recording_url ||
+      artifact.rawPayload?.data?.media_shortcuts?.video?.data?.download_url
+    );
+    
+    // Generate deduplication key (need friendlyMeetingId for this)
+    const storedMeetingUrl =
+      artifact.meetingUrl ||
+      normalizeMeetingUrlUtil(artifact.rawPayload?.data?.meeting_url) ||
+      normalizeMeetingUrlUtil(calendarEvent?.meetingUrl);
+    const metadata = extractMeetingMetadata({
+      meetingUrl: storedMeetingUrl,
+      calendarMeetingUrl: calendarEvent?.meetingUrl,
+    });
+    const friendlyMeetingId = deriveFriendlyMeetingId({
+      metadataMeetingId: artifact.meetingId || metadata.meetingId,
+      metadataDisplayId: artifact.displayMeetingId || metadata.displayMeetingId,
+      calendarEvent,
+      extraMeetingIds: [
+        artifact.rawPayload?.data?.bot_metadata?.meeting_metadata?.meeting_id,
+        artifact.rawPayload?.data?.meeting_metadata?.meeting_id,
+        calendarEvent?.recallData?.raw?.onlineMeeting?.meetingId,
+      ],
+    });
+    
+    const dedupeKey = getMeetingDeduplicationKey(artifact, calendarEvent);
+    
+    // Check if we already have a meeting with this key
+    const existingMeeting = meetingsMap.get(dedupeKey);
+    
+    if (existingMeeting && existingMeeting.type === "artifact") {
+      // We have a duplicate - keep the one with higher completeness score
+      // Calculate score for existing meeting (using meeting data)
+      const existingScore = 
+        (existingMeeting.hasTranscript ? 2 : 0) +
+        (existingMeeting.hasSummary ? 2 : 0) +
+        (existingMeeting.hasRecording ? 1 : 0) +
+        (existingMeeting.hasRecallRecording ? 1 : 0) +
+        Math.max(0, 1 - (Date.now() - new Date(existingMeeting.createdAt).getTime()) / (1000 * 60 * 60 * 24 * 30));
+      
+      // Calculate score for current artifact
+      const currentScore = getArtifactCompletenessScore(
+        artifact,
+        hasTranscriptFlag,
+        summary,
+        hasRecordingFlag
+      );
+      
+      // If current artifact is not better, skip it
+      if (currentScore <= existingScore) {
+        console.log(`[MEETINGS] Skipping duplicate artifact ${artifact.id} (score: ${currentScore} <= ${existingScore}) for meeting key: ${dedupeKey}`);
+        continue;
+      }
+      
+      // Current artifact is better - replace the existing one
+      console.log(`[MEETINGS] Replacing duplicate artifact ${existingMeeting.id} (score: ${existingScore}) with ${artifact.id} (score: ${currentScore}) for meeting key: ${dedupeKey}`);
+    }
+    
+    const key = dedupeKey;
+    
     // Prioritize artifact data for start/end times
     const artifactStartTime = artifact.rawPayload?.data?.start_time;
     const artifactEndTime = artifact.rawPayload?.data?.end_time;
@@ -1625,16 +1832,6 @@ export default async (req, res) => {
     const endTime = artifactEndTime || calendarEvent?.endTime || null;
 
     const participants = getParticipantsForMeeting(artifact, calendarEvent);
-    const hasTranscriptFromPayload = hasTranscriptContent(artifact.rawPayload?.data?.transcript);
-    // Use the pre-computed chunk count instead of loading all chunks
-    const hasTranscriptFromChunks = artifact.hasTranscriptChunks || false;
-    const hasTranscriptFlag = hasTranscriptFromPayload || hasTranscriptFromChunks;
-
-    const hasRecordingFlag = !!(
-      artifact.rawPayload?.data?.video_url ||
-      artifact.rawPayload?.data?.recording_url ||
-      artifact.rawPayload?.data?.media_shortcuts?.video?.data?.download_url
-    );
     
     // Check if this is a Recall recording (has artifact with recording) vs platform recording
     const hasRecallRecordingFlag = hasRecordingFlag && !!artifact.recallBotId;
