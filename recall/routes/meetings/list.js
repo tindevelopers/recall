@@ -1408,7 +1408,7 @@ export default async (req, res) => {
         calendarId: e.calendarId,
         hasMeetingUrl: !!e.meetingUrl,
       }));
-      fetch('http://127.0.0.1:7248/ingest/9df62f0f-78c1-44fb-821f-c3c7b9f764cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'routes/meetings/list.js:queryEvents',message:'Events queried from database',data:{totalEvents:allEventsUnfiltered.length,calendarIds,nowISO:nowDate.toISOString(),sampleEvents:allEventsSample},timestamp:Date.now(),sessionId:'debug-session',runId:'meetings-missing',hypothesisId:'H4'})}).catch(()=>{});
+      debugLog('routes/meetings/list.js:queryEvents', 'Events queried from database', { totalEvents: allEventsUnfiltered.length, calendarIds, nowISO: nowDate.toISOString(), sampleEvents: allEventsSample }, 'H4');
       // #endregion
       
       // Filter to future events in memory (more reliable than database filtering)
