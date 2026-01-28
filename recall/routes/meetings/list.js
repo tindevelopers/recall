@@ -16,7 +16,10 @@ const { sequelize } = db;
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const DEBUG_LOG_PATH = path.join(__dirname, "..", "..", ".cursor", "debug.log");
+// Use Railway-accessible path or fallback to local path
+const DEBUG_LOG_PATH = process.env.RAILWAY_ENVIRONMENT 
+  ? "/tmp/debug.log" 
+  : path.join(__dirname, "..", "..", ".cursor", "debug.log");
 
 function debugLog(location, message, data, hypothesisId) {
   const logEntry = {
@@ -26,13 +29,16 @@ function debugLog(location, message, data, hypothesisId) {
     message,
     data,
     sessionId: "debug-session",
-    runId: "upcoming-missing",
-    hypothesisId,
+    runId: "upcoming-meetings-debug",
+    hypothesisId: hypothesisId || "unknown",
   };
+  // Always log to console for Railway visibility
+  console.log(`[DEBUG] ${location}: ${message}`, JSON.stringify(data, null, 2));
+  // Also try to write to file if possible
   try {
     fs.appendFileSync(DEBUG_LOG_PATH, JSON.stringify(logEntry) + "\n");
   } catch (err) {
-    // Silently fail if log file can't be written
+    // Silently fail if log file can't be written (e.g., Railway filesystem restrictions)
   }
 }
 
