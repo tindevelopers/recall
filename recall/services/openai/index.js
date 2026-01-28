@@ -1,9 +1,11 @@
 import fetch from "node-fetch";
 
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
-const CHAT_MODEL = process.env.OPENAI_MODEL_SUMMARY || "gpt-4o-mini";
+const CHAT_MODEL = process.env.OPENAI_MODEL_SUMMARY || "gpt-4-turbo";
 const EMBEDDING_MODEL =
   process.env.OPENAI_MODEL_EMBEDDINGS || "text-embedding-3-small";
+const DEFAULT_TEMPERATURE = parseFloat(process.env.OPENAI_TEMPERATURE || "0.3");
+const DEFAULT_MAX_TOKENS = parseInt(process.env.OPENAI_MAX_TOKENS || "4000", 10);
 
 if (!OPENAI_API_KEY) {
   console.warn(
@@ -20,7 +22,12 @@ function normalizeTexts(texts = []) {
 
 async function chatCompletion(
   messages,
-  { responseFormat = "json_object", model = CHAT_MODEL } = {}
+  { 
+    responseFormat = "json_object", 
+    model = CHAT_MODEL,
+    temperature = DEFAULT_TEMPERATURE,
+    maxTokens = DEFAULT_MAX_TOKENS,
+  } = {}
 ) {
   if (!OPENAI_API_KEY) {
     throw new Error("OPENAI_API_KEY is not configured");
@@ -29,6 +36,8 @@ async function chatCompletion(
   const body = {
     model,
     messages,
+    temperature,
+    max_tokens: maxTokens,
     response_format:
       responseFormat === "json_object"
         ? { type: "json_object" }

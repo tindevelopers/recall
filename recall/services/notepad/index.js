@@ -136,43 +136,71 @@ export default {
     const participants = metadata?.participants || [];
     const when = metadata?.startTime || "";
     
+    // Format participant names for better context
+    const participantNames = Array.isArray(participants)
+      ? participants.map(p => p.name || p.email || p).filter(Boolean).join(", ")
+      : "";
+    
     // Build the request based on what enrichment features are enabled
     const requestedOutputs = [];
     if (settings.enableSummary !== false) {
-      requestedOutputs.push("summary: A concise summary of the key discussion points");
+      requestedOutputs.push("summary: A comprehensive, well-structured summary that includes an executive overview (2-3 sentences), key discussion points with context, and important details. The summary should be immediately useful and scannable.");
     }
     if (settings.enableActionItems !== false) {
-      requestedOutputs.push("action_items: Array of specific tasks/assignments mentioned, each with 'task', 'assignee' (if mentioned), and 'due_date' (if mentioned)");
+      requestedOutputs.push("action_items: Array of specific tasks/assignments mentioned, each with 'task' (clear description), 'assignee' (person responsible if mentioned), and 'due_date' (if mentioned). Extract commitments made by specific speakers.");
     }
     if (settings.enableFollowUps !== false) {
-      requestedOutputs.push("follow_ups: Array of suggested follow-up items and next steps");
+      requestedOutputs.push("follow_ups: Array of suggested follow-up items and next steps, including any commitments or promises made during the meeting");
     }
-    requestedOutputs.push("topics: Array of main topics/themes discussed");
-    requestedOutputs.push("sentiment: Object with 'score' (-1 to 1, negative to positive), 'label' (negative/neutral/positive), and 'confidence' (0-1)");
-    requestedOutputs.push("key_insights: Array of key insights or great ideas from the meeting, each with 'insight' (the idea) and 'importance' (high/medium/low)");
-    requestedOutputs.push("decisions: Array of decisions made during the meeting, each with 'decision' and 'context'");
-    requestedOutputs.push("outcome: Overall meeting outcome - one of: 'productive', 'inconclusive', 'needs_followup', 'blocked', 'informational'");
+    requestedOutputs.push("topics: Array of main topics/themes discussed, with brief context for each");
+    requestedOutputs.push("sentiment: Object with 'score' (-1 to 1, negative to positive), 'label' (negative/neutral/positive), and 'confidence' (0-1). Consider overall tone, language used, and emotional indicators");
+    requestedOutputs.push("key_insights: Array of key insights, innovative ideas, important realizations, or valuable suggestions from the meeting, each with 'insight' (the idea) and 'importance' (high/medium/low)");
+    requestedOutputs.push("decisions: Array of decisions made during the meeting, each with 'decision' (what was decided) and 'context' (who made it and why). Distinguish between actual decisions and discussions");
+    requestedOutputs.push("outcome: Overall meeting outcome - one of: 'productive' (clear progress made, goals achieved), 'inconclusive' (discussion without clear resolution), 'needs_followup' (requires additional meetings or actions), 'blocked' (progress blocked by issues), 'informational' (primarily information sharing)");
     
-    const systemPrompt = `You are an expert meeting summarizer and analyst. Analyze the meeting transcript and produce the following outputs:
-${requestedOutputs.map((o, i) => `${i + 1}. ${o}`).join("\n")}
+    const systemPrompt = `You are an expert meeting summarizer and analyst with deep expertise in extracting actionable insights from business conversations. Your summaries are used by busy professionals who need to quickly understand what happened and what needs to happen next.
 
-For sentiment analysis:
-- Consider the overall tone, language used, and emotional indicators
-- Score from -1 (very negative/frustrated) to 1 (very positive/enthusiastic)
-- Label as 'negative', 'neutral', or 'positive'
+Your task is to analyze the meeting transcript and produce comprehensive, well-structured outputs. Pay close attention to:
+- WHO said what (use speaker names from the transcript)
+- WHAT was decided vs. what was discussed
+- SPECIFIC commitments and action items with owners
+- CONTEXT and background that makes the summary useful
 
-For key insights:
-- Identify innovative ideas, important realizations, or valuable suggestions
-- Rate importance as 'high', 'medium', or 'low'
+Guidelines for the summary:
+- Start with a 2-3 sentence executive overview that captures the meeting's purpose and outcome
+- Organize key discussion points by topic with sufficient context
+- Include who made important points or decisions
+- Make it scannable but comprehensive - include enough detail to be useful
+- Use clear, professional language
 
-For outcome:
-- 'productive': Clear progress made, goals achieved
-- 'inconclusive': Discussion without clear resolution
-- 'needs_followup': Requires additional meetings or actions
-- 'blocked': Progress blocked by issues
-- 'informational': Primarily information sharing
+Guidelines for action items:
+- Extract specific, actionable tasks mentioned in the conversation
+- Identify the person responsible (if mentioned) by matching speaker names
+- Include deadlines or timeframes if mentioned
+- Distinguish between commitments and suggestions
 
-Return valid JSON with these fields. Be concise but thorough.`;
+Guidelines for decisions:
+- Only include actual decisions made, not topics discussed
+- Include who made the decision and the context/reasoning
+- Be specific about what was decided
+
+Guidelines for key insights:
+- Focus on innovative ideas, important realizations, or valuable suggestions
+- Rate importance based on potential impact
+- Include insights that might not be obvious from a quick read
+
+Return valid JSON with these fields: ${requestedOutputs.map((o, i) => `${i + 1}. ${o.split(':')[0]}`).join(", ")}. Be thorough and accurate - this summary will be used to make important decisions.`;
+
+    // Format the user message with better structure
+    const userMessage = `Meeting Details:
+Title: ${title}
+Date/Time: ${when}
+Participants: ${participantNames || "Not specified"}
+
+Transcript:
+${transcriptText}
+
+Please analyze this meeting transcript and provide a comprehensive summary with all requested outputs. Pay special attention to speaker attribution, specific commitments, and decisions made.`;
 
     const messages = [
       {
@@ -181,21 +209,14 @@ Return valid JSON with these fields. Be concise but thorough.`;
       },
       {
         role: "user",
-        content: JSON.stringify(
-          {
-            title,
-            when,
-            participants,
-            transcript: transcriptText,
-          },
-          null,
-          2
-        ),
+        content: userMessage,
       },
     ];
 
     const response = await chatCompletion(messages, {
       responseFormat: "json_object",
+      temperature: 0.3, // Lower temperature for more focused, factual summaries
+      maxTokens: 4000, // Ensure enough tokens for comprehensive summaries
     });
 
     function safeParseJson(text) {

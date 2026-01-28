@@ -64,10 +64,16 @@ export default async (job) => {
     order: [["sequence", "ASC"]],
   });
 
-  const validChunkTexts = chunks.filter((c) => isValidText(c.text)).map((c) => c.text.trim());
+  // Format transcript with speaker attribution for better AI understanding
   const transcriptText =
-    validChunkTexts.length > 0
-      ? validChunkTexts.join("\n")
+    chunks.filter((c) => isValidText(c.text)).length > 0
+      ? chunks
+          .filter((c) => isValidText(c.text))
+          .map((c) => {
+            const speaker = c.speaker || "Unknown Speaker";
+            return `${speaker}: ${c.text.trim()}`;
+          })
+          .join("\n\n")
       : JSON.stringify(artifact.rawPayload);
 
   const metadata = {
