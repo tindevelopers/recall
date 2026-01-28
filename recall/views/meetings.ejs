@@ -245,9 +245,7 @@
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                               </svg>
                               <% if (event.startTime) { %>
-                                <span class="local-datetime" data-iso="<%= new Date(event.startTime).toISOString() %>" data-format="date"></span>
-                                <span> at </span>
-                                <span class="local-datetime" data-iso="<%= new Date(event.startTime).toISOString() %>" data-format="time"></span>
+                                <span class="local-datetime" data-iso="<%= new Date(event.startTime).toISOString() %>" data-format="daterange"></span>
                                 <% if (event.endTime) { %>
                                   <span> - </span>
                                   <span class="local-datetime" data-iso="<%= new Date(event.endTime).toISOString() %>" data-format="time"></span>
@@ -881,9 +879,11 @@ document.addEventListener('DOMContentLoaded', function() {
                   ' at ' + 
                   date.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
     } else if (format === 'daterange') {
+      // Format date and time separately, then combine with proper spacing
       const startDate = date.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
       const startTime = date.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
-      formatted = startDate + ' at ' + startTime;
+      // Ensure proper spacing: trim and add spaces around "at"
+      formatted = startDate.trim() + ' at ' + startTime.trim();
     }
     
     el.textContent = formatted;
