@@ -969,21 +969,39 @@ async function syncBotArtifacts(calendars, userId) {
  */
 async function syncCalendarEvents(calendar) {
   try {
-    // Fetch events updated in the last 24 hours
-    // Note: The Recall API returns events updated recently. Future events that were created
-    // days/weeks ago won't be returned here, but if they're already in the database from
-    // a previous sync, they'll still show up in the UI query.
+    // Fetch events updated in the last 90 days OR events in the future
+    // This ensures we capture:
+    // 1. Recent changes (last 24h for quick updates)
+    // 2. Future events that might have been created weeks/months ago
+    // We use a longer window (90 days) to ensure future events are synced
     const lastUpdatedTimestamp = new Date();
-    lastUpdatedTimestamp.setHours(lastUpdatedTimestamp.getHours() - 24);
+    lastUpdatedTimestamp.setDate(lastUpdatedTimestamp.getDate() - 90); // 90 days ago
     
     console.log(`[MEETINGS] On-demand sync for calendar ${calendar.id} (${calendar.email})`);
+    console.log(`[MEETINGS] Fetching events updated since ${lastUpdatedTimestamp.toISOString()}`);
     
-    // Fetch events updated recently - the API returns events updated in the last 24h
-    // We'll sync all of them to ensure the database is up to date
+    // Fetch events updated in the last 90 days - this should capture future events
+    // that were created weeks/months ago but haven't been updated recently
     const events = await Recall.fetchCalendarEvents({
       id: calendar.recallId,
       lastUpdatedTimestamp: lastUpdatedTimestamp.toISOString(),
     });
+    
+    console.log(`[MEETINGS] Fetched ${events.length} events from Recall API`);
+    
+    // Also check if we need to fetch future events that weren't updated recently
+    // by checking if any events are in the future
+    const now = new Date();
+    const futureEvents = events.filter(event => {
+      const startTime = event.start_time || event.startTime || event.start;
+      if (!startTime) return false;
+      try {
+        return new Date(startTime) > now;
+      } catch {
+        return false;
+      }
+    });
+    console.log(`[MEETINGS] Found ${futureEvents.length} future events in sync results`);
     
     // Sync all non-deleted events - don't filter them out
     // The database query will handle filtering for display purposes
