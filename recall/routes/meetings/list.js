@@ -1168,15 +1168,25 @@ export default async (req, res) => {
   const nowDate = new Date();
   let upcomingEvents = [];
   
-  console.log(`[MEETINGS] Fetching upcoming events: calendars=${calendars.length}, nowDate=${nowDate.toISOString()}`);
+  // Log environment and timezone info for debugging differences between localhost and Railway
+  const envInfo = {
+    nodeEnv: process.env.NODE_ENV || 'development',
+    timezoneOffset: nowDate.getTimezoneOffset(),
+    nowISO: nowDate.toISOString(),
+    nowLocal: nowDate.toString(),
+    tz: Intl.DateTimeFormat().resolvedOptions().timeZone,
+  };
+  console.log(`[MEETINGS] Fetching upcoming events: calendars=${calendars.length}, envInfo=`, JSON.stringify(envInfo));
   
   if (calendars.length > 0) {
     const calendarIds = calendars.map(c => c.id);
+    console.log(`[MEETINGS] Calendar IDs:`, calendarIds);
     
     // Get future events - query with a reasonable future date range (up to 2 years ahead)
     // This ensures we capture all upcoming meetings, even those scheduled far in advance
     const futureCutoff = new Date();
     futureCutoff.setFullYear(futureCutoff.getFullYear() + 2); // Look up to 2 years ahead
+    console.log(`[MEETINGS] Date range: now=${nowDate.toISOString()}, futureCutoff=${futureCutoff.toISOString()}`);
     
     // Fetch all events and filter in memory - this is more reliable than database date filtering
     // since startTime might be stored as string and Sequelize date comparisons can be unreliable
@@ -1197,13 +1207,33 @@ export default async (req, res) => {
       
       // Filter to future events in memory (more reliable than database filtering)
       // Include events that start now or in the future (>= instead of >)
+      // Note: JavaScript Date comparisons work correctly across timezones when using ISO strings
       allEvents = allEventsUnfiltered.filter(event => {
         try {
           const startTime = event.startTime;
-          if (!startTime) return false;
+          if (!startTime) {
+            console.log(`[MEETINGS] Event ${event.id} has no startTime`);
+            return false;
+          }
+          
+          // Parse startTime - it might be a string or Date object
           const startDate = new Date(startTime);
+          
+          // Check if date is valid
+          if (isNaN(startDate.getTime())) {
+            console.log(`[MEETINGS] Event ${event.id} has invalid startTime: ${startTime}`);
+            return false;
+          }
+          
           // Use >= to include events starting now, and <= futureCutoff to limit range
+          // JavaScript Date comparisons work correctly regardless of timezone
           const isFuture = startDate >= nowDate && startDate <= futureCutoff;
+          
+          // Log first few events for debugging (especially on Railway)
+          if (allEventsUnfiltered.indexOf(event) < 5) {
+            console.log(`[MEETINGS] Event ${event.id} "${event.title}": startTime=${startTime}, startDate=${startDate.toISOString()}, nowDate=${nowDate.toISOString()}, isFuture=${isFuture}`);
+          }
+          
           return isFuture;
         } catch (error) {
           console.error(`[MEETINGS] Error parsing start time for event ${event.id}:`, error);
