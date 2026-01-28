@@ -371,7 +371,8 @@
                 <script>
                   // Debug: Check meetings data
                   (function() {
-                    const meetingsData = <%= JSON.stringify(meetings || []) %>;
+                    // Use <%- %> to output raw JSON without HTML escaping
+                    const meetingsData = <%- JSON.stringify(meetings || []) %>;
                     console.log('[DEBUG] Past meetings check:', {
                       meetingsType: typeof meetingsData,
                       meetingsIsNull: meetingsData === null,
