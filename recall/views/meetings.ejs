@@ -367,15 +367,21 @@
 
               <!-- Past Meetings Tab -->
               <div id="content-past" class="meetings-tab-content hidden">
+                <% if (typeof meetings !== 'undefined') { %>
                 <script>
-                  console.log('[DEBUG] Past meetings check:', {
-                    meetingsType: typeof meetings,
-                    meetingsIsNull: meetings === null,
-                    meetingsIsArray: Array.isArray(meetings),
-                    meetingsLength: meetings ? meetings.length : 'N/A',
-                    meetingsSample: meetings && meetings.length > 0 ? meetings.slice(0, 3) : []
-                  });
+                  // Debug: Check meetings data
+                  (function() {
+                    const meetingsData = <%= JSON.stringify(meetings || []) %>;
+                    console.log('[DEBUG] Past meetings check:', {
+                      meetingsType: typeof meetingsData,
+                      meetingsIsNull: meetingsData === null,
+                      meetingsIsArray: Array.isArray(meetingsData),
+                      meetingsLength: meetingsData ? meetingsData.length : 'N/A',
+                      meetingsSample: meetingsData && meetingsData.length > 0 ? meetingsData.slice(0, 3) : []
+                    });
+                  })();
                 </script>
+                <% } %>
                 <!-- Pagination Controls -->
                 <% if (totalPages && totalPages > 1) { %>
                   <div class="flex items-center justify-between mb-4 pb-4 border-b border-gray-200">

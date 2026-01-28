@@ -1176,12 +1176,14 @@ export default async (req, res) => {
       console.log(`[MEETINGS] Fetched ${allEventsUnfiltered.length} total events from database`);
       
       // Filter to future events in memory (more reliable than database filtering)
+      // Include events that start now or in the future (>= instead of >)
       allEvents = allEventsUnfiltered.filter(event => {
         try {
           const startTime = event.startTime;
           if (!startTime) return false;
           const startDate = new Date(startTime);
-          const isFuture = startDate > nowDate && startDate <= futureCutoff;
+          // Use >= to include events starting now, and <= futureCutoff to limit range
+          const isFuture = startDate >= nowDate && startDate <= futureCutoff;
           return isFuture;
         } catch (error) {
           console.error(`[MEETINGS] Error parsing start time for event ${event.id}:`, error);
@@ -1197,6 +1199,7 @@ export default async (req, res) => {
     
     // allEvents is already filtered to future events above
     const futureEvents = allEvents;
+    console.log(`[MEETINGS] Found ${futureEvents.length} future events after filtering`);
     
     // Sort by start time
     futureEvents.sort((a, b) => {
@@ -1326,8 +1329,10 @@ export default async (req, res) => {
     });
 
     // Update upcomingEvents with filtered results
+    console.log(`[MEETINGS] Upcoming events: ${upcomingEvents.length} before filters, ${filteredUpcomingEvents.length} after filters`);
     upcomingEvents.length = 0;
     upcomingEvents.push(...filteredUpcomingEvents);
+    console.log(`[MEETINGS] Final upcoming events count: ${upcomingEvents.length}`);
   }
 
   // Build common where for time filters
