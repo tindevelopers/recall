@@ -2028,25 +2028,7 @@ export default async (req, res) => {
       finalParticipants = matchingUpcomingEvent.attendees;
     }
 
-    const storedMeetingUrl =
-      artifact.meetingUrl ||
-      normalizeMeetingUrlUtil(artifact.rawPayload?.data?.meeting_url) ||
-      normalizeMeetingUrlUtil(calendarEvent?.meetingUrl);
-    const metadata = extractMeetingMetadata({
-      meetingUrl: storedMeetingUrl,
-      calendarMeetingUrl: calendarEvent?.meetingUrl,
-    });
-
-    const friendlyMeetingId = deriveFriendlyMeetingId({
-      metadataMeetingId: artifact.meetingId || metadata.meetingId,
-      metadataDisplayId: artifact.displayMeetingId || metadata.displayMeetingId,
-      calendarEvent,
-      extraMeetingIds: [
-        artifact.rawPayload?.data?.bot_metadata?.meeting_metadata?.meeting_id,
-        artifact.rawPayload?.data?.meeting_metadata?.meeting_id,
-        calendarEvent?.recallData?.raw?.onlineMeeting?.meetingId,
-      ],
-    });
+    // Note: storedMeetingUrl, metadata, and friendlyMeetingId are already declared earlier in this loop (lines 1774-1791)
 
     // Check if calendar has auto-recording enabled
     const calendar = calendarEvent?.Calendar;
