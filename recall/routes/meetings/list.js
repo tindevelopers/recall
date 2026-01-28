@@ -1769,6 +1769,7 @@ export default async (req, res) => {
     hasCalendars: calendars.length > 0,
     page,
     totalPages,
+    totalCount, // Total number of meetings after filtering
     hasNext,
     hasPrev,
     totalTimeSeconds,
