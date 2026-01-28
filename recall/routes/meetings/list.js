@@ -1205,6 +1205,20 @@ export default async (req, res) => {
       
       console.log(`[MEETINGS] Fetched ${allEventsUnfiltered.length} total events from database`);
       
+      // Log sample events to see what we're working with
+      if (allEventsUnfiltered.length > 0) {
+        const sampleEvents = allEventsUnfiltered.slice(0, 3).map(e => ({
+          id: e.id,
+          title: e.title,
+          startTime: e.startTime,
+          startTimeType: typeof e.startTime,
+          calendarId: e.calendarId,
+        }));
+        console.log(`[MEETINGS] Sample events from database:`, JSON.stringify(sampleEvents, null, 2));
+      } else {
+        console.log(`[MEETINGS] WARNING: No events found in database for calendars:`, calendarIds);
+      }
+      
       // Filter to future events in memory (more reliable than database filtering)
       // Include events that start now or in the future (>= instead of >)
       // Note: JavaScript Date comparisons work correctly across timezones when using ISO strings
