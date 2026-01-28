@@ -1007,8 +1007,8 @@ async function updateTranscriptionMode(selectElement) {
 
 // Modal functions
 async function openPlayerModal(meetingId, videoUrl, audioUrl, title) {
-  // #region agent log
-  fetch('http://127.0.0.1:7250/ingest/bf0206c3-6e13-4499-92a3-7fb2b7527fcf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'views/meetings.ejs:openPlayerModal',message:'Play button clicked',data:{meetingId,videoUrl:!!videoUrl,audioUrl:!!audioUrl,title},timestamp:Date.now(),sessionId:'debug-session',runId:'play-button',hypothesisId:'A'})}).catch(()=>{});
+  // #region agent log (disabled in production to avoid localhost connection errors)
+  // Telemetry disabled - was causing ERR_CONNECTION_REFUSED errors in browser console
   // #endregion
   
   const modal = document.getElementById('player-modal');
@@ -1048,8 +1048,8 @@ async function openPlayerModal(meetingId, videoUrl, audioUrl, title) {
     if (response.ok) {
       const data = await response.json();
       
-      // #region agent log
-      fetch('http://127.0.0.1:7250/ingest/bf0206c3-6e13-4499-92a3-7fb2b7527fcf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'views/meetings.ejs:openPlayerModal',message:'Recording API response',data:{meetingId,hasVideoUrl:!!data.videoUrl,hasAudioUrl:!!data.audioUrl,hasTeamsVideoUrl:!!data.teamsVideoUrl,source:data.source},timestamp:Date.now(),sessionId:'debug-session',runId:'play-button',hypothesisId:'B'})}).catch(()=>{});
+      // #region agent log (disabled in production to avoid localhost connection errors)
+      // Telemetry disabled - was causing ERR_CONNECTION_REFUSED errors in browser console
       // #endregion
       
       const playbackUrl = data.videoUrl || data.archivedUrl || data.sourceUrl || data.proxyUrl || data.teamsVideoUrl || null;

@@ -93,9 +93,17 @@ function deriveFriendlyMeetingId({ metadataMeetingId, metadataDisplayId, calenda
 }
 
 // Cache for sync operations - avoid hitting Recall API on every page load
-// Key: `sync-${userId}`, Value: { lastSyncTime: Date, inProgress: boolean }
+// Key: `sync-${userId}`, Value: { lastSyncTime: Date, inProgress: boolean, syncStartTime: Date }
 const syncCache = new Map();
 const SYNC_THROTTLE_MS = 5 * 60 * 1000; // 5 minutes - only sync if last sync was > 5 min ago
+const SYNC_TIMEOUT_MS = 10 * 60 * 1000; // 10 minutes - reset sync if it's been in progress too long
+
+// Disable localhost telemetry in production (causes connection errors in browser console)
+// Only enable if explicitly set in development
+const ENABLE_LOCAL_TELEMETRY = process.env.NODE_ENV === 'development' && process.env.ENABLE_LOCAL_TELEMETRY === 'true';
+const localTelemetry = ENABLE_LOCAL_TELEMETRY 
+  ? (url, data) => fetch(url, {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)}).catch(()=>{})
+  : () => {}; // No-op in production to avoid connection errors
 
 // Generic/placeholder titles we should ignore when deriving a display name
 function isGenericMeetingTitle(title) {
@@ -1004,7 +1012,7 @@ async function syncCalendarEvents(calendar) {
       startTime: e.start_time || e.startTime || e.start,
       hasMeetingUrl: !!(e.meeting_url || e.onlineMeeting?.joinUrl),
     }));
-    fetch('http://127.0.0.1:7248/ingest/9df62f0f-78c1-44fb-821f-c3c7b9f764cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'routes/meetings/list.js:syncCalendarEvents',message:'Events fetched from Recall API',data:{calendarId:calendar.id,calendarEmail:calendar.email,eventsCount:events.length,futureEventsCount:futureEventsSample.length,futureEventsSample},timestamp:Date.now(),sessionId:'debug-session',runId:'meetings-missing',hypothesisId:'H2'})}).catch(()=>{});
+    localTelemetry('http://127.0.0.1:7248/ingest/9df62f0f-78c1-44fb-821f-c3c7b9f764cc',{location:'routes/meetings/list.js:syncCalendarEvents',message:'Events fetched from Recall API',data:{calendarId:calendar.id,calendarEmail:calendar.email,eventsCount:events.length,futureEventsCount:futureEventsSample.length,futureEventsSample},timestamp:Date.now(),sessionId:'debug-session',runId:'meetings-missing',hypothesisId:'H2'});
     // #endregion
     
     // Also check if we need to fetch future events that weren't updated recently
@@ -1049,7 +1057,7 @@ async function syncCalendarEvents(calendar) {
     }
     
     // #region agent log
-    fetch('http://127.0.0.1:7248/ingest/9df62f0f-78c1-44fb-821f-c3c7b9f764cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'routes/meetings/list.js:syncCalendarEvents',message:'Events saved to database',data:{calendarId:calendar.id,relevantEventsCount:relevantEvents.length,newEventsCount,savedEvents:savedEvents.slice(0, 5)},timestamp:Date.now(),sessionId:'debug-session',runId:'meetings-missing',hypothesisId:'H3'})}).catch(()=>{});
+    localTelemetry('http://127.0.0.1:7248/ingest/9df62f0f-78c1-44fb-821f-c3c7b9f764cc',{location:'routes/meetings/list.js:syncCalendarEvents',message:'Events saved to database',data:{calendarId:calendar.id,relevantEventsCount:relevantEvents.length,newEventsCount,savedEvents:savedEvents.slice(0, 5)},timestamp:Date.now(),sessionId:'debug-session',runId:'meetings-missing',hypothesisId:'H3'});
     // #endregion
 
     // Always run auto-record update for all synced events (not just new ones)
@@ -1164,41 +1172,84 @@ export default async (req, res) => {
   const syncCacheKey = `sync-${userId}`;
   const cachedSync = syncCache.get(syncCacheKey);
   const now = Date.now();
-  const shouldSync = !cachedSync || (now - cachedSync.lastSyncTime > SYNC_THROTTLE_MS);
-  const syncInProgress = cachedSync?.inProgress || false;
+  
+  // Reset sync if it's been stuck in progress for too long (likely crashed or failed)
+  if (cachedSync?.inProgress && cachedSync?.syncStartTime) {
+    const syncDuration = now - cachedSync.syncStartTime;
+    if (syncDuration > SYNC_TIMEOUT_MS) {
+      console.warn(`[MEETINGS] Sync has been in progress for ${Math.round(syncDuration / 1000)}s (timeout: ${SYNC_TIMEOUT_MS / 1000}s), resetting...`);
+      syncCache.set(syncCacheKey, { 
+        lastSyncTime: cachedSync.lastSyncTime || now, 
+        inProgress: false 
+      });
+    }
+  }
+  
+  const currentSync = syncCache.get(syncCacheKey);
+  const shouldSync = !currentSync || (now - (currentSync.lastSyncTime || 0) > SYNC_THROTTLE_MS);
+  const syncInProgress = currentSync?.inProgress || false;
   
   // Track sync status for UI
-  let lastSyncAge = cachedSync ? Math.round((now - cachedSync.lastSyncTime) / 1000) : null;
+  let lastSyncAge = currentSync ? Math.round((now - (currentSync.lastSyncTime || 0)) / 1000) : null;
   
   // #region agent log
-  fetch('http://127.0.0.1:7248/ingest/9df62f0f-78c1-44fb-821f-c3c7b9f764cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'routes/meetings/list.js:syncDecision',message:'Sync decision check',data:{userId,calendarsCount:calendars.length,shouldSync,lastSyncAge,syncInProgress,now,cachedSyncLastTime:cachedSync?.lastSyncTime,throttleMs:SYNC_THROTTLE_MS},timestamp:Date.now(),sessionId:'debug-session',runId:'meetings-missing',hypothesisId:'H1'})}).catch(()=>{});
+  localTelemetry('http://127.0.0.1:7248/ingest/9df62f0f-78c1-44fb-821f-c3c7b9f764cc',{location:'routes/meetings/list.js:syncDecision',message:'Sync decision check',data:{userId,calendarsCount:calendars.length,shouldSync,lastSyncAge,syncInProgress,now,cachedSyncLastTime:currentSync?.lastSyncTime,throttleMs:SYNC_THROTTLE_MS},timestamp:Date.now(),sessionId:'debug-session',runId:'meetings-missing',hypothesisId:'H1'});
   // #endregion
 
   if (calendars.length > 0 && shouldSync && !syncInProgress) {
     // Mark sync as in progress to prevent concurrent syncs
-    syncCache.set(syncCacheKey, { lastSyncTime: now, inProgress: true });
+    syncCache.set(syncCacheKey, { 
+      lastSyncTime: now, 
+      inProgress: true, 
+      syncStartTime: now 
+    });
     
     // Run sync in background - DON'T await, let page render immediately
     (async () => {
+      const syncStartTime = Date.now();
       try {
-        const syncStartTime = Date.now();
-        await Promise.all(calendars.map(cal => syncCalendarEvents(cal)));
+        console.log(`[MEETINGS] Starting background sync for ${calendars.length} calendar(s)...`);
+        
+        // Add timeout to prevent sync from hanging forever
+        const syncPromise = Promise.all(calendars.map(cal => syncCalendarEvents(cal)));
+        const timeoutPromise = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Sync timeout after 8 minutes')), 8 * 60 * 1000)
+        );
+        
+        await Promise.race([syncPromise, timeoutPromise]);
         console.log(`[MEETINGS] Background sync completed in ${Date.now() - syncStartTime}ms`);
         
         const botSyncStartTime = Date.now();
-        await syncBotArtifacts(calendars, userId);
+        const botSyncPromise = syncBotArtifacts(calendars, userId);
+        const botTimeoutPromise = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Bot sync timeout after 2 minutes')), 2 * 60 * 1000)
+        );
+        
+        await Promise.race([botSyncPromise, botTimeoutPromise]);
         console.log(`[MEETINGS] Background bot sync completed in ${Date.now() - botSyncStartTime}ms`);
         
         syncCache.set(syncCacheKey, { lastSyncTime: Date.now(), inProgress: false });
       } catch (err) {
         console.error(`[MEETINGS] Background sync error:`, err);
-        syncCache.set(syncCacheKey, { lastSyncTime: now, inProgress: false });
+        console.error(`[MEETINGS] Sync error details:`, {
+          message: err.message,
+          stack: err.stack,
+          duration: Date.now() - syncStartTime,
+        });
+        // Reset sync status so it can retry
+        syncCache.set(syncCacheKey, { 
+          lastSyncTime: now, 
+          inProgress: false 
+        });
       }
     })();
     
     console.log(`[MEETINGS] Background sync started (non-blocking)`);
   } else if (calendars.length > 0) {
-    console.log(`[MEETINGS] Skipping sync - last sync was ${lastSyncAge}s ago, inProgress=${syncInProgress}`);
+    const reason = syncInProgress 
+      ? `sync in progress (started ${Math.round((now - (currentSync?.syncStartTime || now)) / 1000)}s ago)`
+      : `last sync was ${lastSyncAge}s ago (throttle: ${SYNC_THROTTLE_MS / 1000}s)`;
+    console.log(`[MEETINGS] Skipping sync - ${reason}`);
   }
 
   // Get upcoming events from all calendars (future events only)
