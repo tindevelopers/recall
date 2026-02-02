@@ -149,6 +149,7 @@ export default async (job) => {
     
     // add a bot to record the event. Recall will handle the case where the bot already exists.
     try {
+      console.log(`[BOT-SCHEDULE] Calling Recall API to schedule bot: eventId=${event.id} recallEventId=${event.recallId} deduplicationKey=${deduplicationKey}`);
       
       updatedEventFromRecall = await Recall.addBotToCalendarEvent({
         id: event.recallId,
@@ -156,8 +157,21 @@ export default async (job) => {
         botConfig,
       });
       
+      // Log bot IDs if returned
+      const botIds = updatedEventFromRecall?.bots?.map(b => b.id) || [];
+      if (botIds.length > 0) {
+        console.log(`[BOT-SCHEDULE] Bot scheduled successfully: eventId=${event.id} botIds=[${botIds.join(', ')}]`);
+      } else {
+        console.log(`[BOT-SCHEDULE] Bot scheduling completed but no bot IDs returned: eventId=${event.id}`);
+      }
+      
+      // Check for duplicate bots
+      if (botIds.length > 1) {
+        console.warn(`[BOT-SCHEDULE] ⚠️  WARNING: Multiple bots detected for event ${event.id}: botIds=[${botIds.join(', ')}]`);
+      }
+      
       // #region agent log
-      fetch('http://127.0.0.1:7250/ingest/bf0206c3-6e13-4499-92a3-7fb2b7527fcf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'worker/processors/calendar-event-update-bot-schedule.js:api_call_success',message:'Recall API call succeeded',data:{eventId:event.id,recallEventId:event.recallId,hasResult:!!updatedEventFromRecall,resultKeys:updatedEventFromRecall?Object.keys(updatedEventFromRecall):[]},timestamp:Date.now(),sessionId:'debug-session',runId:'bot-schedule',hypothesisId:'A'})}).catch(()=>{});
+      fetch('http://127.0.0.1:7250/ingest/bf0206c3-6e13-4499-92a3-7fb2b7527fcf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'worker/processors/calendar-event-update-bot-schedule.js:api_call_success',message:'Recall API call succeeded',data:{eventId:event.id,recallEventId:event.recallId,hasResult:!!updatedEventFromRecall,resultKeys:updatedEventFromRecall?Object.keys(updatedEventFromRecall):[],botIds,botCount:botIds.length},timestamp:Date.now(),sessionId:'debug-session',runId:'bot-schedule',hypothesisId:'A'})}).catch(()=>{});
       // #endregion
       
     } catch (error) {

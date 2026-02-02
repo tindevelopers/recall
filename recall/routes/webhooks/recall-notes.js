@@ -161,13 +161,20 @@ export default async (req, res) => {
     const statusMessage = status?.message;
     console.log(`[RECALL-NOTES] Bot status change: botId=${recallBotId}, eventId=${recallEventId}, code=${statusCode}, sub_code=${subCode}, message=${statusMessage}`);
     
+    // Log all status changes for debugging
+    if (statusCode === "joined_call" || statusCode === "in_call") {
+      console.log(`[RECALL-NOTES] ✅ Bot joined/joined call: botId=${recallBotId}, eventId=${recallEventId}`);
+    }
+    
     // Log specific disconnection/leave events
-    if (statusCode === "left_call" || statusCode === "call_ended" || statusCode === "left" || subCode === "automatic_leave" || subCode === "bot_detection") {
-      console.log(`[RECALL-NOTES] ⚠️  Bot disconnected/left: reason=${subCode || statusCode}, message=${statusMessage || 'N/A'}`);
+    if (statusCode === "left_call" || statusCode === "call_ended" || statusCode === "left" || subCode === "automatic_leave" || subCode === "bot_detection" || subCode === "kicked") {
+      console.log(`[RECALL-NOTES] ⚠️  Bot disconnected/left: botId=${recallBotId}, eventId=${recallEventId}, reason=${subCode || statusCode}, message=${statusMessage || 'N/A'}`);
       if (subCode === "automatic_leave") {
         console.log(`[RECALL-NOTES] Bot left due to automatic_leave setting (likely noone_joined_timeout or waiting_room_timeout)`);
       } else if (subCode === "bot_detection") {
         console.log(`[RECALL-NOTES] Bot left due to bot_detection (only bots detected in meeting)`);
+      } else if (subCode === "kicked") {
+        console.log(`[RECALL-NOTES] Bot was kicked from meeting (likely by host)`);
       }
     }
   }
