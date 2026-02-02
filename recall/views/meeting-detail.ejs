@@ -1,4 +1,22 @@
 <%- include('partials/header') -%>
+<style>
+  /* Hide scrollbar for Chrome, Safari and Opera */
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+  /* Hide scrollbar for IE, Edge and Firefox */
+  .scrollbar-hide {
+    -ms-overflow-style: none;  /* IE and Edge */
+    scrollbar-width: none;  /* Firefox */
+  }
+  /* Meeting detail page responsive improvements */
+  @media (max-width: 640px) {
+    .meeting-detail-grid {
+      display: flex;
+      flex-direction: column;
+    }
+  }
+</style>
 <div class="min-h-full">
   <%- include('partials/navigation', { user: user, currentPage: 'meetings' }) -%>
   <%- include('partials/notice', { notice: notice }) -%>
@@ -187,105 +205,109 @@
 
             <!-- Tabbed Content Section -->
             <div class="overflow-hidden bg-white shadow sm:rounded-lg">
-              <!-- Tab Navigation -->
+              <!-- Tab Navigation - Responsive with horizontal scroll -->
               <div class="border-b border-gray-200">
-                <nav class="-mb-px flex" aria-label="Tabs">
-                  <button
-                    type="button"
-                    onclick="switchTab('summary')"
-                    id="tab-summary"
-                    class="tab-btn border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 flex-1 border-b-2 py-4 px-1 text-center text-sm font-medium"
-                  >
-                    <svg class="mx-auto h-5 w-5 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path>
-                    </svg>
-                    Summary
-                  </button>
-                  <button
-                    type="button"
-                    onclick="switchTab('topics')"
-                    id="tab-topics"
-                    class="tab-btn border-indigo-500 text-indigo-600 flex-1 border-b-2 py-4 px-1 text-center text-sm font-medium"
-                    aria-current="page"
-                  >
-                    <svg class="mx-auto h-5 w-5 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h10"></path>
-                    </svg>
-                    Topics
-                  </button>
-                  <button
-                    type="button"
-                    onclick="switchTab('highlights')"
-                    id="tab-highlights"
-                    class="tab-btn border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 flex-1 border-b-2 py-4 px-1 text-center text-sm font-medium"
-                  >
-                    <svg class="mx-auto h-5 w-5 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
-                    </svg>
-                    Highlights
-                  </button>
-                  <button
-                    type="button"
-                    onclick="switchTab('detailed')"
-                    id="tab-detailed"
-                    class="tab-btn border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 flex-1 border-b-2 py-4 px-1 text-center text-sm font-medium"
-                  >
-                    <svg class="mx-auto h-5 w-5 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-4 4v-4z"></path>
-                    </svg>
-                    Detailed Notes
-                  </button>
-                  <button
-                    type="button"
-                    onclick="switchTab('actions')"
-                    id="tab-actions"
-                    class="tab-btn border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 flex-1 border-b-2 py-4 px-1 text-center text-sm font-medium"
-                  >
-                    <svg class="mx-auto h-5 w-5 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"></path>
-                    </svg>
-                    Actions
-                    <% if (meeting.actionItems && meeting.actionItems.length > 0) { %>
-                      <span class="ml-1 inline-flex items-center rounded-full bg-orange-100 px-2 py-0.5 text-xs font-medium text-orange-800"><%= meeting.actionItems.length %></span>
-                    <% } %>
-                  </button>
-                  <button
-                    type="button"
-                    onclick="switchTab('followups')"
-                    id="tab-followups"
-                    class="tab-btn border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 flex-1 border-b-2 py-4 px-1 text-center text-sm font-medium"
-                  >
-                    <svg class="mx-auto h-5 w-5 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 9l3 3m0 0l-3 3m3-3H8m13 0a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                    </svg>
-                    Follow-ups
-                    <% if (meeting.followUps && meeting.followUps.length > 0) { %>
-                      <span class="ml-1 inline-flex items-center rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-800"><%= meeting.followUps.length %></span>
-                    <% } %>
-                  </button>
-                  <button
-                    type="button"
-                    onclick="switchTab('transcript')"
-                    id="tab-transcript"
-                    class="tab-btn border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 flex-1 border-b-2 py-4 px-1 text-center text-sm font-medium"
-                  >
-                    <svg class="mx-auto h-5 w-5 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
-                    </svg>
-                    Transcript
-                  </button>
-                  <button
-                    type="button"
-                    onclick="switchTab('stats')"
-                    id="tab-stats"
-                    class="tab-btn border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 flex-1 border-b-2 py-4 px-1 text-center text-sm font-medium"
-                  >
-                    <svg class="mx-auto h-5 w-5 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z"></path>
-                    </svg>
-                    Stats
-                  </button>
-                </nav>
+                <div class="overflow-x-auto scrollbar-hide">
+                  <nav class="-mb-px flex min-w-max" aria-label="Tabs">
+                    <button
+                      type="button"
+                      onclick="switchTab('summary')"
+                      id="tab-summary"
+                      class="tab-btn group relative border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 whitespace-nowrap border-b-2 py-3 px-3 sm:px-4 text-center text-xs sm:text-sm font-medium transition-colors"
+                    >
+                      <svg class="mx-auto h-5 w-5 mb-0.5 group-hover:text-indigo-500 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path>
+                      </svg>
+                      Summary
+                    </button>
+                    <button
+                      type="button"
+                      onclick="switchTab('topics')"
+                      id="tab-topics"
+                      class="tab-btn group relative border-indigo-500 text-indigo-600 whitespace-nowrap border-b-2 py-3 px-3 sm:px-4 text-center text-xs sm:text-sm font-medium transition-colors"
+                      aria-current="page"
+                    >
+                      <svg class="mx-auto h-5 w-5 mb-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h10"></path>
+                      </svg>
+                      Topics
+                    </button>
+                    <button
+                      type="button"
+                      onclick="switchTab('highlights')"
+                      id="tab-highlights"
+                      class="tab-btn group relative border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 whitespace-nowrap border-b-2 py-3 px-3 sm:px-4 text-center text-xs sm:text-sm font-medium transition-colors"
+                    >
+                      <svg class="mx-auto h-5 w-5 mb-0.5 group-hover:text-indigo-500 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                      </svg>
+                      Highlights
+                    </button>
+                    <button
+                      type="button"
+                      onclick="switchTab('detailed')"
+                      id="tab-detailed"
+                      class="tab-btn group relative border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 whitespace-nowrap border-b-2 py-3 px-3 sm:px-4 text-center text-xs sm:text-sm font-medium transition-colors"
+                    >
+                      <svg class="mx-auto h-5 w-5 mb-0.5 group-hover:text-indigo-500 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-4 4v-4z"></path>
+                      </svg>
+                      <span class="hidden sm:inline">Detailed Notes</span>
+                      <span class="sm:hidden">Notes</span>
+                    </button>
+                    <button
+                      type="button"
+                      onclick="switchTab('actions')"
+                      id="tab-actions"
+                      class="tab-btn group relative border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 whitespace-nowrap border-b-2 py-3 px-3 sm:px-4 text-center text-xs sm:text-sm font-medium transition-colors"
+                    >
+                      <svg class="mx-auto h-5 w-5 mb-0.5 group-hover:text-indigo-500 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"></path>
+                      </svg>
+                      Actions
+                      <% if (meeting.actionItems && meeting.actionItems.length > 0) { %>
+                        <span class="absolute -top-1 -right-1 inline-flex items-center justify-center h-5 w-5 rounded-full bg-orange-500 text-xs font-bold text-white"><%= meeting.actionItems.length %></span>
+                      <% } %>
+                    </button>
+                    <button
+                      type="button"
+                      onclick="switchTab('followups')"
+                      id="tab-followups"
+                      class="tab-btn group relative border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 whitespace-nowrap border-b-2 py-3 px-3 sm:px-4 text-center text-xs sm:text-sm font-medium transition-colors"
+                    >
+                      <svg class="mx-auto h-5 w-5 mb-0.5 group-hover:text-indigo-500 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 9l3 3m0 0l-3 3m3-3H8m13 0a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                      </svg>
+                      <span class="hidden sm:inline">Follow-ups</span>
+                      <span class="sm:hidden">Follow</span>
+                      <% if (meeting.followUps && meeting.followUps.length > 0) { %>
+                        <span class="absolute -top-1 -right-1 inline-flex items-center justify-center h-5 w-5 rounded-full bg-blue-500 text-xs font-bold text-white"><%= meeting.followUps.length %></span>
+                      <% } %>
+                    </button>
+                    <button
+                      type="button"
+                      onclick="switchTab('transcript')"
+                      id="tab-transcript"
+                      class="tab-btn group relative border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 whitespace-nowrap border-b-2 py-3 px-3 sm:px-4 text-center text-xs sm:text-sm font-medium transition-colors"
+                    >
+                      <svg class="mx-auto h-5 w-5 mb-0.5 group-hover:text-indigo-500 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                      </svg>
+                      Transcript
+                    </button>
+                    <button
+                      type="button"
+                      onclick="switchTab('stats')"
+                      id="tab-stats"
+                      class="tab-btn group relative border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 whitespace-nowrap border-b-2 py-3 px-3 sm:px-4 text-center text-xs sm:text-sm font-medium transition-colors"
+                    >
+                      <svg class="mx-auto h-5 w-5 mb-0.5 group-hover:text-indigo-500 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z"></path>
+                      </svg>
+                      Stats
+                    </button>
+                  </nav>
+                </div>
               </div>
 
               <!-- Tab Content -->
@@ -318,16 +340,24 @@
                       }
                       function topicBullets(topic) {
                         if (typeof topic === 'string') return [topic];
-                        if (Array.isArray(topic)) return topic.map(item => typeof item === 'string' ? item : (item.text || item.summary || item.description || JSON.stringify(item)));
-                        const candidates = ['items', 'points', 'bullets', 'notes', 'entries', 'details', 'highlights', 'list'];
-                        for (const key of candidates) {
+                        if (Array.isArray(topic)) return topic.map(item => typeof item === 'string' ? item : (item.text || item.summary || item.description || item.details || JSON.stringify(item)));
+                        // Check for array properties first (items, points, bullets, etc.)
+                        const arrayKeys = ['items', 'points', 'bullets', 'notes', 'entries', 'highlights', 'list'];
+                        for (const key of arrayKeys) {
                           if (Array.isArray(topic[key]) && topic[key].length > 0) {
-                            return topic[key].map(item => typeof item === 'string' ? item : (item.text || item.summary || item.description || item.content || item.note || JSON.stringify(item)));
+                            return topic[key].map(item => typeof item === 'string' ? item : (item.text || item.summary || item.description || item.details || item.content || item.note || JSON.stringify(item)));
                           }
                         }
+                        // Handle AssemblyAI format: {topic: "title", details: "description"}
+                        // Return details as a single bullet if present
+                        if (topic.details && typeof topic.details === 'string') return [topic.details];
                         if (topic.summary) return [topic.summary];
                         if (topic.description) return [topic.description];
                         if (topic.content) return [topic.content];
+                        if (topic.text) return [topic.text];
+                        // Don't return JSON.stringify for objects with only topic/title property
+                        const keys = Object.keys(topic).filter(k => !['topic', 'title', 'name', 'heading', 'label', 'id', 'index'].includes(k));
+                        if (keys.length === 0) return ['No details available'];
                         return [JSON.stringify(topic)];
                       }
                       function parseTimeFromText(txt) {
@@ -466,12 +496,16 @@
                                   </span>
                                 <% } %>
                                 <% const highlightTs = Number(item.timestamp_seconds); if (!Number.isNaN(highlightTs)) { %>
-                                  <span class="inline-flex items-center rounded-full bg-indigo-50 px-2 py-0.5 text-indigo-700 ring-1 ring-indigo-200">
+                                  <button 
+                                    type="button" 
+                                    class="inline-flex items-center rounded-full bg-indigo-50 px-2 py-0.5 text-indigo-700 ring-1 ring-indigo-200 hover:bg-indigo-100 cursor-pointer transition-colors"
+                                    onclick="jumpToTimestamp(<%= Math.floor(highlightTs) %>)"
+                                  >
                                     <svg class="h-3 w-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                                     </svg>
                                     <%= Math.floor(highlightTs / 60) %>:<%= String(Math.floor(highlightTs % 60)).padStart(2, '0') %>
-                                  </span>
+                                  </button>
                                 <% } %>
                                 <% if (item.category) { %>
                                   <span class="inline-flex items-center rounded-full bg-purple-50 px-2 py-0.5 text-purple-700 ring-1 ring-purple-200 capitalize"><%= item.category %></span>
@@ -512,12 +546,16 @@
                                 <%= item.speaker || 'Speaker' %>
                               </span>
                               <% const detailTs = Number(item.timestamp_seconds); if (!Number.isNaN(detailTs)) { %>
-                                <span class="inline-flex items-center rounded-full bg-indigo-50 px-2 py-0.5 text-indigo-700 ring-1 ring-indigo-200">
+                                <button 
+                                  type="button" 
+                                  class="inline-flex items-center rounded-full bg-indigo-50 px-2 py-0.5 text-indigo-700 ring-1 ring-indigo-200 hover:bg-indigo-100 cursor-pointer transition-colors"
+                                  onclick="jumpToTimestamp(<%= Math.floor(detailTs) %>)"
+                                >
                                   <svg class="h-3 w-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                                   </svg>
                                   <%= Math.floor(detailTs / 60) %>:<%= String(Math.floor(detailTs % 60)).padStart(2, '0') %>
-                                </span>
+                                </button>
                               <% } %>
                               <% if (item.topic) { %>
                                 <span class="inline-flex items-center rounded-full bg-blue-50 px-2 py-0.5 text-blue-700 ring-1 ring-blue-200"><%= item.topic %></span>
@@ -781,22 +819,19 @@
                       <% 
                         const sentimentLabel = meeting.sentiment || 'neutral';
                         const sentimentLower = sentimentLabel.toLowerCase();
-                        let sentimentColor = 'gray';
+                        let sentimentType = 'neutral';
                         let sentimentIcon = '😐';
                         if (sentimentLower.includes('positive') || sentimentLower.includes('good') || sentimentLower.includes('great')) {
-                          sentimentColor = 'green';
+                          sentimentType = 'positive';
                           sentimentIcon = '😊';
                         } else if (sentimentLower.includes('negative') || sentimentLower.includes('bad') || sentimentLower.includes('poor')) {
-                          sentimentColor = 'red';
+                          sentimentType = 'negative';
                           sentimentIcon = '😟';
-                        } else if (sentimentLower.includes('neutral') || sentimentLower.includes('mixed')) {
-                          sentimentColor = 'yellow';
-                          sentimentIcon = '😐';
                         }
                         const sentimentScore = meeting.sentimentData?.score;
                         const sentimentConfidence = meeting.sentimentData?.confidence;
                       %>
-                      <div class="inline-flex items-center rounded-full bg-<%= sentimentColor %>-100 px-3 py-1.5 text-sm font-medium text-<%= sentimentColor %>-800">
+                      <div class="inline-flex items-center rounded-full px-3 py-1.5 text-sm font-medium <%= sentimentType === 'positive' ? 'bg-green-100 text-green-800' : sentimentType === 'negative' ? 'bg-red-100 text-red-800' : 'bg-yellow-100 text-yellow-800' %>">
                         <span class="mr-2"><%= sentimentIcon %></span>
                         <%= sentimentLabel.charAt(0).toUpperCase() + sentimentLabel.slice(1) %>
                         <% if (sentimentScore !== undefined) { %>
@@ -808,7 +843,33 @@
                   <% if (meeting.outcome) { %>
                     <div>
                       <p class="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">Outcome</p>
-                      <p class="text-sm text-gray-700"><%= meeting.outcome %></p>
+                      <% 
+                        const outcomeLower = meeting.outcome.toLowerCase();
+                        let outcomeLabel = meeting.outcome.replace(/_/g, ' ');
+                        outcomeLabel = outcomeLabel.charAt(0).toUpperCase() + outcomeLabel.slice(1);
+                        let outcomeClass = 'bg-gray-100 text-gray-700';
+                        let outcomeIcon = '📋';
+                        if (outcomeLower === 'productive') {
+                          outcomeClass = 'bg-green-100 text-green-800';
+                          outcomeIcon = '✅';
+                        } else if (outcomeLower === 'inconclusive') {
+                          outcomeClass = 'bg-yellow-100 text-yellow-800';
+                          outcomeIcon = '❓';
+                        } else if (outcomeLower === 'needs_followup') {
+                          outcomeClass = 'bg-blue-100 text-blue-800';
+                          outcomeIcon = '📌';
+                        } else if (outcomeLower === 'blocked') {
+                          outcomeClass = 'bg-red-100 text-red-800';
+                          outcomeIcon = '🚫';
+                        } else if (outcomeLower === 'informational') {
+                          outcomeClass = 'bg-purple-100 text-purple-800';
+                          outcomeIcon = 'ℹ️';
+                        }
+                      %>
+                      <div class="inline-flex items-center rounded-full px-3 py-1.5 text-sm font-medium <%= outcomeClass %>">
+                        <span class="mr-2"><%= outcomeIcon %></span>
+                        <%= outcomeLabel %>
+                      </div>
                     </div>
                   <% } %>
                 </div>
@@ -1205,16 +1266,23 @@
 
   function topicBulletsClient(topic) {
     if (typeof topic === 'string') return [topic];
-    if (Array.isArray(topic)) return topic.map(item => typeof item === 'string' ? item : (item.text || item.summary || item.description || JSON.stringify(item)));
-    const candidates = ['items', 'points', 'bullets', 'notes', 'entries', 'details', 'highlights', 'list'];
-    for (const key of candidates) {
+    if (Array.isArray(topic)) return topic.map(item => typeof item === 'string' ? item : (item.text || item.summary || item.description || item.details || JSON.stringify(item)));
+    // Check for array properties first (items, points, bullets, etc.)
+    const arrayKeys = ['items', 'points', 'bullets', 'notes', 'entries', 'highlights', 'list'];
+    for (const key of arrayKeys) {
       if (Array.isArray(topic[key]) && topic[key].length > 0) {
-        return topic[key].map(item => typeof item === 'string' ? item : (item.text || item.summary || item.description || item.content || item.note || JSON.stringify(item)));
+        return topic[key].map(item => typeof item === 'string' ? item : (item.text || item.summary || item.description || item.details || item.content || item.note || JSON.stringify(item)));
       }
     }
+    // Handle AssemblyAI format: {topic: "title", details: "description"}
+    if (topic.details && typeof topic.details === 'string') return [topic.details];
     if (topic.summary) return [topic.summary];
     if (topic.description) return [topic.description];
     if (topic.content) return [topic.content];
+    if (topic.text) return [topic.text];
+    // Don't return JSON.stringify for objects with only topic/title property
+    const keys = Object.keys(topic).filter(k => !['topic', 'title', 'name', 'heading', 'label', 'id', 'index'].includes(k));
+    if (keys.length === 0) return ['No details available'];
     return [JSON.stringify(topic)];
   }
 
