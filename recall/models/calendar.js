@@ -115,6 +115,21 @@ export default (sequelize) => {
         defaultValue: true,
         field: "enable_follow_ups",
       },
+      // AI provider and model selection
+      aiProvider: {
+        type: DataTypes.ENUM("recall", "openai", "assemblyai", "anthropic"),
+        allowNull: false,
+        defaultValue: "recall",
+        field: "ai_provider",
+        comment: "AI provider for summarization: recall, openai, assemblyai, anthropic",
+      },
+      aiModel: {
+        type: DataTypes.STRING,
+        allowNull: true,
+        defaultValue: null,
+        field: "ai_model",
+        comment: "Specific model identifier (provider-specific, null = default)",
+      },
 
       // Publishing settings
       autoPublishToNotion: {

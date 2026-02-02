@@ -49,6 +49,8 @@ export default async (req, res) => {
     enableSummary = "off",
     enableActionItems = "off",
     enableFollowUps = "off",
+    aiProvider = "recall",
+    aiModel = "",
     // Publishing
     autoPublishToNotion = "off",
     // Bot behavior
@@ -78,6 +80,13 @@ export default async (req, res) => {
 
   // Update publishing settings
   calendar.autoPublishToNotion = autoPublishToNotion === "on";
+
+  // Update AI provider and model settings
+  const validProviders = ["recall", "openai", "assemblyai", "anthropic"];
+  if (validProviders.includes(aiProvider)) {
+    calendar.aiProvider = aiProvider;
+  }
+  calendar.aiModel = aiModel && aiModel.trim() ? aiModel.trim() : null;
 
   // Update bot behavior settings
   calendar.joinBeforeStartMinutes = Math.max(0, Math.min(15, parseInt(joinBeforeStartMinutes, 10) || 1));

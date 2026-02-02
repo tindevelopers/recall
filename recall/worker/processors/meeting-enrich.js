@@ -1,6 +1,7 @@
 import db from "../../db.js";
 import { embed } from "../../services/openai/index.js";
 import Notepad from "../../services/notepad/index.js";
+import AISummarizer from "../../services/ai-summarizer/index.js";
 import { backgroundQueue } from "../../queue.js";
 import { v4 as uuidv4 } from "uuid";
 
@@ -8,6 +9,52 @@ import { v4 as uuidv4 } from "uuid";
 
 function isValidText(value) {
   return typeof value === "string" && value.trim().length > 0;
+}
+
+function estimateDurationMs(chunk) {
+  if (
+    typeof chunk.startTimeMs === "number" &&
+    typeof chunk.endTimeMs === "number" &&
+    chunk.endTimeMs > chunk.startTimeMs
+  ) {
+    return chunk.endTimeMs - chunk.startTimeMs;
+  }
+  // Fallback: estimate based on word count (~120 wpm => 500ms per word)
+  const wordCount = chunk.text ? chunk.text.trim().split(/\s+/).length : 0;
+  return wordCount * 500;
+}
+
+function computeTalkStats(chunks) {
+  const totals = new Map();
+  let totalDurationMs = 0;
+
+  chunks.forEach((chunk) => {
+    const speaker = chunk.speaker || "Unknown";
+    const durationMs = estimateDurationMs(chunk);
+    const wordCount = chunk.text ? chunk.text.trim().split(/\s+/).length : 0;
+    const entry = totals.get(speaker) || { talkTimeMs: 0, turns: 0, wordCount: 0 };
+    entry.talkTimeMs += durationMs;
+    entry.turns += 1;
+    entry.wordCount += wordCount;
+    totals.set(speaker, entry);
+    totalDurationMs += durationMs;
+  });
+
+  const speakers = Array.from(totals.entries()).map(([name, data]) => {
+    const talkTimeSeconds = data.talkTimeMs / 1000;
+    return {
+      name,
+      talkTimeSeconds,
+      talkTimePercent: totalDurationMs ? (data.talkTimeMs / totalDurationMs) * 100 : null,
+      turns: data.turns,
+      wordCount: data.wordCount,
+    };
+  });
+
+  return {
+    durationSeconds: totalDurationMs / 1000,
+    speakers,
+  };
 }
 
 async function ensureChunkEmbeddings(chunks) {
@@ -59,6 +106,10 @@ export default async (job) => {
     autoPublishToNotion: calendar?.autoPublishToNotion === true,
   };
 
+  // Get AI provider and model from calendar settings
+  const aiProvider = calendar?.aiProvider || "recall";
+  const aiModel = calendar?.aiModel || null;
+
   const chunks = await db.MeetingTranscriptChunk.findAll({
     where: { meetingArtifactId: artifact.id },
     order: [["sequence", "ASC"]],
@@ -76,6 +127,8 @@ export default async (job) => {
           .join("\n\n")
       : JSON.stringify(artifact.rawPayload);
 
+  const talkStats = computeTalkStats(chunks);
+
   const metadata = {
     title: calendarEvent?.title || artifact.rawPayload?.data?.title,
     startTime: calendarEvent?.startTime || artifact.rawPayload?.data?.start_time,
@@ -83,12 +136,16 @@ export default async (job) => {
       artifact.rawPayload?.data?.participants ||
       artifact.rawPayload?.data?.attendees ||
       [],
+    speakerStats: talkStats.speakers,
+    durationSeconds: talkStats.durationSeconds,
   };
 
-  // Use Notepad service: tries Recall.ai Notepad API first, falls back to OpenAI
-  console.log(`[ENRICH] Fetching summary and action items using Notepad service...`);
+  // Use AI Summarizer abstraction layer with configured provider/model
+  console.log(`[ENRICH] Fetching summary using provider: ${aiProvider}, model: ${aiModel || "default"}`);
   
-  const notepadResult = await Notepad.getSummaryAndActionItems({
+  const notepadResult = await AISummarizer.summarize({
+    provider: aiProvider,
+    model: aiModel,
     transcriptText,
     metadata,
     settings: enrichmentSettings,
@@ -97,7 +154,45 @@ export default async (job) => {
     webhookPayload: artifact.rawPayload,
   });
 
-  console.log(`[ENRICH] Notepad service returned data from source: ${notepadResult.source}`);
+  console.log(`[ENRICH] AI Summarizer returned data from source: ${notepadResult.source}`);
+
+  // Normalize stats: prefer AI output, but fill gaps with computed talkStats
+  const aiStats = notepadResult.stats || {};
+  const normalizedAiSpeakers =
+    aiStats.speakers ||
+    aiStats.speaker_stats ||
+    aiStats.speakerStats ||
+    [];
+
+  const mergedSpeakers =
+    (normalizedAiSpeakers.length ? normalizedAiSpeakers : talkStats.speakers).map((s) => {
+      const name = s.name || s.speaker || "Unknown";
+      const talkTimeSeconds =
+        s.talk_time_seconds ?? s.talkTimeSeconds ?? s.duration_seconds ?? null;
+      const talkTimePercent =
+        s.talk_time_percent ?? s.talkTimePercent ?? s.percent ?? null;
+      return {
+        name,
+        talkTimeSeconds: talkTimeSeconds ?? talkStats.speakers.find((t) => t.name === name)?.talkTimeSeconds ?? null,
+        talkTimePercent:
+          talkTimePercent ??
+          talkStats.speakers.find((t) => t.name === name)?.talkTimePercent ??
+          null,
+        turns: s.turns ?? s.speaking_turns ?? s.turn_count ?? null,
+        wordCount: s.wordCount ?? s.word_count ?? null,
+      };
+    });
+
+  const mergedStats = {
+    durationSeconds:
+      aiStats.duration_seconds ??
+      aiStats.durationSeconds ??
+      aiStats.duration ??
+      talkStats.durationSeconds ??
+      null,
+    speakers: mergedSpeakers,
+    note: aiStats.note || aiStats.notes || undefined,
+  };
 
   const summaryPayload = {
     id: uuidv4(),
@@ -109,11 +204,14 @@ export default async (job) => {
     actionItems: enrichmentSettings.enableActionItems ? (notepadResult.actionItems || []) : [],
     followUps: enrichmentSettings.enableFollowUps ? (notepadResult.followUps || []) : [],
     topics: notepadResult.topics || [],
+    highlights: notepadResult.highlights || [],
+    detailedNotes: notepadResult.detailedNotes || [],
     // Sentiment and insights
     sentiment: notepadResult.sentiment || null,
     keyInsights: notepadResult.keyInsights || [],
     decisions: notepadResult.decisions || [],
     outcome: notepadResult.outcome || null,
+    stats: mergedStats,
     // Store the source for debugging/transparency
     source: notepadResult.source || "unknown",
   };

@@ -193,6 +193,37 @@
           </div>
         </label>
       </div>
+
+      <!-- AI Provider & Model Selection -->
+      <div class="mt-6 pt-6 border-t border-gray-200 space-y-4">
+        <div>
+          <label for="aiProvider" class="block text-sm font-medium text-gray-700 mb-2">AI Provider</label>
+          <select
+            id="aiProvider"
+            name="aiProvider"
+            class="block w-full rounded-xl border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm py-3"
+            onchange="updateModelOptions()"
+          >
+            <option value="recall" <%= (calendar.aiProvider || 'recall') === 'recall' ? 'selected' : '' %>>Recall.ai (Built-in)</option>
+            <option value="openai" <%= calendar.aiProvider === 'openai' ? 'selected' : '' %>>OpenAI</option>
+            <option value="assemblyai" <%= calendar.aiProvider === 'assemblyai' ? 'selected' : '' %>>AssemblyAI</option>
+            <option value="anthropic" <%= calendar.aiProvider === 'anthropic' ? 'selected' : '' %>>Anthropic (Claude)</option>
+          </select>
+          <p class="mt-1 text-xs text-gray-500">Choose which AI service to use for meeting summaries</p>
+        </div>
+
+        <div>
+          <label for="aiModel" class="block text-sm font-medium text-gray-700 mb-2">Model</label>
+          <select
+            id="aiModel"
+            name="aiModel"
+            class="block w-full rounded-xl border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm py-3"
+          >
+            <!-- Options will be populated by JavaScript based on provider -->
+          </select>
+          <p class="mt-1 text-xs text-gray-500">Select a specific model (leave empty for provider default)</p>
+        </div>
+      </div>
     </div>
 
     <!-- Bot Behavior -->
@@ -290,5 +321,60 @@ document.getElementById('botName').addEventListener('input', function(e) {
   const name = e.target.value || 'Meeting Assistant';
   document.getElementById('bot-name-preview').textContent = name;
   document.getElementById('bot-avatar-preview').textContent = name.charAt(0).toUpperCase();
+});
+
+// AI Provider and Model selection
+const modelOptions = {
+  recall: [{ value: '', label: 'Default (Recall.ai built-in)' }],
+  openai: [
+    { value: '', label: 'Default (gpt-4-turbo)' },
+    { value: 'gpt-4-turbo', label: 'GPT-4 Turbo' },
+    { value: 'gpt-4', label: 'GPT-4' },
+    { value: 'gpt-4o', label: 'GPT-4o' },
+    { value: 'gpt-4o-mini', label: 'GPT-4o Mini' },
+    { value: 'gpt-3.5-turbo', label: 'GPT-3.5 Turbo' },
+  ],
+  assemblyai: [
+    { value: '', label: 'Default (gpt-4)' },
+    { value: 'gpt-4', label: 'GPT-4' },
+    { value: 'gpt-4-turbo', label: 'GPT-4 Turbo' },
+    { value: 'gpt-3.5-turbo', label: 'GPT-3.5 Turbo' },
+    { value: 'claude-3-opus', label: 'Claude 3 Opus' },
+    { value: 'claude-3-sonnet', label: 'Claude 3 Sonnet' },
+    { value: 'claude-3-haiku', label: 'Claude 3 Haiku' },
+    { value: 'gemini-pro', label: 'Gemini Pro' },
+  ],
+  anthropic: [
+    { value: '', label: 'Default (claude-3-sonnet-20240229)' },
+    { value: 'claude-3-opus-20240229', label: 'Claude 3 Opus' },
+    { value: 'claude-3-sonnet-20240229', label: 'Claude 3 Sonnet' },
+    { value: 'claude-3-haiku-20240307', label: 'Claude 3 Haiku' },
+  ],
+};
+
+function updateModelOptions() {
+  const provider = document.getElementById('aiProvider').value;
+  const modelSelect = document.getElementById('aiModel');
+  const currentValue = modelSelect.value || '<%= calendar.aiModel || "" %>';
+  
+  // Clear existing options
+  modelSelect.innerHTML = '';
+  
+  // Add new options
+  const options = modelOptions[provider] || modelOptions.recall;
+  options.forEach(opt => {
+    const option = document.createElement('option');
+    option.value = opt.value;
+    option.textContent = opt.label;
+    if (opt.value === currentValue) {
+      option.selected = true;
+    }
+    modelSelect.appendChild(option);
+  });
+}
+
+// Initialize on page load
+document.addEventListener('DOMContentLoaded', function() {
+  updateModelOptions();
 });
 </script>
