@@ -32,13 +32,17 @@ export default async (req, res) => {
 
   if (user) {
     console.log(`[SIGNIN] ✅ Login successful for ${user.email}`);
-    res.cookie("authToken", getAuthTokenForUser(user), {
+    const token = getAuthTokenForUser(user);
+    console.log(`[SIGNIN] Generated token: ${token.substring(0, 20)}...`);
+    res.cookie("authToken", token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: "lax",
+      path: "/",
       maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
     });
-    res.redirect("/");
+    console.log(`[SIGNIN] Cookie set, redirecting to /`);
+    return res.redirect("/");
   } else {
     console.log(`[SIGNIN] ❌ Login failed for ${req.body.email}`);
     res.clearCookie("notice");
