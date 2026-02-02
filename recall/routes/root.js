@@ -8,10 +8,6 @@ import Recall from "../services/recall/index.js";
 import { getPageOrDatabase } from "../services/notion/api-client.js";
 
 export default async (req, res) => {
-  console.log(`[ROOT] GET / called - authenticated: ${req.authenticated}, authToken: ${req.challenge ? 'YES' : 'NO'}`);
-  if (req.challenge) {
-    console.log(`[ROOT] Auth token present: ${req.challenge.substring(0, 20)}...`);
-  }
   if (req.authenticated) {
     const allCalendars = await req.authentication.user.getCalendars();
     
