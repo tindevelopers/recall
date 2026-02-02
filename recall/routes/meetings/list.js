@@ -1106,11 +1106,9 @@ async function syncCalendarEvents(calendar) {
       // Queue bot scheduling for events that should be recorded
       // Use Promise.allSettled to avoid blocking if Redis is unavailable
       const eventsToSchedule = dbEvents.filter(event => event.shouldRecordAutomatic || event.shouldRecordManual);
+      const { queueBotScheduleJob } = await import("../../utils/queue-bot-schedule.js");
       const queuePromises = eventsToSchedule.map(event => 
-        backgroundQueue.add("calendarevent.update_bot_schedule", {
-          calendarId: calendar.id,
-          recallEventId: event.recallId,
-        }).then(() => {
+        queueBotScheduleJob(event.recallId, calendar.id).then(() => {
         }).catch(err => {
           console.warn(`[MEETINGS] Queue add failed (Redis unavailable?):`, err.message);
         })

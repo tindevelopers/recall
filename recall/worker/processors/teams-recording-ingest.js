@@ -10,7 +10,7 @@
 
 import db from "../../db.js";
 import { backgroundQueue } from "../../queue.js";
-import { fetchTeamsTranscript, parseVTTTranscript } from "../../services/microsoft-graph/index.js";
+import { fetchTeamsTranscript, fetchTeamsRecordingMetadata, parseVTTTranscript } from "../../services/microsoft-graph/index.js";
 import { extractMeetingMetadata } from "../../utils/meeting-metadata-extractor.js";
 
 export default async (job) => {
@@ -49,35 +49,74 @@ export default async (job) => {
     calendarMeetingUrl: calendarEvent?.meetingUrl,
   });
 
-    // Fetch transcript from Microsoft Graph
-    const transcriptData = await fetchTeamsTranscript(calendarEvent);
+    // Fetch both transcript and recording metadata from Microsoft Graph
+    const [transcriptData, recordingMetadata] = await Promise.all([
+      fetchTeamsTranscript(calendarEvent).catch(err => {
+        console.warn(`[Teams Recording] Error fetching transcript: ${err.message}`);
+        return null;
+      }),
+      fetchTeamsRecordingMetadata(calendarEvent).catch(err => {
+        console.warn(`[Teams Recording] Error fetching recording metadata: ${err.message}`);
+        return null;
+      }),
+    ]);
 
-    if (!transcriptData) {
-      console.log(`[Teams Recording] No transcript available for Teams meeting ${calendarEventId}`);
+    // If neither transcript nor recording is available, skip processing
+    if (!transcriptData && !recordingMetadata) {
+      console.log(`[Teams Recording] No transcript or recording available for Teams meeting ${calendarEventId}`);
       return;
     }
 
-    console.log(`[Teams Recording] Successfully fetched transcript for ${calendarEventId}`);
-    console.log(`[Teams Recording] Transcript content type: ${typeof transcriptData.content}`);
-    console.log(`[Teams Recording] Transcript content length: ${transcriptData.content?.length || 0}`);
-    
-    // Debug: Show first 1000 chars with visible line endings
-    const debugPreview = transcriptData.content?.substring(0, 1000)
-      .replace(/\r\n/g, '[CRLF]\n')
-      .replace(/\r/g, '[CR]\n')
-      .replace(/\n/g, '[LF]\n');
-    console.log(`[Teams Recording] Transcript content preview (with line endings):\n${debugPreview}`);
-
-    // Parse VTT transcript into chunks
-    const transcriptChunks = parseVTTTranscript(transcriptData.content);
-
-    if (transcriptChunks.length === 0) {
-      console.warn(`[Teams Recording] No transcript chunks parsed from VTT content`);
-      // Don't return early - still create the artifact with empty transcript
-      // The transcript might be in a different format or still processing
+    // Extract video recording URL from metadata
+    let teamsRecordingUrl = null;
+    let teamsRecordingId = null;
+    if (recordingMetadata && recordingMetadata.recordings && recordingMetadata.recordings.length > 0) {
+      const firstRecording = recordingMetadata.recordings[0];
+      teamsRecordingUrl = firstRecording.contentDownloadUrl || 
+                         firstRecording.downloadUrl || 
+                         firstRecording.recordingContentUrl ||
+                         firstRecording.recordingUrl ||
+                         null;
+      teamsRecordingId = firstRecording.id || firstRecording.recordingId || null;
+      
+      if (teamsRecordingUrl) {
+        console.log(`[Teams Recording] Found video recording URL for ${calendarEventId}`);
+      }
     }
 
-    console.log(`[Teams Recording] Parsed ${transcriptChunks.length} transcript chunks`);
+    // If we have a recording but no transcript, we can still process it
+    // The enrichment pipeline can work with video URLs (if video transcription is added)
+    if (!transcriptData && teamsRecordingUrl) {
+      console.log(`[Teams Recording] Video recording available but no transcript. Will store video URL for future processing.`);
+    }
+
+    // Process transcript if available
+    let transcriptChunks = [];
+    if (transcriptData) {
+      console.log(`[Teams Recording] Successfully fetched transcript for ${calendarEventId}`);
+      console.log(`[Teams Recording] Transcript content type: ${typeof transcriptData.content}`);
+      console.log(`[Teams Recording] Transcript content length: ${transcriptData.content?.length || 0}`);
+      
+      // Debug: Show first 1000 chars with visible line endings
+      const debugPreview = transcriptData.content?.substring(0, 1000)
+        .replace(/\r\n/g, '[CRLF]\n')
+        .replace(/\r/g, '[CR]\n')
+        .replace(/\n/g, '[LF]\n');
+      console.log(`[Teams Recording] Transcript content preview (with line endings):\n${debugPreview}`);
+
+      // Parse VTT transcript into chunks
+      transcriptChunks = parseVTTTranscript(transcriptData.content);
+
+      if (transcriptChunks.length === 0) {
+        console.warn(`[Teams Recording] No transcript chunks parsed from VTT content`);
+        // Don't return early - still create the artifact with empty transcript
+        // The transcript might be in a different format or still processing
+      }
+
+      console.log(`[Teams Recording] Parsed ${transcriptChunks.length} transcript chunks`);
+    } else {
+      console.log(`[Teams Recording] No transcript available, but will process with video recording if available`);
+    }
 
     // Check if meeting artifact already exists
     let meetingArtifact = await db.MeetingArtifact.findOne({
@@ -116,16 +155,24 @@ export default async (job) => {
       ownerUserId, // Owner (meeting organizer)
       eventType: "teams_recording",
       status: "received",
-    ...meetingMetadata,
+      ...meetingMetadata,
+      // Store Teams recording URL if available
+      sourceRecordingUrl: teamsRecordingUrl || null,
       rawPayload: {
         source: "microsoft_teams",
-        meetingId: transcriptData.meetingId,
-        transcriptId: transcriptData.transcriptId,
-        metadata: transcriptData.metadata,
-      meetingUrl,
+        meetingId: transcriptData?.meetingId || recordingMetadata?.meetingId || null,
+        transcriptId: transcriptData?.transcriptId || null,
+        recordingId: teamsRecordingId || null,
+        metadata: transcriptData?.metadata || recordingMetadata?.recordings?.[0] || null,
+        meetingUrl,
         title: calendarEvent.title,
         startTime: calendarEvent.startTime?.toISOString(),
         endTime: calendarEvent.endTime?.toISOString(),
+        // Store video recording URL and metadata
+        teamsRecordingUrl: teamsRecordingUrl,
+        teamsRecordingMetadata: recordingMetadata?.recordings || null,
+        // Store transcript in rawPayload for enrichment
+        transcript: transcriptData?.content ? parseVTTTranscript(transcriptData.content) : null,
       },
     };
 
@@ -142,32 +189,46 @@ export default async (job) => {
       where: { meetingArtifactId: meetingArtifact.id },
     });
 
-    // Store transcript chunks
-    const chunkPromises = transcriptChunks.map((chunk, index) =>
-      db.MeetingTranscriptChunk.create({
-        meetingArtifactId: meetingArtifact.id,
-        calendarEventId: calendarEvent.id,
-        userId: calendarUserId,
-        sequence: chunk.sequence ?? index,
-        startTimeMs: chunk.startTimeMs,
-        endTimeMs: chunk.endTimeMs,
-        speaker: chunk.speaker,
-        text: chunk.text,
-      })
-    );
+    // Store transcript chunks if available
+    if (transcriptChunks.length > 0) {
+      const chunkPromises = transcriptChunks.map((chunk, index) =>
+        db.MeetingTranscriptChunk.create({
+          meetingArtifactId: meetingArtifact.id,
+          calendarEventId: calendarEvent.id,
+          userId: calendarUserId,
+          sequence: chunk.sequence ?? index,
+          startTimeMs: chunk.startTimeMs,
+          endTimeMs: chunk.endTimeMs,
+          speaker: chunk.speaker,
+          text: chunk.text,
+        })
+      );
 
-    await Promise.all(chunkPromises);
-    console.log(`[Teams Recording] Stored ${transcriptChunks.length} transcript chunks`);
+      await Promise.all(chunkPromises);
+      console.log(`[Teams Recording] Stored ${transcriptChunks.length} transcript chunks`);
+    } else if (teamsRecordingUrl) {
+      console.log(`[Teams Recording] No transcript chunks, but video recording URL stored for future processing`);
+    }
 
     // Update artifact status to "done" (ready for enrichment)
+    // Even if we only have video (no transcript), we can still enrich if video transcription is added later
     await meetingArtifact.update({ status: "done" });
 
     // Trigger enrichment pipeline
+    // The enrichment will work with transcript chunks if available
+    // If only video is available, enrichment can be enhanced later to transcribe video
     await backgroundQueue.add("meeting.enrich", {
       meetingArtifactId: meetingArtifact.id,
     });
 
-    console.log(`[Teams Recording] Successfully ingested Teams recording for ${calendarEventId} and queued enrichment`);
+    const summary = [];
+    if (transcriptChunks.length > 0) {
+      summary.push(`${transcriptChunks.length} transcript chunks`);
+    }
+    if (teamsRecordingUrl) {
+      summary.push("video recording URL");
+    }
+    console.log(`[Teams Recording] Successfully ingested Teams meeting for ${calendarEventId} with ${summary.join(" and ")} and queued enrichment`);
 
   } catch (error) {
     console.error(`[Teams Recording] Error ingesting Teams recording for ${calendarEventId}:`, error);

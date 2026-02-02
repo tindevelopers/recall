@@ -16,6 +16,12 @@ export default async (req, res) => {
     return res.status(405).json({ error: "Method not allowed" });
   }
 
+  if (!req.authenticated) {
+    return res.status(401).json({ error: "Unauthorized" });
+  }
+
+  const userId = req.authentication.user.id;
+
   try {
     const { calendarEventId, calendarId } = req.body;
 
@@ -27,6 +33,11 @@ export default async (req, res) => {
 
       if (!calendarEvent) {
         return res.status(404).json({ error: "Calendar event not found" });
+      }
+
+      // Verify user owns the calendar
+      if (calendarEvent.Calendar?.userId !== userId) {
+        return res.status(403).json({ error: "You don't have access to this calendar event" });
       }
 
       if (calendarEvent.platform !== "microsoft_outlook") {
@@ -53,6 +64,11 @@ export default async (req, res) => {
 
       if (!calendar) {
         return res.status(404).json({ error: "Calendar not found" });
+      }
+
+      // Verify user owns the calendar
+      if (calendar.userId !== userId) {
+        return res.status(403).json({ error: "You don't have access to this calendar" });
       }
 
       if (calendar.platform !== "microsoft_outlook") {

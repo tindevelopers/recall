@@ -37,6 +37,18 @@ export async function queueBotScheduleJob(recallEventId, calendarId = null, opti
     }
   }
   
+  // Check if job already exists before attempting to add
+  try {
+    const existingJob = await backgroundQueue.getJob(jobId);
+    if (existingJob) {
+      const jobState = await existingJob.getState();
+      console.log(`[BOT-SCHEDULE] ⚠️  Duplicate job attempt prevented: eventId=${recallEventId} jobId=${jobId} existingState=${jobState}`);
+      return existingJob;
+    }
+  } catch (err) {
+    // Job doesn't exist, continue to add it
+  }
+  
   try {
     const job = await backgroundQueue.add(
       "calendarevent.update_bot_schedule",
@@ -51,6 +63,8 @@ export async function queueBotScheduleJob(recallEventId, calendarId = null, opti
       }
     );
     
+    console.log(`[BOT-SCHEDULE] ✅ Job queued successfully: eventId=${recallEventId} jobId=${jobId} queueJobId=${job?.id}`);
+    
     // #region agent log
     fetch('http://127.0.0.1:7250/ingest/bf0206c3-6e13-4499-92a3-7fb2b7527fcf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'utils/queue-bot-schedule.js:job_added',message:'Job added successfully',data:{recallEventId,jobId,jobIdResult:job?.id},timestamp:Date.now(),sessionId:'debug-session',runId:'settings-change',hypothesisId:'B'})}).catch(()=>{});
     // #endregion
@@ -62,7 +76,56 @@ export async function queueBotScheduleJob(recallEventId, calendarId = null, opti
       // #region agent log
       fetch('http://127.0.0.1:7250/ingest/bf0206c3-6e13-4499-92a3-7fb2b7527fcf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'utils/queue-bot-schedule.js:job_exists',message:'Job already exists',data:{recallEventId,jobId,errorMessage:err.message},timestamp:Date.now(),sessionId:'debug-session',runId:'settings-change',hypothesisId:'B'})}).catch(()=>{});
       // #endregion
-      console.log(`[BOT-SCHEDULE] Job already queued for event ${recallEventId}`);
+      console.log(`[BOT-SCHEDULE] ⚠️  Duplicate job prevented (caught in add): eventId=${recallEventId} jobId=${jobId} error=${err.message}`);
+      // Return the existing job
+      return await backgroundQueue.getJob(jobId);
+    }
+    throw err;
+  }
+}
+
+/**
+ * Queue a bot deletion job with deduplication.
+ * Uses jobId to prevent duplicate jobs for the same event.
+ * 
+ * @param {string} recallEventId - The Recall event ID
+ * @returns {Promise} The queued job
+ */
+export async function queueBotDeleteJob(recallEventId) {
+  // Use jobId to prevent duplicate bot deletion jobs for the same event
+  const jobId = `bot-delete-${recallEventId}`;
+  
+  // Check if job already exists before attempting to add
+  try {
+    const existingJob = await backgroundQueue.getJob(jobId);
+    if (existingJob) {
+      const jobState = await existingJob.getState();
+      console.log(`[BOT-DELETE] ⚠️  Duplicate job attempt prevented: eventId=${recallEventId} jobId=${jobId} existingState=${jobState}`);
+      return existingJob;
+    }
+  } catch (err) {
+    // Job doesn't exist, continue to add it
+  }
+  
+  try {
+    const job = await backgroundQueue.add(
+      "calendarevent.delete_bot",
+      {
+        recallEventId,
+      },
+      {
+        jobId, // This prevents duplicate jobs - if a job with this ID exists, it won't be added again
+        removeOnComplete: true,
+        removeOnFail: false,
+      }
+    );
+    
+    console.log(`[BOT-DELETE] ✅ Job queued successfully: eventId=${recallEventId} jobId=${jobId} queueJobId=${job?.id}`);
+    return job;
+  } catch (err) {
+    // If job already exists, that's okay - it means a bot deletion job is already queued
+    if (err.message?.includes("already exists") || err.code === "DUPLICATE_JOB") {
+      console.log(`[BOT-DELETE] ⚠️  Duplicate job prevented (caught in add): eventId=${recallEventId} jobId=${jobId} error=${err.message}`);
       // Return the existing job
       return await backgroundQueue.getJob(jobId);
     }

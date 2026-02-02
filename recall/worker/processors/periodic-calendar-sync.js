@@ -164,10 +164,9 @@ export default async (job) => {
         }
 
         // Delete bots for deleted events
+        const { queueBotDeleteJob } = await import("../../utils/queue-bot-schedule.js");
         for (const event of eventsDeleted) {
-          await backgroundQueue.add("calendarevent.delete_bot", {
-            recallEventId: event.id,
-          });
+          await queueBotDeleteJob(event.id);
         }
       } catch (error) {
         console.error(

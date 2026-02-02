@@ -7,9 +7,12 @@ import { checkForSharedBot, getSharedDeduplicationKey } from "../../utils/shared
 // add or remove bot for a calendar event based on its record status
 export default async (job) => {
   const { recallEventId } = job.data;
+  const jobId = job.id || job.opts?.jobId || 'unknown';
+  console.log(`[BOT-SCHEDULE] 🚀 Processing bot scheduling job: eventId=${recallEventId} jobId=${jobId}`);
+  
   await telemetryEvent(
     "BotScheduling.job_started",
-    { recallEventId },
+    { recallEventId, jobId },
     { location: "worker/processors/calendar-event-update-bot-schedule.js:job_start" }
   );
   

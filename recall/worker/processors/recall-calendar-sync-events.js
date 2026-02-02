@@ -64,44 +64,11 @@ export default async (job) => {
   });
 
   // delete bots for deleted events
+  const { queueBotDeleteJob } = await import("../../utils/queue-bot-schedule.js");
   for (const event of eventsDeleted) {
-    backgroundQueue.add("calendarevent.delete_bot", {
-      recallEventId: event.id,
-    });
+    await queueBotDeleteJob(event.id);
   }
 
-  // Check for Teams meetings and queue recording ingestion
-  // Only check Microsoft Outlook events that have ended (to ensure recordings are available)
-  const now = new Date();
-  for (const event of eventsUpserted) {
-    if (event.platform === "microsoft_outlook") {
-      const meetingUrl = event.meeting_url || event.raw?.onlineMeeting?.joinUrl;
-      const endTime = event.end_time ? new Date(event.end_time) : null;
-      
-      // Only process if it's a Teams meeting and has ended (recordings available after meeting ends)
-      if (meetingUrl && meetingUrl.includes("teams.microsoft.com") && endTime && endTime < now) {
-        // Find the local calendar event ID
-        const localEvent = await db.CalendarEvent.findOne({
-          where: { recallId: event.id, calendarId },
-        });
-        
-        if (localEvent) {
-          // Queue Teams recording ingestion (with delay to ensure recording is processed by Microsoft)
-          // Microsoft typically processes recordings within a few minutes after meeting ends
-          const delayMs = Math.max(0, now - endTime); // Delay if meeting just ended
-          const minDelayMs = 5 * 60 * 1000; // At least 5 minutes after meeting ends
-          const finalDelay = delayMs < minDelayMs ? minDelayMs - delayMs : 0;
-          
-          await backgroundQueue.add(
-            "teams.recording.ingest",
-            { calendarEventId: localEvent.id },
-            { delay: finalDelay }
-          );
-          console.log(
-            `INFO: Queued Teams recording ingestion for event ${event.id} (delay: ${Math.round(finalDelay / 1000)}s)`
-          );
-        }
-      }
-    }
-  }
+  // Note: Teams recording ingestion is now manual-only
+  // Use POST /api/trigger-teams-ingest to pull Teams recordings when needed
 };

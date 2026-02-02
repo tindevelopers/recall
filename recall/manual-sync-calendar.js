@@ -123,11 +123,9 @@ async function manualSync(calendarId) {
       });
 
       // Queue bot scheduling jobs
+      const { queueBotScheduleJob } = await import("./utils/queue-bot-schedule.js");
       for (const event of dbEvents) {
-        await backgroundQueue.add("calendarevent.update_bot_schedule", {
-          calendarId: calendar.id,
-          recallEventId: event.recallId,
-        });
+        await queueBotScheduleJob(event.recallId, calendar.id);
       }
 
       console.log(`✅ Queued ${dbEvents.length} bot scheduling job(s)`);
