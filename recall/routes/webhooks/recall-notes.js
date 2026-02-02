@@ -156,7 +156,20 @@ export default async (req, res) => {
   // For bot.status_change events, log the status details
   if (event === "bot.status_change") {
     const status = data?.status || rawPayload?.status;
-    console.log(`[RECALL-NOTES] Bot status change: code=${status?.code}, sub_code=${status?.sub_code}, message=${status?.message}`);
+    const statusCode = status?.code;
+    const subCode = status?.sub_code;
+    const statusMessage = status?.message;
+    console.log(`[RECALL-NOTES] Bot status change: botId=${recallBotId}, eventId=${recallEventId}, code=${statusCode}, sub_code=${subCode}, message=${statusMessage}`);
+    
+    // Log specific disconnection/leave events
+    if (statusCode === "left_call" || statusCode === "call_ended" || statusCode === "left" || subCode === "automatic_leave" || subCode === "bot_detection") {
+      console.log(`[RECALL-NOTES] ⚠️  Bot disconnected/left: reason=${subCode || statusCode}, message=${statusMessage || 'N/A'}`);
+      if (subCode === "automatic_leave") {
+        console.log(`[RECALL-NOTES] Bot left due to automatic_leave setting (likely noone_joined_timeout or waiting_room_timeout)`);
+      } else if (subCode === "bot_detection") {
+        console.log(`[RECALL-NOTES] Bot left due to bot_detection (only bots detected in meeting)`);
+      }
+    }
   }
   
   if (hasRecording) {
