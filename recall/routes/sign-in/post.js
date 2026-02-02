@@ -34,15 +34,12 @@ export default async (req, res) => {
     console.log(`[SIGNIN] ✅ Login successful for ${user.email}`);
     const token = getAuthTokenForUser(user);
     console.log(`[SIGNIN] Generated token: ${token.substring(0, 20)}...`);
-    const isProduction = process.env.NODE_ENV === "production";
     res.cookie("authToken", token, {
       httpOnly: true,
-      secure: isProduction,
-      sameSite: isProduction ? "none" : "lax",
       path: "/",
       maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
     });
-    console.log(`[SIGNIN] Cookie set with sameSite: ${isProduction ? 'none' : 'lax'}, secure: ${isProduction}, redirecting to /`);
+    console.log(`[SIGNIN] Cookie set, redirecting to /`);
     return res.redirect("/");
   } else {
     console.log(`[SIGNIN] ❌ Login failed for ${req.body.email}`);
