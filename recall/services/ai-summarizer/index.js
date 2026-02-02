@@ -1,4 +1,4 @@
-import OpenAI from "../openai/index.js";
+import { chatCompletion } from "../openai/index.js";
 import AssemblyAI from "../assemblyai/index.js";
 import Notepad from "../notepad/index.js";
 
@@ -73,7 +73,6 @@ export default {
    * Summarize using OpenAI directly
    */
   async _summarizeWithOpenAI(transcriptText, metadata, settings, model) {
-    const { chatCompletion } = OpenAI;
     
     // Reuse the prompt structure from Notepad service
     const title = metadata?.title || "Meeting";
