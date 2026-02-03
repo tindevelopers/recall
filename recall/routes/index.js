@@ -20,6 +20,7 @@ import notionConnect from "./oauth/notion-connect.js";
 import oauthCallbackNotion from "./oauth-callback/notion.js";
 import webhooksRecallCalendarUpdates from "./webhooks/recall-calendar-updates.js";
 import webhooksRecallNotes from "./webhooks/recall-notes.js";
+import webhooksAssemblyAi from "./webhooks/assemblyai.js";
 import notionTarget from "./integrations/notion-target.js";
 import slackTarget from "./integrations/slack-target.js";
 import teamworkTarget from "./integrations/teamwork-target.js";
@@ -42,7 +43,14 @@ import meetingsList from "./meetings/list.js";
 import meetingsDetail from "./meetings/detail.js";
 import meetingsShared from "./meetings/shared.js";
 import meetingsUpdateTranscriptionMode from "./meetings/update-transcription-mode.js";
-import { getTranscript, getSummary, getActionItems, triggerEnrichment } from "./api/meeting-details.js";
+import {
+  getTranscript,
+  getSummary,
+  getActionItems,
+  triggerEnrichment,
+  triggerSuperAgentAnalysis,
+  getSuperAgentAnalysis,
+} from "./api/meeting-details.js";
 import refreshRecording from "./api/refresh-recording.js";
 import getRecording from "./api/get-recording.js";
 import publishMeeting from "./api/publish-meeting.js";
@@ -117,6 +125,7 @@ router.get("/oauth-callback/slack", oauthCallbackSlack);
 
 router.all("/webhooks/recall-calendar-updates", webhooksRecallCalendarUpdates);
 router.post("/webhooks/recall-notes", webhooksRecallNotes);
+router.post("/webhooks/assemblyai", webhooksAssemblyAi);
 
 router.post("/integrations/notion-target", notionTarget);
 router.post("/integrations/slack-target", slackTarget);
@@ -151,6 +160,8 @@ router.get("/api/meetings/:meetingId/transcript", getTranscript);
 router.get("/api/meetings/:meetingId/summary", getSummary);
 router.get("/api/meetings/:meetingId/actions", getActionItems);
 router.post("/api/meetings/enrich", triggerEnrichment);
+router.post("/api/meetings/:meetingId/super-agent/analyze", triggerSuperAgentAnalysis);
+router.get("/api/meetings/:meetingId/super-agent", getSuperAgentAnalysis);
 router.get("/api/meetings/:meetingId/recording", getRecording);
 router.post("/api/meetings/:meetingId/refresh-recording", refreshRecording);
 router.post("/api/meetings/:meetingId/publish", publishMeeting);

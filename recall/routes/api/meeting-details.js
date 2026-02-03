@@ -2,6 +2,31 @@ import db from "../../db.js";
 import { backgroundQueue } from "../../queue.js";
 import { findAccessibleArtifact } from "../../services/meetings/access.js";
 
+function isSuperAgentEnabled() {
+  return process.env.SUPER_AGENT_ENABLED === "true";
+}
+
+function normalizeRequestedFeatures(features = {}) {
+  if (!features || typeof features !== "object") return {};
+
+  const normalized = {
+    translateTo: Array.isArray(features.translateTo)
+      ? features.translateTo.filter((lang) => typeof lang === "string" && lang.trim())
+      : [],
+    topicDetection: !!features.topicDetection,
+    contentModeration: !!features.contentModeration,
+    piiRedaction: !!features.piiRedaction,
+    profanityFiltering: !!features.profanityFiltering,
+    sentimentAnalysis: !!features.sentimentAnalysis,
+  };
+
+  if (normalized.translateTo.length === 0) {
+    delete normalized.translateTo;
+  }
+
+  return normalized;
+}
+
 /**
  * Get transcript for a meeting
  * GET /api/meetings/:meetingId/transcript
@@ -283,5 +308,135 @@ export async function triggerEnrichment(req, res) {
   } catch (error) {
     console.error(`[API] Error triggering enrichment for artifact ${artifactId}:`, error);
     return res.status(500).json({ error: "Failed to trigger enrichment" });
+  }
+}
+
+/**
+ * Trigger Super Agent analysis (AssemblyAI premium)
+ * POST /api/meetings/:meetingId/super-agent/analyze
+ */
+export async function triggerSuperAgentAnalysis(req, res) {
+  if (!req.authenticated) {
+    return res.status(401).json({ error: "Unauthorized" });
+  }
+
+  if (!isSuperAgentEnabled()) {
+    return res.status(403).json({ error: "Super Agent is not enabled for this account" });
+  }
+
+  if (!process.env.ASSEMBLYAI_API_KEY) {
+    return res.status(503).json({ error: "AssemblyAI is not configured" });
+  }
+
+  const { meetingId } = req.params;
+  const userId = req.authentication.user.id;
+  const userEmail = req.authentication.user.email || null;
+
+  try {
+    const accessibleArtifact = await findAccessibleArtifact({
+      meetingIdOrReadableId: meetingId,
+      userId,
+      userEmail,
+    });
+
+    if (!accessibleArtifact) {
+      return res.status(404).json({ error: "Meeting not found" });
+    }
+
+    const artifact = await db.MeetingArtifact.findByPk(accessibleArtifact.id);
+    if (!artifact) {
+      return res.status(404).json({ error: "Meeting artifact not found" });
+    }
+
+    const requestedFeatures = normalizeRequestedFeatures(req.body?.features || {});
+
+    const analysis = await db.MeetingSuperAgentAnalysis.create({
+      meetingArtifactId: artifact.id,
+      userId,
+      status: "queued",
+      requestedFeatures,
+    });
+
+    await backgroundQueue.add(
+      "meeting.super_agent.start",
+      {
+        analysisId: analysis.id,
+        meetingArtifactId: artifact.id,
+        userId,
+        requestedFeatures,
+      },
+      {
+        jobId: `super-agent-start-${analysis.id}`,
+        removeOnComplete: true,
+        removeOnFail: false,
+      }
+    );
+
+    return res.json({
+      success: true,
+      analysisId: analysis.id,
+      status: analysis.status,
+    });
+  } catch (error) {
+    console.error(`[API] Super Agent analyze error for meeting ${meetingId}:`, error);
+    return res.status(500).json({ error: "Failed to trigger Super Agent analysis" });
+  }
+}
+
+/**
+ * Get Super Agent analysis status/results
+ * GET /api/meetings/:meetingId/super-agent
+ */
+export async function getSuperAgentAnalysis(req, res) {
+  if (!req.authenticated) {
+    return res.status(401).json({ error: "Unauthorized" });
+  }
+
+  const { meetingId } = req.params;
+  const userId = req.authentication.user.id;
+  const userEmail = req.authentication.user.email || null;
+
+  try {
+    const accessibleArtifact = await findAccessibleArtifact({
+      meetingIdOrReadableId: meetingId,
+      userId,
+      userEmail,
+    });
+
+    if (!accessibleArtifact) {
+      return res.status(404).json({ error: "Meeting not found" });
+    }
+
+    const analysis = await db.MeetingSuperAgentAnalysis.findOne({
+      where: { meetingArtifactId: accessibleArtifact.id },
+      order: [["createdAt", "DESC"]],
+    });
+
+    if (!analysis) {
+      return res.json({ analysis: null });
+    }
+
+    return res.json({
+      analysis: {
+        id: analysis.id,
+        status: analysis.status,
+        requestedFeatures: analysis.requestedFeatures || {},
+        detailedSummary: analysis.detailedSummary || null,
+        actionItems: analysis.actionItems || [],
+        decisions: analysis.decisions || [],
+        highlights: analysis.highlights || [],
+        chapters: analysis.chapters || [],
+        sentiment: analysis.sentiment || null,
+        topics: analysis.topics || [],
+        contentSafety: analysis.contentSafety || null,
+        translation: analysis.translation || null,
+        errorMessage: analysis.errorMessage || null,
+        createdAt: analysis.createdAt,
+        updatedAt: analysis.updatedAt,
+      },
+    });
+  } catch (error) {
+    console.error(`[API] Error fetching Super Agent analysis for meeting ${meetingId}:`, error);
+    return res.status(500).json({ error: "Failed to fetch Super Agent analysis" });
   }
 }

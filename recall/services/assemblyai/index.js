@@ -1,7 +1,30 @@
 import fetch from "node-fetch";
 
-const ASSEMBLYAI_API_KEY = process.env.ASSEMBLYAI_API_KEY || "0da92f32448e4d6b9a72f0006c7eaed2";
+const ASSEMBLYAI_API_KEY = process.env.ASSEMBLYAI_API_KEY;
+const ASSEMBLYAI_API_URL = process.env.ASSEMBLYAI_API_URL || "https://api.assemblyai.com";
 const ASSEMBLYAI_LLM_GATEWAY_URL = "https://llm-gateway.assemblyai.com/v1";
+
+async function fetchWithRetry(url, options = {}, retryOptions = {}) {
+  const {
+    retries = 2,
+    backoffMs = 1000,
+    retryStatuses = [429, 503, 504],
+  } = retryOptions;
+
+  let attempt = 0;
+  while (true) {
+    const response = await fetch(url, options);
+    if (!retryStatuses.includes(response.status) || attempt >= retries) {
+      return response;
+    }
+    const retryAfter = response.headers.get("retry-after");
+    const waitMs = retryAfter
+      ? Number.parseInt(retryAfter, 10) * 1000
+      : backoffMs * Math.pow(2, attempt);
+    await new Promise((resolve) => setTimeout(resolve, Number.isFinite(waitMs) ? waitMs : backoffMs));
+    attempt += 1;
+  }
+}
 
 /**
  * AssemblyAI Service
@@ -10,6 +33,97 @@ const ASSEMBLYAI_LLM_GATEWAY_URL = "https://llm-gateway.assemblyai.com/v1";
  * Supports multiple LLM providers through AssemblyAI's unified interface
  */
 export default {
+  async createTranscript(requestBody) {
+    if (!ASSEMBLYAI_API_KEY) {
+      throw new Error("ASSEMBLYAI_API_KEY is not configured");
+    }
+
+    const response = await fetchWithRetry(`${ASSEMBLYAI_API_URL}/v2/transcript`, {
+      method: "POST",
+      headers: {
+        authorization: ASSEMBLYAI_API_KEY,
+        "content-type": "application/json",
+      },
+      body: JSON.stringify(requestBody),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`AssemblyAI transcript request failed (${response.status}): ${errorText || "unknown"}`);
+    }
+
+    return response.json();
+  },
+
+  async getTranscript(transcriptId) {
+    if (!ASSEMBLYAI_API_KEY) {
+      throw new Error("ASSEMBLYAI_API_KEY is not configured");
+    }
+
+    const response = await fetchWithRetry(`${ASSEMBLYAI_API_URL}/v2/transcript/${transcriptId}`, {
+      method: "GET",
+      headers: {
+        authorization: ASSEMBLYAI_API_KEY,
+      },
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`AssemblyAI transcript fetch failed (${response.status}): ${errorText || "unknown"}`);
+    }
+
+    return response.json();
+  },
+
+  async uploadFromUrl(sourceUrl) {
+    if (!ASSEMBLYAI_API_KEY) {
+      throw new Error("ASSEMBLYAI_API_KEY is not configured");
+    }
+
+    const sourceResponse = await fetch(sourceUrl);
+    if (!sourceResponse.ok || !sourceResponse.body) {
+      throw new Error(`Failed to fetch source media (${sourceResponse.status}): ${sourceResponse.statusText}`);
+    }
+
+    const uploadResponse = await fetch(`${ASSEMBLYAI_API_URL}/v2/upload`, {
+      method: "POST",
+      headers: {
+        authorization: ASSEMBLYAI_API_KEY,
+      },
+      body: sourceResponse.body,
+    });
+
+    if (!uploadResponse.ok) {
+      const errorText = await uploadResponse.text();
+      throw new Error(`AssemblyAI upload failed (${uploadResponse.status}): ${errorText || "unknown"}`);
+    }
+
+    const payload = await uploadResponse.json();
+    return payload.upload_url;
+  },
+
+  async submitTranscript({ audioUrl, requestBody, allowUploadFallback = true }) {
+    if (!audioUrl) {
+      throw new Error("audioUrl is required to submit transcript");
+    }
+
+    const baseRequest = { ...requestBody, audio_url: audioUrl };
+
+    try {
+      const transcript = await this.createTranscript(baseRequest);
+      return { transcript, requestBody: baseRequest };
+    } catch (error) {
+      if (!allowUploadFallback) {
+        throw error;
+      }
+
+      const uploadUrl = await this.uploadFromUrl(audioUrl);
+      const uploadRequest = { ...requestBody, audio_url: uploadUrl };
+      const transcript = await this.createTranscript(uploadRequest);
+      return { transcript, requestBody: uploadRequest };
+    }
+  },
+
   /**
    * Summarize transcript using AssemblyAI's LLM Gateway
    * @param {string} transcriptText - The transcript text to summarize
@@ -73,7 +187,7 @@ Please analyze this meeting transcript and provide a comprehensive summary with 
 
     try {
       // Use AssemblyAI's LLM Gateway endpoint for chat completions
-      const response = await fetch(`${ASSEMBLYAI_LLM_GATEWAY_URL}/chat/completions`, {
+      const response = await fetchWithRetry(`${ASSEMBLYAI_LLM_GATEWAY_URL}/chat/completions`, {
         method: "POST",
         headers: {
           authorization: ASSEMBLYAI_API_KEY,
@@ -95,7 +209,7 @@ Please analyze this meeting transcript and provide a comprehensive summary with 
           temperature: 0.3,
           max_tokens: 8000,
         }),
-      });
+      }, { retries: 2, backoffMs: 1500 });
 
       if (!response.ok) {
         const errorText = await response.text();
@@ -139,6 +253,75 @@ Please analyze this meeting transcript and provide a comprehensive summary with 
       console.error("[ASSEMBLYAI] Summarization error:", error);
       throw error;
     }
+  },
+
+  async generateSuperAgentSummary({ transcriptText, metadata = {}, chapters = [] }) {
+    if (!ASSEMBLYAI_API_KEY) {
+      throw new Error("ASSEMBLYAI_API_KEY is not configured");
+    }
+
+    const title = metadata?.title || "Meeting";
+    const participants = metadata?.participants || [];
+    const participantNames = Array.isArray(participants)
+      ? participants.map(p => p.name || p.email || p).filter(Boolean).join(", ")
+      : "";
+
+    const chapterOutline = Array.isArray(chapters) && chapters.length > 0
+      ? chapters
+          .map((chapter, index) => {
+            const headline = chapter.headline || chapter.gist || `Chapter ${index + 1}`;
+            const start = typeof chapter.start === "number" ? Math.floor(chapter.start / 1000) : null;
+            const end = typeof chapter.end === "number" ? Math.floor(chapter.end / 1000) : null;
+            return `- ${headline}${start !== null ? ` (${start}s${end !== null ? `-${end}s` : ""})` : ""}: ${chapter.summary || ""}`;
+          })
+          .join("\n")
+      : "No chapters available.";
+
+    const systemPrompt = `You are an expert meeting analyst. Return valid JSON only.\n\nReturn fields:\n1. detailed_summary: A Fellow-style executive summary + detailed narrative.\n2. action_items: Array of { task, assignee, due_date }.\n3. decisions: Array of { decision, context }.\n4. highlights: Array of { title, summary, speaker, timestamp_seconds, category, impact }.\n5. key_insights: Array of { insight, importance }.\n6. outcome: One of productive|inconclusive|needs_followup|blocked|informational.`;
+
+    const userMessage = `Meeting Details:\nTitle: ${title}\nParticipants: ${participantNames || "Not specified"}\n\nChapter Outline:\n${chapterOutline}\n\nTranscript:\n${transcriptText}\n\nProvide a comprehensive response in JSON that is actionable and detailed.`;
+
+    const response = await fetchWithRetry(`${ASSEMBLYAI_LLM_GATEWAY_URL}/chat/completions`, {
+      method: "POST",
+      headers: {
+        authorization: ASSEMBLYAI_API_KEY,
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "claude-sonnet-4-5-20250929",
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userMessage },
+        ],
+        response_format: { type: "json_object" },
+        temperature: 0.2,
+        max_tokens: 4500,
+      }),
+    }, { retries: 2, backoffMs: 1500 });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`AssemblyAI LLM Gateway failed (${response.status}): ${errorText || "unknown"}`);
+    }
+
+    const json = await response.json();
+    const content = json.choices?.[0]?.message?.content || "";
+
+    let parsed;
+    try {
+      parsed = typeof content === "string" ? JSON.parse(content) : content;
+    } catch (parseError) {
+      throw new Error("AssemblyAI LLM Gateway returned invalid JSON");
+    }
+
+    return {
+      detailedSummary: parsed.detailed_summary || parsed.summary || "",
+      actionItems: parsed.action_items || [],
+      decisions: parsed.decisions || [],
+      highlights: parsed.highlights || [],
+      keyInsights: parsed.key_insights || [],
+      outcome: parsed.outcome || null,
+    };
   },
 
   /**

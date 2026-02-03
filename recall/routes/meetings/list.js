@@ -2062,12 +2062,28 @@ export default async (req, res) => {
     const hasRecallRecordingFlag = hasRecordingFlag && !!artifact.recallBotId;
 
     // Check if this is a Teams recording
-    const hasTeamsRecordingFlag = 
+    const hasTeamsRecordingFlag =
       artifact.eventType === "teams_recording" ||
       artifact.rawPayload?.source === "microsoft_teams" ||
-      (typeof artifact.rawPayload?.data?.meetingUrl === "string" && 
-       artifact.rawPayload.data.meetingUrl.includes("teams.microsoft.com")) ||
+      (typeof artifact.rawPayload?.data?.meetingUrl === "string" &&
+        artifact.rawPayload.data.meetingUrl.includes("teams.microsoft.com")) ||
       (calendarEvent?.meetingUrl && calendarEvent.meetingUrl.includes("teams.microsoft.com"));
+
+    const teamsRecordingUrl =
+      artifact.rawPayload?.data?.teamsRecordingUrl ||
+      artifact.rawPayload?.data?.teams_video_url ||
+      artifact.rawPayload?.teamsRecordingUrl ||
+      artifact.rawPayload?.data?.sharePointRecordingUrl ||
+      (hasTeamsRecordingFlag ? artifact.sourceRecordingUrl : null) ||
+      null;
+
+    const recordingSource = hasRecallRecordingFlag
+      ? "recall"
+      : hasTeamsRecordingFlag
+        ? "teams"
+        : hasRecordingFlag
+          ? "external"
+          : null;
 
     // Use existing artifact data - don't fetch bot data on-demand as it causes N+1 API calls (600+ requests!)
     // Duration will be calculated from existing data or shown as unknown
@@ -2286,6 +2302,8 @@ export default async (req, res) => {
         artifact.rawPayload?.data?.audio_url ||
         artifact.rawPayload?.data?.media_shortcuts?.audio?.data?.download_url ||
         null,
+      teamsRecordingUrl,
+      recordingSource,
       participants: finalParticipants,
       description: finalDescription,
       // #region agent log

@@ -1038,6 +1038,8 @@
   const artifactId = '<%= meeting.artifactId || "" %>';
   const topicsData = <%- JSON.stringify(meeting.topics || []) %>;
   const meetingSummaryText = <%- JSON.stringify(meeting.summary || "") %>;
+  const superAgentEnabled = <%= meeting.superAgentEnabled ? "true" : "false" %>;
+  const initialSuperAgentAnalysis = <%- JSON.stringify(meeting.superAgentAnalysis || null) %>;
 
   // Format all datetime elements to user's local timezone
   document.addEventListener('DOMContentLoaded', function() {
@@ -1094,6 +1096,8 @@
         }
       });
     });
+
+    initializeSuperAgent();
   });
 
   // Tab switching functionality
@@ -1489,6 +1493,233 @@
       setTimeout(() => {
         btnText.textContent = originalText;
       }, 5000);
+    }
+  }
+
+  let superAgentPollTimer = null;
+
+  function openSuperAgentPanel() {
+    switchTab('summary', { focus: false });
+    const section = document.getElementById('super-agent-section');
+    if (section) {
+      section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }
+
+  function getSuperAgentFeatures() {
+    const translateSelect = document.getElementById('super-agent-translate');
+    const translateTo = translateSelect && translateSelect.value ? [translateSelect.value] : [];
+    return {
+      translateTo,
+      topicDetection: !!document.getElementById('super-agent-topic')?.checked,
+      contentModeration: !!document.getElementById('super-agent-moderation')?.checked,
+      piiRedaction: !!document.getElementById('super-agent-pii')?.checked,
+      profanityFiltering: !!document.getElementById('super-agent-profanity')?.checked,
+      sentimentAnalysis: !!document.getElementById('super-agent-sentiment')?.checked,
+    };
+  }
+
+  function setSuperAgentStatus(status, message) {
+    const pill = document.getElementById('super-agent-status-pill');
+    if (!pill) return;
+    const label = message || status || 'Not started';
+    pill.textContent = label;
+    pill.className = 'inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium ring-1 ring-inset';
+
+    if (status === 'completed') {
+      pill.classList.add('bg-green-50', 'text-green-700', 'ring-green-600/20');
+    } else if (status === 'processing' || status === 'queued') {
+      pill.classList.add('bg-amber-50', 'text-amber-700', 'ring-amber-600/20');
+    } else if (status === 'error') {
+      pill.classList.add('bg-red-50', 'text-red-700', 'ring-red-600/20');
+    } else {
+      pill.classList.add('bg-gray-100', 'text-gray-600', 'ring-gray-300');
+    }
+  }
+
+  function renderSuperAgentAnalysis(analysis) {
+    const progress = document.getElementById('super-agent-progress');
+    const results = document.getElementById('super-agent-results');
+    const errorEl = document.getElementById('super-agent-error');
+    const triggerBtn = document.getElementById('super-agent-trigger');
+
+    if (!analysis) {
+      setSuperAgentStatus('idle', 'Not started');
+      if (progress) progress.classList.add('hidden');
+      if (results) results.classList.add('hidden');
+      if (errorEl) errorEl.classList.add('hidden');
+      if (triggerBtn) {
+        triggerBtn.disabled = !superAgentEnabled;
+        triggerBtn.textContent = superAgentEnabled ? 'Analyse with Super Agent' : 'Super Agent disabled';
+      }
+      return;
+    }
+
+    const status = analysis.status || 'processing';
+    setSuperAgentStatus(status, status === 'queued' ? 'Queued' : status);
+
+    if (progress) {
+      progress.classList.toggle('hidden', !(status === 'processing' || status === 'queued'));
+      progress.classList.toggle('flex', status === 'processing' || status === 'queued');
+    }
+
+    if (errorEl) {
+      if (status === 'error') {
+        errorEl.textContent = analysis.errorMessage || 'Super Agent failed. Please try again.';
+        errorEl.classList.remove('hidden');
+      } else {
+        errorEl.classList.add('hidden');
+      }
+    }
+
+    if (triggerBtn) {
+      triggerBtn.disabled = status === 'processing' || status === 'queued';
+      triggerBtn.textContent = status === 'completed' ? 'Re-run Super Agent' : 'Analyse with Super Agent';
+    }
+
+    if (results) {
+      if (status === 'completed') {
+        results.classList.remove('hidden');
+        const summaryEl = document.getElementById('super-agent-summary');
+        if (summaryEl) summaryEl.textContent = analysis.detailedSummary || '';
+
+        const chaptersEl = document.getElementById('super-agent-chapters');
+        if (chaptersEl) {
+          const chapters = Array.isArray(analysis.chapters) ? analysis.chapters : [];
+          chaptersEl.innerHTML = chapters.length
+            ? chapters.map((chapter) => {
+                const start = typeof chapter.start === 'number' ? Math.floor(chapter.start / 1000) : null;
+                const end = typeof chapter.end === 'number' ? Math.floor(chapter.end / 1000) : null;
+                const timeLabel = start !== null ? formatSecondsLabel(start) : null;
+                const endLabel = end !== null ? formatSecondsLabel(end) : null;
+                return `
+                  <div class="rounded-md border border-gray-200 p-3">
+                    <div class="flex items-center justify-between">
+                      <div class="font-medium text-gray-900">${chapter.headline || chapter.gist || 'Chapter'}</div>
+                      ${timeLabel ? `<div class="text-xs text-gray-500">${timeLabel}${endLabel ? `-${endLabel}` : ''}</div>` : ''}
+                    </div>
+                    <p class="mt-1 text-xs text-gray-600">${chapter.summary || ''}</p>
+                  </div>
+                `;
+              }).join('')
+            : '<p class="text-xs text-gray-500">No chapters available.</p>';
+        }
+
+        const actionsEl = document.getElementById('super-agent-actions');
+        if (actionsEl) {
+          const actions = Array.isArray(analysis.actionItems) ? analysis.actionItems : [];
+          actionsEl.innerHTML = actions.length
+            ? actions.map((item) => {
+                const text = item.task || item.action || item.text || item.description || JSON.stringify(item);
+                const assignee = item.assignee ? ` — ${item.assignee}` : '';
+                return `<li class="flex items-start"><span class="mt-1 h-2 w-2 rounded-full bg-amber-400"></span><span class="ml-2">${text}${assignee}</span></li>`;
+              }).join('')
+            : '<li class="text-xs text-gray-500">No action items yet.</li>';
+        }
+
+        const decisionsEl = document.getElementById('super-agent-decisions');
+        if (decisionsEl) {
+          const decisions = Array.isArray(analysis.decisions) ? analysis.decisions : [];
+          decisionsEl.innerHTML = decisions.length
+            ? decisions.map((item) => {
+                const text = item.decision || item.text || item.description || JSON.stringify(item);
+                return `<li class="flex items-start"><span class="mt-1 h-2 w-2 rounded-full bg-purple-400"></span><span class="ml-2">${text}</span></li>`;
+              }).join('')
+            : '<li class="text-xs text-gray-500">No decisions captured.</li>';
+        }
+
+        const highlightsEl = document.getElementById('super-agent-highlights');
+        if (highlightsEl) {
+          const highlights = Array.isArray(analysis.highlights) ? analysis.highlights : [];
+          highlightsEl.innerHTML = highlights.length
+            ? highlights.map((item) => {
+                const title = item.title || 'Highlight';
+                const summary = item.summary || item.text || item.description || '';
+                return `<li class="rounded-md border border-gray-200 p-3"><div class="text-sm font-semibold text-gray-900">${title}</div><p class="mt-1 text-xs text-gray-600">${summary}</p></li>`;
+              }).join('')
+            : '<li class="text-xs text-gray-500">No highlights available.</li>';
+        }
+      } else {
+        results.classList.add('hidden');
+      }
+    }
+  }
+
+  async function fetchSuperAgentAnalysis() {
+    if (!meetingId || !artifactId) return null;
+    try {
+      const response = await fetch(`/api/meetings/${meetingId}/super-agent`);
+      if (!response.ok) return null;
+      const data = await response.json();
+      return data.analysis || null;
+    } catch (error) {
+      console.error('Failed to fetch Super Agent analysis:', error);
+      return null;
+    }
+  }
+
+  function scheduleSuperAgentPoll() {
+    if (superAgentPollTimer) {
+      clearTimeout(superAgentPollTimer);
+    }
+    superAgentPollTimer = setTimeout(async () => {
+      const analysis = await fetchSuperAgentAnalysis();
+      if (analysis) {
+        renderSuperAgentAnalysis(analysis);
+        if (analysis.status === 'processing' || analysis.status === 'queued') {
+          scheduleSuperAgentPoll();
+        }
+      }
+    }, 4000);
+  }
+
+  async function triggerSuperAgentAnalysis() {
+    if (!artifactId) {
+      showNotification('Super Agent requires a processed recording.', 'error');
+      return;
+    }
+    if (!superAgentEnabled) {
+      showNotification('Super Agent is not enabled for this account.', 'error');
+      return;
+    }
+
+    const triggerBtn = document.getElementById('super-agent-trigger');
+    if (triggerBtn) {
+      triggerBtn.disabled = true;
+    }
+
+    try {
+      const response = await fetch(`/api/meetings/${meetingId}/super-agent/analyze`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ features: getSuperAgentFeatures() }),
+      });
+
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to start Super Agent analysis');
+      }
+
+      renderSuperAgentAnalysis({ status: 'queued' });
+      scheduleSuperAgentPoll();
+      showNotification('Super Agent analysis queued.', 'success');
+    } catch (error) {
+      showNotification(error.message || 'Failed to start Super Agent', 'error');
+      renderSuperAgentAnalysis({ status: 'error', errorMessage: error.message });
+    }
+  }
+
+  function initializeSuperAgent() {
+    if (!artifactId) return;
+    if (!superAgentEnabled) {
+      renderSuperAgentAnalysis(null);
+      return;
+    }
+    renderSuperAgentAnalysis(initialSuperAgentAnalysis);
+    if (!initialSuperAgentAnalysis || initialSuperAgentAnalysis.status === 'processing') {
+      scheduleSuperAgentPoll();
     }
   }
 

@@ -12,6 +12,7 @@ import initCalendarWebhookModel from "./models/calendar-webhook.js";
 import initMeetingArtifactModel from "./models/meeting-artifact.js";
 import initMeetingTranscriptChunkModel from "./models/meeting-transcript-chunk.js";
 import initMeetingSummaryModel from "./models/meeting-summary.js";
+import initMeetingSuperAgentAnalysisModel from "./models/meeting-super-agent-analysis.js";
 import initIntegrationModel from "./models/integration.js";
 import initPublishTargetModel from "./models/publish-target.js";
 import initPublishDeliveryModel from "./models/publish-delivery.js";
@@ -126,6 +127,7 @@ function initializeModels() {
   db.MeetingArtifact = initMeetingArtifactModel(sequelize);
   db.MeetingTranscriptChunk = initMeetingTranscriptChunkModel(sequelize);
   db.MeetingSummary = initMeetingSummaryModel(sequelize);
+  db.MeetingSuperAgentAnalysis = initMeetingSuperAgentAnalysisModel(sequelize);
   db.Integration = initIntegrationModel(sequelize);
   db.PublishTarget = initPublishTargetModel(sequelize);
   db.PublishDelivery = initPublishDeliveryModel(sequelize);
@@ -163,6 +165,16 @@ function initializeModels() {
     foreignKey: "userId",
   });
 
+  db.MeetingArtifact.hasMany(db.MeetingSuperAgentAnalysis, {
+    foreignKey: "meetingArtifactId",
+  });
+  db.MeetingSuperAgentAnalysis.belongsTo(db.MeetingArtifact, {
+    foreignKey: "meetingArtifactId",
+  });
+  db.MeetingSuperAgentAnalysis.belongsTo(db.User, {
+    foreignKey: "userId",
+  });
+
   db.MeetingSummary.hasMany(db.ActionItem, {
     foreignKey: "meetingSummaryId",
   });
@@ -172,6 +184,10 @@ function initializeModels() {
 
   db.User.hasMany(db.Integration, { foreignKey: "userId" });
   db.Integration.belongsTo(db.User, { foreignKey: "userId" });
+
+  db.User.hasMany(db.MeetingSuperAgentAnalysis, {
+    foreignKey: "userId",
+  });
 
   db.User.hasMany(db.PublishTarget, { foreignKey: "userId" });
   db.PublishTarget.belongsTo(db.User, { foreignKey: "userId" });

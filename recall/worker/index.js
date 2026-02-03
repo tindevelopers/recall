@@ -53,6 +53,8 @@ import periodicCalendarSync from "./processors/periodic-calendar-sync.js";
 import checkCalendarConnections from "./processors/check-calendar-connections.js";
 import teamsRecordingIngest from "./processors/teams-recording-ingest.js";
 import recordingArchive from "./processors/recording-archive.js";
+import meetingSuperAgentStart from "./processors/meeting-super-agent-start.js";
+import meetingSuperAgentComplete from "./processors/meeting-super-agent-complete.js";
 
 dotenv.config();
 consoleStamp(console);
@@ -129,6 +131,8 @@ const processors = [
   { name: "check.calendar.connections", concurrency: 1, handler: checkCalendarConnections },
   { name: "teams.recording.ingest", concurrency: 2, handler: teamsRecordingIngest },
   { name: "recording.archive", concurrency: 1, handler: recordingArchive },
+  { name: "meeting.super_agent.start", concurrency: 2, handler: meetingSuperAgentStart },
+  { name: "meeting.super_agent.complete", concurrency: 2, handler: meetingSuperAgentComplete },
 ];
 
 processors.forEach(({ name, concurrency, handler }) => {

@@ -771,6 +771,22 @@
                               </div>
                             </div>
                             
+                            <% if (meeting.recordingSource === "teams" && meeting.teamsRecordingUrl) { %>
+                              <div class="mt-2">
+                                <a
+                                  href="<%= meeting.teamsRecordingUrl %>"
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  class="inline-flex items-center text-xs font-medium text-blue-600 hover:text-blue-800"
+                                >
+                                  Open Teams recording
+                                  <svg class="ml-1 h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h6m0 0v6m0-6L10 20"></path>
+                                  </svg>
+                                </a>
+                              </div>
+                            <% } %>
+
                             <!-- Quick Action Icons -->
                             <div class="flex items-center space-x-1">
                               <!-- Play Recording Button - enabled for Recall recordings or Teams recordings -->

@@ -138,11 +138,16 @@ export default async (req, res) => {
   let summary = null;
   let transcriptChunks = [];
   let calendarEvent = null;
+  let superAgentAnalysis = null;
 
   if (artifact) {
     summary = artifact.MeetingSummaries?.[0] || null;
     transcriptChunks = artifact.MeetingTranscriptChunks || [];
     calendarEvent = artifact.CalendarEvent;
+    superAgentAnalysis = await db.MeetingSuperAgentAnalysis.findOne({
+      where: { meetingArtifactId: artifact.id },
+      order: [["createdAt", "DESC"]],
+    });
   } else {
     // Try to find as summary
     summary = await db.MeetingSummary.findOne({
@@ -171,6 +176,12 @@ export default async (req, res) => {
     artifact = summary.MeetingArtifact;
     transcriptChunks = artifact?.MeetingTranscriptChunks || [];
     calendarEvent = summary.CalendarEvent;
+    if (artifact?.id) {
+      superAgentAnalysis = await db.MeetingSuperAgentAnalysis.findOne({
+        where: { meetingArtifactId: artifact.id },
+        order: [["createdAt", "DESC"]],
+      });
+    }
   }
 
   // Build transcript from chunks or rawPayload
@@ -227,6 +238,12 @@ export default async (req, res) => {
     artifact?.rawPayload?.data?.media_shortcuts?.audio_mixed?.data?.download_url ||
       artifact?.rawPayload?.data?.media_shortcuts?.audio?.data?.download_url ||
       null,
+    teamsRecordingUrl:
+      artifact?.rawPayload?.data?.teamsRecordingUrl ||
+      artifact?.rawPayload?.data?.teams_video_url ||
+      artifact?.rawPayload?.teamsRecordingUrl ||
+      artifact?.rawPayload?.data?.sharePointRecordingUrl ||
+      null,
     
     // Summary data
     summary: summary?.summary || null,
@@ -249,6 +266,27 @@ export default async (req, res) => {
     outcome: summary?.outcome || null,
     stats: summary?.stats || derivedStats || null,
     summarySource: summary?.source || null,
+
+    superAgentAnalysis: superAgentAnalysis
+      ? {
+          id: superAgentAnalysis.id,
+          status: superAgentAnalysis.status,
+          requestedFeatures: superAgentAnalysis.requestedFeatures || {},
+          detailedSummary: superAgentAnalysis.detailedSummary || null,
+          actionItems: superAgentAnalysis.actionItems || [],
+          decisions: superAgentAnalysis.decisions || [],
+          highlights: superAgentAnalysis.highlights || [],
+          chapters: superAgentAnalysis.chapters || [],
+          sentiment: superAgentAnalysis.sentiment || null,
+          topics: superAgentAnalysis.topics || null,
+          contentSafety: superAgentAnalysis.contentSafety || null,
+          translation: superAgentAnalysis.translation || null,
+          errorMessage: superAgentAnalysis.errorMessage || null,
+          createdAt: superAgentAnalysis.createdAt,
+          updatedAt: superAgentAnalysis.updatedAt,
+        }
+      : null,
+    superAgentEnabled: process.env.SUPER_AGENT_ENABLED === "true",
     
     // Transcript
     transcript: transcriptData,
