@@ -201,6 +201,20 @@ export default async (req, res) => {
     });
   }
 
+  // Resolve calendar for Super Agent: use meeting's calendar event, or owner's calendar if no event linked
+  let calendarForSuperAgent = calendarEvent?.Calendar || null;
+  if (!calendarForSuperAgent && artifact) {
+    const ownerId = artifact.userId || artifact.ownerUserId;
+    if (ownerId) {
+      const { sequelize } = db;
+      const ownerCalendar = await db.Calendar.findOne({
+        where: { userId: ownerId },
+        order: [[sequelize.literal('enable_super_agent'), 'DESC'], ['id', 'ASC']],
+      });
+      calendarForSuperAgent = ownerCalendar || null;
+    }
+  }
+
   // Build meeting data - MINIMAL for fast initial render
   // Heavy data (transcript, stats) will be lazy-loaded
   const meeting = {
@@ -275,7 +289,7 @@ export default async (req, res) => {
           updatedAt: superAgentAnalysis.updatedAt,
         }
       : null,
-    superAgentEnabled: isSuperAgentEnabled(calendarEvent?.Calendar),
+    superAgentEnabled: isSuperAgentEnabled(calendarForSuperAgent),
     
     // LAZY LOADING: Transcript will be fetched via API
     transcript: [], // Empty - will be lazy-loaded

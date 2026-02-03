@@ -147,6 +147,20 @@ export async function getMeetingMetadata(req, res) {
     const calendarEvent = artifact.CalendarEvent;
     const summary = artifact.MeetingSummaries?.[0] || null;
 
+    // Resolve calendar for Super Agent: use event's calendar or owner's calendar if no event linked
+    let calendarForSuperAgent = calendarEvent?.Calendar || null;
+    if (!calendarForSuperAgent) {
+      const ownerId = artifact.userId || artifact.ownerUserId;
+      if (ownerId) {
+        const { sequelize } = db;
+        const ownerCalendar = await db.Calendar.findOne({
+          where: { userId: ownerId },
+          order: [[sequelize.literal('enable_super_agent'), 'DESC'], ['id', 'ASC']],
+        });
+        calendarForSuperAgent = ownerCalendar || null;
+      }
+    }
+
     // Get super agent analysis status
     let superAgentAnalysis = null;
     try {
@@ -196,7 +210,7 @@ export async function getMeetingMetadata(req, res) {
       hasTranscript: transcriptCount > 0,
       transcriptChunkCount: transcriptCount,
       superAgentStatus: superAgentAnalysis?.status || null,
-      superAgentEnabled: isSuperAgentEnabled(calendarEvent?.Calendar),
+      superAgentEnabled: isSuperAgentEnabled(calendarForSuperAgent),
       
       // Ownership
       isOwner,
@@ -557,7 +571,19 @@ export async function triggerSuperAgentAnalysis(req, res) {
     if (!artifact) {
       return res.status(404).json({ error: "Meeting artifact not found" });
     }
-    if (!isSuperAgentEnabled(artifact.CalendarEvent?.Calendar)) {
+    let calendarForSuperAgent = artifact.CalendarEvent?.Calendar || null;
+    if (!calendarForSuperAgent) {
+      const ownerId = artifact.userId || artifact.ownerUserId;
+      if (ownerId) {
+        const { sequelize } = db;
+        const ownerCalendar = await db.Calendar.findOne({
+          where: { userId: ownerId },
+          order: [[sequelize.literal('enable_super_agent'), 'DESC'], ['id', 'ASC']],
+        });
+        calendarForSuperAgent = ownerCalendar || null;
+      }
+    }
+    if (!isSuperAgentEnabled(calendarForSuperAgent)) {
       return res.status(403).json({ error: "Super Agent is not enabled for this account" });
     }
     const requestedFeatures = normalizeRequestedFeatures(req.body?.features || {});

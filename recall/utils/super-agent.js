@@ -7,10 +7,12 @@
  * @param {import('../models/calendar.js')} [calendar] - Optional calendar instance (may have enableSuperAgent).
  * @returns {boolean}
  */
+const ENABLED_VALUES = new Set(["true", "1", "yes", "on", "enabled"]);
+
 export function isSuperAgentEnabled(calendar = null) {
   if (calendar && calendar.enableSuperAgent === true) {
     return true;
   }
   const v = (process.env.SUPER_AGENT_ENABLED || "").trim().toLowerCase();
-  return v === "true" || v === "1" || v === "yes";
+  return ENABLED_VALUES.has(v);
 }
