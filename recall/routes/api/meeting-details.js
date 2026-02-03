@@ -1,9 +1,222 @@
 import db from "../../db.js";
 import { backgroundQueue } from "../../queue.js";
 import { findAccessibleArtifact } from "../../services/meetings/access.js";
+import { Op } from "sequelize";
 
 function isSuperAgentEnabled() {
   return process.env.SUPER_AGENT_ENABLED === "true";
+}
+
+// Generic/placeholder titles we should ignore when deriving a display name
+function isGenericMeetingTitle(title) {
+  if (!title) return true;
+  const normalized = String(title).trim().toLowerCase();
+  return (
+    normalized === "meeting" ||
+    normalized === "untitled meeting" ||
+    normalized === "untitled" ||
+    normalized === "(no title)"
+  );
+}
+
+/**
+ * Get participants from artifact rawPayload
+ */
+function getParticipantsFromArtifact(artifact) {
+  const data = artifact?.rawPayload?.data || {};
+  const participants = data.participants || data.attendees || [];
+  if (!Array.isArray(participants)) return [];
+  return participants
+    .map((p) => {
+      if (!p) return null;
+      return {
+        email: p.email || p.address || p.user_email || p.userId || null,
+        name: p.name || p.displayName || p.user_display_name || p.user_name || p.email || null,
+      };
+    })
+    .filter(Boolean);
+}
+
+/**
+ * Derive a human-readable meeting title from various sources.
+ */
+function extractMeetingTitle(artifact, calendarEvent) {
+  // 1) Calendar event title (from recallData)
+  const calEventTitle = calendarEvent?.recallData?.meeting_title || calendarEvent?.recallData?.title || calendarEvent?.title;
+  if (calEventTitle && !isGenericMeetingTitle(calEventTitle)) {
+    return calEventTitle;
+  }
+
+  // 2) Artifact payload title
+  if (artifact?.rawPayload?.data?.title && !isGenericMeetingTitle(artifact.rawPayload.data.title)) {
+    return artifact.rawPayload.data.title;
+  }
+
+  // 3) Bot meeting_metadata title (if present)
+  const botMetaTitle = artifact?.rawPayload?.data?.bot_metadata?.meeting_metadata?.title;
+  if (botMetaTitle && !isGenericMeetingTitle(botMetaTitle)) {
+    return botMetaTitle;
+  }
+
+  // 4) Build from participants
+  const participants = getParticipantsFromArtifact(artifact);
+  if (participants.length > 0) {
+    const names = participants
+      .slice(0, 2)
+      .map((p) => p.name || p.email?.split("@")[0])
+      .filter(Boolean);
+    if (names.length > 0) {
+      return `Meeting with ${names.join(" and ")}${participants.length > 2 ? ` +${participants.length - 2}` : ""}`;
+    }
+  }
+
+  // 5) Date-based fallback
+  const startTime = calendarEvent?.startTime || artifact?.rawPayload?.data?.start_time || artifact?.createdAt;
+  if (startTime) {
+    const date = new Date(startTime);
+    return `Meeting on ${date.toLocaleDateString("en-US", { month: "numeric", day: "numeric", year: "numeric" })}`;
+  }
+
+  return "Untitled Meeting";
+}
+
+/**
+ * Get meeting metadata (fast, no transcript) for lazy loading
+ * GET /api/meetings/:meetingId/metadata
+ */
+export async function getMeetingMetadata(req, res) {
+  if (!req.authenticated) {
+    return res.status(401).json({ error: "Unauthorized" });
+  }
+
+  const { meetingId } = req.params;
+  const userId = req.authentication.user.id;
+  const userEmail = req.authentication.user.email || null;
+
+  try {
+    // Find artifact with minimal includes (no transcript chunks)
+    let artifact = await db.MeetingArtifact.findOne({
+      where: {
+        [Op.or]: [
+          { id: meetingId },
+          { readableId: meetingId },
+        ],
+      },
+      include: [
+        {
+          model: db.CalendarEvent,
+          include: [{ model: db.Calendar }],
+        },
+        {
+          model: db.MeetingSummary,
+        },
+      ],
+    });
+
+    if (!artifact) {
+      return res.status(404).json({ error: "Meeting not found" });
+    }
+
+    // Check access
+    const isOwner = artifact.userId === userId || artifact.ownerUserId === userId;
+    let hasAccess = isOwner;
+    let shareInfo = null;
+
+    if (!isOwner) {
+      const user = await db.User.findByPk(userId);
+      const shareWhereClause = {
+        meetingArtifactId: artifact.id,
+        status: "accepted",
+        [Op.or]: [{ sharedWithUserId: userId }],
+      };
+      if (user?.email) {
+        shareWhereClause[Op.or].push({ sharedWithEmail: user.email.toLowerCase() });
+      }
+      
+      shareInfo = await db.MeetingShare.findOne({
+        where: shareWhereClause,
+        include: [{ model: db.User, as: "sharedByUser", attributes: ["id", "name", "email"] }],
+      });
+      
+      if (shareInfo) {
+        hasAccess = true;
+      }
+    }
+
+    if (!hasAccess) {
+      return res.status(403).json({ error: "Access denied" });
+    }
+
+    const calendarEvent = artifact.CalendarEvent;
+    const summary = artifact.MeetingSummaries?.[0] || null;
+
+    // Get super agent analysis status
+    let superAgentAnalysis = null;
+    try {
+      superAgentAnalysis = await db.MeetingSuperAgentAnalysis.findOne({
+        where: { meetingArtifactId: artifact.id },
+        order: [["createdAt", "DESC"]],
+        attributes: ["id", "status", "createdAt", "updatedAt"],
+      });
+    } catch (err) {
+      console.warn("[API] MeetingSuperAgentAnalysis lookup failed:", err?.message);
+    }
+
+    // Get transcript chunk count (fast query)
+    const transcriptCount = await db.MeetingTranscriptChunk.count({
+      where: { meetingArtifactId: artifact.id },
+    });
+
+    // Build metadata response
+    const metadata = {
+      id: artifact.id,
+      readableId: artifact.readableId,
+      title: extractMeetingTitle(artifact, calendarEvent),
+      startTime: calendarEvent?.startTime || artifact?.rawPayload?.data?.start_time || artifact?.createdAt,
+      endTime: calendarEvent?.endTime || artifact?.rawPayload?.data?.end_time || null,
+      status: artifact.status || "completed",
+      participants: artifact?.rawPayload?.data?.participants || artifact?.rawPayload?.data?.attendees || [],
+      calendarEmail: calendarEvent?.Calendar?.email || null,
+      platform: calendarEvent?.platform || null,
+      
+      // Recording URLs
+      videoUrl: 
+        artifact?.archivedRecordingUrl ||
+        artifact?.rawPayload?.data?.video_url || 
+        artifact?.rawPayload?.data?.recording_url || 
+        artifact?.rawPayload?.data?.media_shortcuts?.video_mixed?.data?.download_url ||
+        artifact?.rawPayload?.data?.media_shortcuts?.video?.data?.download_url ||
+        artifact?.sourceRecordingUrl ||
+        null,
+      audioUrl: 
+        artifact?.rawPayload?.data?.audio_url || 
+        artifact?.rawPayload?.data?.media_shortcuts?.audio_mixed?.data?.download_url ||
+        artifact?.rawPayload?.data?.media_shortcuts?.audio?.data?.download_url ||
+        null,
+      
+      // Flags for lazy loading
+      hasSummary: !!summary,
+      hasTranscript: transcriptCount > 0,
+      transcriptChunkCount: transcriptCount,
+      superAgentStatus: superAgentAnalysis?.status || null,
+      superAgentEnabled: isSuperAgentEnabled(),
+      
+      // Ownership
+      isOwner,
+      isShared: !!shareInfo,
+      
+      // For enrichment
+      artifactId: artifact.id,
+      hasBeenEnriched: !!summary,
+      
+      createdAt: artifact.createdAt,
+    };
+
+    return res.json({ metadata });
+  } catch (error) {
+    console.error(`[API] Error fetching metadata for meeting ${meetingId}:`, error);
+    return res.status(500).json({ error: "Failed to fetch meeting metadata" });
+  }
 }
 
 function normalizeRequestedFeatures(features = {}) {

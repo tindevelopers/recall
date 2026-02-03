@@ -18,10 +18,8 @@
     <main>
       <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 mt-8">
         <div class="grid grid-cols-1 gap-6 lg:grid-cols-12">
-          <!-- Main content column -->
-          <div class="lg:col-span-8 space-y-6">
-            
-            <%- include('partials/meeting-detail/recording', { meeting: meeting }) -%>
+          <!-- Main content column: full-width tabbed interface -->
+          <div class="lg:col-span-12 w-full">
             <%- include('partials/meeting-detail/tabs', { meeting: meeting, publishDeliveries: publishDeliveries }) -%>
 
             <% if (false) { %>
@@ -621,10 +619,6 @@
 
           </div>
 
-          <div class="lg:col-span-4">
-            <%- include('partials/meeting-detail/sidebar', { meeting: meeting }) -%>
-          </div>
-
           <% if (false) { %>
           <!-- Sidebar -->
           <div class="sm:col-span-1 space-y-6">
@@ -1040,6 +1034,12 @@
   const meetingSummaryText = <%- JSON.stringify(meeting.summary || "") %>;
   const superAgentEnabled = <%= meeting.superAgentEnabled ? "true" : "false" %>;
   const initialSuperAgentAnalysis = <%- JSON.stringify(meeting.superAgentAnalysis || null) %>;
+  const lazyLoadTranscript = <%= meeting.lazyLoadTranscript ? "true" : "false" %>;
+  const transcriptChunkCount = <%= meeting.transcriptChunkCount || 0 %>;
+  
+  // Lazy loading state
+  let transcriptLoaded = false;
+  let transcriptLoading = false;
 
   // Format all datetime elements to user's local timezone
   document.addEventListener('DOMContentLoaded', function() {
@@ -1132,6 +1132,150 @@
     if (options.focus) {
       activeTab.focus();
     }
+    
+    // Trigger lazy loading for transcript tab
+    if (tabName === 'transcript' && lazyLoadTranscript && !transcriptLoaded && !transcriptLoading) {
+      loadTranscript();
+    }
+  }
+  
+  // Lazy load transcript from API
+  async function loadTranscript() {
+    if (transcriptLoaded || transcriptLoading) return;
+    
+    transcriptLoading = true;
+    const loadingEl = document.getElementById('transcript-loading');
+    const contentEl = document.getElementById('transcript-content');
+    const errorEl = document.getElementById('transcript-error');
+    
+    // Show loading state
+    if (loadingEl) loadingEl.classList.remove('hidden');
+    if (contentEl) contentEl.classList.add('hidden');
+    if (errorEl) errorEl.classList.add('hidden');
+    
+    try {
+      const response = await fetch(`/api/meetings/${meetingId}/transcript`);
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+      
+      const data = await response.json();
+      const transcript = data.transcript || [];
+      
+      // Render transcript
+      renderTranscript(transcript);
+      
+      transcriptLoaded = true;
+      
+      // Hide loading, show content
+      if (loadingEl) loadingEl.classList.add('hidden');
+      if (contentEl) contentEl.classList.remove('hidden');
+      
+    } catch (error) {
+      console.error('Failed to load transcript:', error);
+      
+      // Show error state
+      if (loadingEl) loadingEl.classList.add('hidden');
+      if (errorEl) {
+        errorEl.classList.remove('hidden');
+        const errorMsg = document.getElementById('transcript-error-message');
+        if (errorMsg) {
+          errorMsg.textContent = error.message || 'An error occurred while loading the transcript.';
+        }
+      }
+    } finally {
+      transcriptLoading = false;
+    }
+  }
+  
+  // Render transcript HTML
+  function renderTranscript(transcript) {
+    const contentEl = document.getElementById('transcript-content');
+    if (!contentEl) return;
+    
+    if (!transcript || transcript.length === 0) {
+      contentEl.innerHTML = `
+        <div class="text-center py-8">
+          <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+          </svg>
+          <h3 class="mt-2 text-sm font-semibold text-gray-900">No transcript available</h3>
+          <p class="mt-1 text-sm text-gray-500">The meeting transcript will appear here once it's processed.</p>
+        </div>
+      `;
+      return;
+    }
+    
+    // Speaker color palette
+    const speakerPalette = ['indigo', 'blue', 'purple', 'emerald', 'amber', 'rose'];
+    const speakerColorMap = {};
+    
+    function getSpeakerColor(name) {
+      const str = name || 'Speaker';
+      if (!speakerColorMap[str]) {
+        let hash = 0;
+        for (let i = 0; i < str.length; i++) {
+          hash = (hash << 5) - hash + str.charCodeAt(i);
+          hash |= 0;
+        }
+        speakerColorMap[str] = speakerPalette[Math.abs(hash) % speakerPalette.length];
+      }
+      return speakerColorMap[str];
+    }
+    
+    function formatTime(ms) {
+      if (!ms && ms !== 0) return '';
+      const mins = Math.floor(ms / 60000);
+      const secs = Math.floor((ms % 60000) / 1000);
+      return `${mins}:${String(secs).padStart(2, '0')}`;
+    }
+    
+    let html = '<div class="max-h-96 overflow-y-auto"><div class="space-y-4">';
+    let currentSpeaker = null;
+    
+    transcript.forEach((chunk) => {
+      const showSpeaker = chunk.speaker !== currentSpeaker;
+      currentSpeaker = chunk.speaker;
+      const color = getSpeakerColor(chunk.speaker);
+      const time = formatTime(chunk.timestamp || chunk.startTimeMs);
+      
+      html += `<div class="${showSpeaker ? 'pt-3 border-t border-gray-100' : ''}">`;
+      
+      if (showSpeaker) {
+        html += `
+          <div class="flex items-center mb-1">
+            <span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium bg-${color}-100 text-${color}-800">
+              <svg class="mr-1 h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+              </svg>
+              ${escapeHtml(chunk.speaker || 'Speaker')}
+            </span>
+            ${time ? `<span class="ml-2 text-xs text-gray-400">${time}</span>` : ''}
+          </div>
+        `;
+      }
+      
+      html += `<p class="text-sm text-gray-700 pl-4 text-left">${escapeHtml(chunk.text || '')}</p>`;
+      html += '</div>';
+    });
+    
+    html += '</div></div>';
+    
+    // Add transcript count info
+    html += `
+      <div class="mt-4 pt-4 border-t border-gray-100 text-center">
+        <p class="text-xs text-gray-400">${transcript.length.toLocaleString()} transcript segments loaded</p>
+      </div>
+    `;
+    
+    contentEl.innerHTML = html;
+  }
+  
+  // HTML escape helper
+  function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
   }
 
   let actionsDrawerLastFocus = null;

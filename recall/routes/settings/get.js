@@ -1,4 +1,10 @@
 import db from "../../db.js";
+import {
+  buildGoogleCalendarOAuthUrl,
+  buildMicrosoftOutlookOAuthUrl,
+} from "../../logic/oauth.js";
+import { buildNotionOAuthUrl } from "../../logic/notion-oauth.js";
+import { getPageOrDatabase } from "../../services/notion/api-client.js";
 
 export default async (req, res) => {
   if (!req.authenticated) {
@@ -79,6 +85,44 @@ export default async (req, res) => {
   const teamworkTarget = publishTargets.find((t) => t.type === "teamwork") || null;
   const notionTarget = publishTargets.find((t) => t.type === "notion") || null;
 
+  // Get Notion integration for the Integrations tab
+  const notionIntegration = await db.Integration.findOne({
+    where: { userId, provider: "notion" },
+  });
+  
+  // Fetch Notion target details if available
+  let notionTargetDetails = null;
+  if (notionIntegration && notionTarget?.config?.destinationId) {
+    try {
+      notionTargetDetails = await getPageOrDatabase({
+        accessToken: notionIntegration.accessToken,
+        id: notionTarget.config.destinationId,
+      });
+    } catch (err) {
+      console.error("Failed to fetch Notion target details:", err.message);
+    }
+  }
+
+  // Build OAuth URLs for integrations tab
+  const calendarIdByPlatform = new Map();
+  calendars.forEach(cal => {
+    if ((cal.status || cal.recallData?.status) === "connected" && !calendarIdByPlatform.has(cal.platform)) {
+      calendarIdByPlatform.set(cal.platform, cal.id);
+    }
+  });
+
+  const connectUrls = {
+    googleCalendar: buildGoogleCalendarOAuthUrl({
+      userId,
+      calendarId: calendarIdByPlatform.get("google_calendar") || undefined,
+    }),
+    microsoftOutlook: buildMicrosoftOutlookOAuthUrl({
+      userId,
+      calendarId: calendarIdByPlatform.get("microsoft_outlook") || undefined,
+    }),
+    notion: buildNotionOAuthUrl({ userId }),
+  };
+
   return res.render("settings.ejs", {
     notice: notice || req.notice,
     user: req.authentication.user,
@@ -90,5 +134,11 @@ export default async (req, res) => {
     slackTarget,
     teamworkTarget,
     notionTarget,
+    notion: {
+      integration: notionIntegration || null,
+      target: notionTarget || null,
+      targetDetails: notionTargetDetails,
+    },
+    connectUrls,
   });
 };

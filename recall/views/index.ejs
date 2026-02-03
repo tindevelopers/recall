@@ -1,469 +1,310 @@
 <%- include('partials/header') -%>
-<div class="min-h-full">
+<div class="min-h-full bg-gradient-to-br from-slate-50 via-white to-indigo-50">
   <%- include('partials/navigation') -%>
   <%- include('partials/notice', { notice: notice }) -%>
+  
   <div class="py-10">
-    <header>
-      <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <h1
-          class="text-3xl font-bold leading-tight tracking-tight text-gray-900"
-        >
-          Dashboard
-        </h1>
-      </div>
-    </header>
     <main>
-      <div class="mx-auto max-w-7xl sm:px-6 lg:px-8">
-        <div class="flex flex-col space-y-6">
-          
-          <!-- Quick Actions Banner -->
-          <div class="mt-6 bg-gradient-to-r from-indigo-600 to-purple-600 rounded-lg shadow-lg overflow-hidden">
-            <div class="px-6 py-8 sm:px-10 sm:py-10">
-              <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between">
-                <div class="mb-4 sm:mb-0">
-                  <h2 class="text-2xl font-bold text-white">Meeting Notes & Recordings</h2>
-                  <p class="mt-1 text-indigo-100">View transcripts, AI summaries, action items, and download recordings from your completed meetings.</p>
+      <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        
+        <!-- Personalized Greeting Section -->
+        <div class="mb-8">
+          <%
+            const hour = new Date().getHours();
+            let greeting = 'Good Morning';
+            if (hour >= 12 && hour < 17) greeting = 'Good Afternoon';
+            else if (hour >= 17) greeting = 'Good Evening';
+            
+            const firstName = user.name ? user.name.split(' ')[0] : user.email.split('@')[0];
+          %>
+          <h1 class="text-3xl font-bold tracking-tight text-gray-900">
+            <%= greeting %>, <span class="text-indigo-600"><%= firstName %></span>!
+          </h1>
+          <p class="mt-2 text-lg text-gray-600">Welcome back to your meeting assistant.</p>
+        </div>
+
+        <!-- AI Assistant Section -->
+        <div class="mb-8 bg-gradient-to-r from-indigo-600 via-purple-600 to-indigo-700 rounded-2xl shadow-xl overflow-hidden">
+          <div class="px-6 py-8 sm:px-10 sm:py-10">
+            <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
+              <div class="flex items-start gap-4">
+                <div class="flex-shrink-0">
+                  <div class="h-14 w-14 rounded-full bg-white/20 flex items-center justify-center">
+                    <svg class="h-8 w-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path>
+                    </svg>
+                  </div>
                 </div>
-                <a
-                  href="/meetings"
-                  class="inline-flex items-center justify-center rounded-md bg-white px-6 py-3 text-base font-semibold text-indigo-600 shadow-sm hover:bg-indigo-50 transition-colors"
-                >
-                  <svg class="mr-2 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
-                  </svg>
-                  View Meetings
+                <div>
+                  <h2 class="text-2xl font-bold text-white">How can I help you today?</h2>
+                  <p class="mt-2 text-indigo-100 max-w-xl">Ask me anything about your meetings - find action items, search transcripts, or get summaries from past conversations.</p>
+                </div>
+              </div>
+              <div class="flex-shrink-0 w-full lg:w-auto">
+                <form id="ai-assistant-form" class="flex flex-col sm:flex-row gap-3">
+                  <input
+                    type="text"
+                    id="ai-query"
+                    name="query"
+                    placeholder="e.g., What were the action items from last week?"
+                    class="flex-1 min-w-0 lg:min-w-[320px] rounded-lg border-0 px-4 py-3 text-gray-900 shadow-sm ring-1 ring-inset ring-white/20 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-white sm:text-sm"
+                  />
+                  <button
+                    type="submit"
+                    class="inline-flex items-center justify-center rounded-lg bg-white px-6 py-3 text-sm font-semibold text-indigo-600 shadow-sm hover:bg-indigo-50 transition-colors"
+                  >
+                    <svg class="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                    </svg>
+                    Ask AI
+                  </button>
+                </form>
+              </div>
+            </div>
+            
+            <!-- AI Response Area (hidden by default) -->
+            <div id="ai-response" class="hidden mt-6 p-4 bg-white/10 rounded-lg backdrop-blur-sm">
+              <div id="ai-loading" class="hidden flex items-center gap-3 text-white">
+                <div class="h-5 w-5 animate-spin rounded-full border-2 border-white border-t-transparent"></div>
+                <span>Searching your meetings...</span>
+              </div>
+              <div id="ai-result" class="text-white"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 gap-8 lg:grid-cols-3">
+          <!-- Upcoming Meetings Section -->
+          <div class="lg:col-span-2">
+            <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+              <div class="px-6 py-5 border-b border-gray-100 flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                  <div class="h-10 w-10 rounded-lg bg-indigo-100 flex items-center justify-center">
+                    <svg class="h-5 w-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                    </svg>
+                  </div>
+                  <div>
+                    <h2 class="text-lg font-semibold text-gray-900">Upcoming Meetings</h2>
+                    <p class="text-sm text-gray-500">Next 7 days</p>
+                  </div>
+                </div>
+                <a href="/meetings" class="text-sm font-medium text-indigo-600 hover:text-indigo-500">
+                  View all →
                 </a>
+              </div>
+              <div class="divide-y divide-gray-100">
+                <% if (upcomingMeetings && upcomingMeetings.length > 0) { %>
+                  <% upcomingMeetings.forEach(function(event) { 
+                    const startTime = new Date(event.recallData?.start_time);
+                    const endTime = new Date(event.recallData?.end_time);
+                    const title = event.recallData?.meeting_title || event.recallData?.title || 'Untitled Meeting';
+                    const isToday = startTime.toDateString() === new Date().toDateString();
+                    const isTomorrow = startTime.toDateString() === new Date(Date.now() + 86400000).toDateString();
+                    const willRecord = event.shouldRecordAutomatic || event.shouldRecordManual;
+                  %>
+                    <div class="px-6 py-4 hover:bg-gray-50 transition-colors">
+                      <div class="flex items-start justify-between gap-4">
+                        <div class="flex items-start gap-4 min-w-0">
+                          <div class="flex-shrink-0 text-center">
+                            <% if (isToday) { %>
+                              <div class="text-xs font-semibold text-indigo-600 uppercase">Today</div>
+                            <% } else if (isTomorrow) { %>
+                              <div class="text-xs font-semibold text-amber-600 uppercase">Tomorrow</div>
+                            <% } else { %>
+                              <div class="text-xs font-medium text-gray-500 uppercase"><%= startTime.toLocaleDateString('en-US', { weekday: 'short' }) %></div>
+                            <% } %>
+                            <div class="text-lg font-bold text-gray-900"><%= startTime.getDate() %></div>
+                            <div class="text-xs text-gray-500"><%= startTime.toLocaleDateString('en-US', { month: 'short' }) %></div>
+                          </div>
+                          <div class="min-w-0 flex-1">
+                            <h3 class="text-sm font-semibold text-gray-900 truncate"><%= title %></h3>
+                            <p class="mt-1 text-sm text-gray-500">
+                              <%= startTime.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) %> - 
+                              <%= endTime.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) %>
+                            </p>
+                            <% if (event.recallData?.meeting_url) { %>
+                              <p class="mt-1 text-xs text-gray-400 truncate">
+                                <% 
+                                  const meetingUrl = event.recallData.meeting_url;
+                                  let platform = 'Video call';
+                                  if (meetingUrl.includes('zoom')) platform = 'Zoom';
+                                  else if (meetingUrl.includes('meet.google')) platform = 'Google Meet';
+                                  else if (meetingUrl.includes('teams')) platform = 'Microsoft Teams';
+                                %>
+                                <%= platform %>
+                              </p>
+                            <% } %>
+                          </div>
+                        </div>
+                        <div class="flex-shrink-0 flex items-center gap-2">
+                          <% if (willRecord) { %>
+                            <span class="inline-flex items-center rounded-full bg-green-50 px-2.5 py-1 text-xs font-medium text-green-700 ring-1 ring-inset ring-green-600/20">
+                              <svg class="mr-1 h-3 w-3" fill="currentColor" viewBox="0 0 20 20">
+                                <circle cx="10" cy="10" r="3"></circle>
+                              </svg>
+                              Recording
+                            </span>
+                          <% } else { %>
+                            <span class="inline-flex items-center rounded-full bg-gray-50 px-2.5 py-1 text-xs font-medium text-gray-600 ring-1 ring-inset ring-gray-500/10">
+                              Not recording
+                            </span>
+                          <% } %>
+                        </div>
+                      </div>
+                    </div>
+                  <% }); %>
+                <% } else { %>
+                  <div class="px-6 py-12 text-center">
+                    <svg class="mx-auto h-12 w-12 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                    </svg>
+                    <h3 class="mt-3 text-sm font-semibold text-gray-900">No upcoming meetings</h3>
+                    <p class="mt-1 text-sm text-gray-500">
+                      <% if (calendars.length === 0) { %>
+                        Connect your calendar to see upcoming meetings.
+                      <% } else { %>
+                        You have no meetings scheduled for the next 7 days.
+                      <% } %>
+                    </p>
+                    <% if (calendars.length === 0) { %>
+                      <div class="mt-4 flex justify-center gap-3">
+                        <a href="<%= connectUrls.googleCalendar %>" class="inline-flex items-center rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500">
+                          Connect Google
+                        </a>
+                        <a href="<%= connectUrls.microsoftOutlook %>" class="inline-flex items-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50">
+                          Connect Outlook
+                        </a>
+                      </div>
+                    <% } %>
+                  </div>
+                <% } %>
               </div>
             </div>
           </div>
 
-          <!-- Connect Calendar Section -->
-          <div>
-            <h3 class="text-lg font-semibold text-gray-900 mb-4">Connect Your Calendar</h3>
-            <% 
-              const googleCalendar = calendars.find(c => c.platform === 'google_calendar');
-              const microsoftCalendar = calendars.find(c => c.platform === 'microsoft_outlook');
-            %>
-            <ul role="list" class="grid grid-cols-1 gap-6 sm:grid-cols-2">
-            <li
-              class="col-span-1 divide-y divide-gray-200 rounded-md bg-white shadow"
-            >              
-              <div class="bg-white px-4 py-5 sm:px-6 rounded-md">
-                <div
-                  class="-ml-4 -mt-2 flex flex-wrap items-center justify-between sm:flex-nowrap"
-                >
-                  <div class="flex items-center ml-4 mt-2">
-                    <h3 class="text-base font-semibold leading-6 text-gray-900">
-                      Google Calendar
-                    </h3>
-                    <img
-                      class="w-4 h-4 flex-1 ml-2"
-                      alt="Google Calendar Logo"
-                      src="https://upload.wikimedia.org/wikipedia/commons/thumb/a/a5/Google_Calendar_icon_%282020%29.svg/2048px-Google_Calendar_icon_%282020%29.svg.png"
-                    />
-                    <% if (googleCalendar) { %>
-                      <span class="ml-2">
-                        <%- include('partials/calendar-status-badge', {status: googleCalendar.status}); %>
-                      </span>
-                    <% } %>
-                  </div>
-                  <div class="ml-4 mt-2 flex-shrink-0">
-                    <% if (googleCalendar && googleCalendar.status === 'connected') { %>
-                      <span
-                        class="relative inline-flex items-center rounded-sm bg-gray-100 px-3 py-1 text-xs font-medium text-gray-600 shadow-sm ring-1 ring-inset ring-gray-200 cursor-not-allowed"
-                        title="Already connected"
-                      >
-                        Connected
-                      </span>
-                      <a
-                        href="<%= connectUrls.googleCalendar %>"
-                        class="ml-2 text-xs font-medium text-indigo-600 hover:text-indigo-500 underline"
-                        title="Re-authorize this calendar connection"
-                      >
-                        Reconnect
-                      </a>
-                    <% } else if (googleCalendar) { %>
-                      <a
-                        href="<%= connectUrls.googleCalendar %>"
-                        class="relative inline-flex items-center rounded-sm bg-indigo-600 px-3 py-1 text-xs font-medium text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
-                      >
-                        Reconnect
-                      </a>
-                    <% } else { %>
-                      <a
-                        href="<%= connectUrls.googleCalendar %>"
-                        class="relative inline-flex items-center rounded-sm bg-indigo-600 px-3 py-1 text-xs font-medium text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
-                      >
-                        Connect
-                      </a>
-                    <% } %>
-                  </div>
-                </div>
-              </div>              
-            </li>
-            <li
-              class="col-span-1 divide-y divide-gray-200 rounded-md bg-white shadow"
-            >
-              <div class="bg-white px-4 py-5 sm:px-6 rounded-md">
-                <div
-                  class="-ml-4 -mt-2 flex flex-wrap items-center justify-between sm:flex-nowrap"
-                >
-                  <div class="flex items-center ml-4 mt-2">
-                    <h3 class="text-base font-semibold leading-6 text-gray-900">
-                      Microsoft Outlook
-                    </h3>
-                    <img
-                      class="w-4 h-4 ml-2"
-                      alt="Microsoft Outlook Calendar Logo"
-                      src="https://img.icons8.com/color/480/outlook-calendar.png"
-                    />
-                    <% if (microsoftCalendar) { %>
-                      <span class="ml-2">
-                        <%- include('partials/calendar-status-badge', {status: microsoftCalendar.status}); %>
-                      </span>
-                    <% } %>
-                  </div>
-                  <div class="ml-4 mt-2 flex-shrink-0">
-                    <% if (microsoftCalendar && microsoftCalendar.status === 'connected') { %>
-                      <span
-                        class="relative inline-flex items-center rounded-sm bg-gray-100 px-3 py-1 text-xs font-medium text-gray-600 shadow-sm ring-1 ring-inset ring-gray-200 cursor-not-allowed"
-                        title="Already connected"
-                      >
-                        Connected
-                      </span>
-                      <a
-                        href="<%= connectUrls.microsoftOutlook %>"
-                        class="ml-2 text-xs font-medium text-indigo-600 hover:text-indigo-500 underline"
-                        title="Re-authorize this calendar connection"
-                      >
-                        Reconnect
-                      </a>
-                    <% } else if (microsoftCalendar) { %>
-                      <a
-                        href="<%= connectUrls.microsoftOutlook %>"
-                        class="relative inline-flex items-center rounded-sm bg-indigo-600 px-3 py-1 text-xs font-medium text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
-                      >
-                        Reconnect
-                      </a>
-                    <% } else { %>
-                      <a
-                        href="<%= connectUrls.microsoftOutlook %>"
-                        class="relative inline-flex items-center rounded-sm bg-indigo-600 px-3 py-1 text-xs font-medium text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
-                      >
-                        Connect
-                      </a>
-                    <% } %>
-                  </div>
-                </div>
-              </div>
-            </li>
-          </ul>
-          </div>
-
-          <!-- Integrations & Tools Section -->
-          <div>
-            <h3 class="text-lg font-semibold text-gray-900 mb-4">Integrations & Tools</h3>
-            <ul role="list" class="grid grid-cols-1 gap-6 sm:grid-cols-2">
-              <li class="col-span-1 divide-y divide-gray-200 rounded-md bg-white shadow">
-                <div class="bg-white px-4 py-5 sm:px-6 rounded-md">
-                  <div class="-ml-4 -mt-2 flex flex-wrap items-center justify-between sm:flex-nowrap">
-                    <div class="flex items-center ml-4 mt-2">
-                      <svg class="h-5 w-5 text-gray-600 mr-2" viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M4.459 4.208c.746.606 1.026.56 2.428.466l13.215-.793c.28 0 .047-.28-.046-.326L17.86 1.968c-.42-.326-.98-.7-2.055-.607L3.01 2.295c-.466.046-.56.28-.374.466zm.793 3.08v13.904c0 .747.373 1.027 1.214.98l14.523-.84c.841-.046.935-.56.935-1.167V6.354c0-.606-.233-.933-.748-.886l-15.177.887c-.56.047-.747.327-.747.933zm14.337.745c.093.42 0 .84-.42.888l-.7.14v10.264c-.608.327-1.168.514-1.635.514-.748 0-.935-.234-1.495-.933l-4.577-7.186v6.952l1.448.327s0 .84-1.168.84l-3.22.186c-.094-.186 0-.653.327-.746l.84-.233V9.854L7.822 9.76c-.094-.42.14-1.026.793-1.073l3.456-.233 4.764 7.279v-6.44l-1.215-.14c-.093-.514.28-.886.747-.933zM1.936 1.035l13.31-.98c1.634-.14 2.055-.047 3.082.7l4.249 2.986c.7.513.934.653.934 1.213v16.378c0 1.026-.373 1.634-1.68 1.726l-15.458.934c-.98.047-1.448-.093-1.962-.747l-3.129-4.06c-.56-.747-.793-1.306-.793-1.96V2.667c0-.839.374-1.54 1.447-1.632z"/>
-                      </svg>
-                      <h3 class="text-base font-semibold leading-6 text-gray-900">
-                        Notion
-                      </h3>
-                    </div>
-                  <div class="ml-4 mt-2 flex-shrink-0 space-x-2">
-                    <% if (notion.integration) { %>
-                      <span class="inline-flex items-center rounded-md bg-green-50 px-2 py-1 text-xs font-medium text-green-700 ring-1 ring-inset ring-green-600/20">Connected</span>
-                    <% } else { %>
-                      <a
-                        href="<%= connectUrls.notion %>"
-                        class="relative inline-flex items-center rounded-sm bg-indigo-600 px-3 py-1 text-xs font-medium text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
-                      >
-                        Connect
-                      </a>
-                    <% } %>
-                  </div>
-                </div>
-                <div class="mt-4">
-                  <% if (notion.integration) { %>
-                  <form method="POST" action="/integrations/notion-target" class="space-y-3" id="notionTargetForm">
-                    <!-- Current Selection Display -->
-                    <div>
-                      <label class="block text-sm font-medium text-gray-700 mb-1">Destination</label>
-                      <div id="currentSelection" class="<%= notion.target ? '' : 'hidden' %>">
-                        <div class="flex items-center justify-between p-3 bg-gray-50 rounded-md border border-gray-200">
-                          <div class="flex items-center space-x-2">
-                            <span id="selectedIcon" class="text-lg"><%= notion.targetDetails?.icon || '📄' %></span>
-                            <div>
-                              <p id="selectedTitle" class="text-sm font-medium text-gray-900"><%= notion.targetDetails?.title || 'Select a destination' %></p>
-                              <p id="selectedType" class="text-xs text-gray-500 capitalize"><%= notion.target?.config?.destinationType || 'database' %></p>
-                            </div>
-                          </div>
-                          <button type="button" id="changeDestinationBtn" class="text-sm text-indigo-600 hover:text-indigo-500">
-                            Change
-                          </button>
-                        </div>
-                      </div>
-                      
-                      <!-- Destination Picker (hidden by default if selection exists) -->
-                      <div id="destinationPicker" class="<%= notion.target ? 'hidden' : '' %>">
-                        <div class="relative">
-                          <input
-                            type="text"
-                            id="notionSearch"
-                            placeholder="Search your Notion pages and databases..."
-                            class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
-                            autocomplete="off"
-                          />
-                          <div id="notionSearchResults" class="hidden absolute z-10 mt-1 w-full bg-white shadow-lg rounded-md border border-gray-200 max-h-60 overflow-auto">
-                            <div id="notionResultsList" class="py-1"></div>
-                            <div id="notionLoading" class="hidden p-3 text-center text-sm text-gray-500">
-                              <svg class="animate-spin h-5 w-5 mx-auto text-indigo-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                              </svg>
-                              Loading...
-                            </div>
-                            <div id="notionEmpty" class="hidden p-3 text-center text-sm text-gray-500">
-                              No pages or databases found. Make sure you've shared them with the integration.
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                    
-                    <!-- Hidden inputs for form submission -->
-                    <input type="hidden" name="destinationId" id="destinationId" value="<%= notion.target ? notion.target.config.destinationId : '' %>" required />
-                    <input type="hidden" name="destinationType" id="destinationType" value="<%= notion.target ? notion.target.config.destinationType : 'database' %>" />
-                    
-                    <div class="flex items-center">
-                      <input id="enabled" name="enabled" type="checkbox" <%= notion.target && notion.target.enabled ? "checked" : "" %> class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-600" />
-                      <label for="enabled" class="ml-2 block text-sm text-gray-700">Enable publishing</label>
-                    </div>
-                    <button
-                      type="submit"
-                      id="saveNotionBtn"
-                      class="inline-flex items-center rounded-md bg-indigo-600 px-3 py-1 text-xs font-medium text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 disabled:opacity-50 disabled:cursor-not-allowed"
-                      <%= notion.target ? '' : 'disabled' %>
-                    >
-                      Save Notion Target
-                    </button>
-                  </form>
-                  
-                  <script>
-                  (function() {
-                    const searchInput = document.getElementById('notionSearch');
-                    const resultsContainer = document.getElementById('notionSearchResults');
-                    const resultsList = document.getElementById('notionResultsList');
-                    const loadingEl = document.getElementById('notionLoading');
-                    const emptyEl = document.getElementById('notionEmpty');
-                    const currentSelection = document.getElementById('currentSelection');
-                    const destinationPicker = document.getElementById('destinationPicker');
-                    const changeBtn = document.getElementById('changeDestinationBtn');
-                    const destinationIdInput = document.getElementById('destinationId');
-                    const destinationTypeInput = document.getElementById('destinationType');
-                    const selectedIcon = document.getElementById('selectedIcon');
-                    const selectedTitle = document.getElementById('selectedTitle');
-                    const selectedType = document.getElementById('selectedType');
-                    const saveBtn = document.getElementById('saveNotionBtn');
-                    
-                    let searchTimeout;
-                    let cachedResults = null;
-                    
-                    // Show picker when clicking change
-                    changeBtn?.addEventListener('click', () => {
-                      currentSelection.classList.add('hidden');
-                      destinationPicker.classList.remove('hidden');
-                      searchInput.focus();
-                      if (!cachedResults) {
-                        fetchPages('');
-                      } else {
-                        showResults(cachedResults);
-                      }
-                    });
-                    
-                    // Search on input
-                    searchInput?.addEventListener('input', (e) => {
-                      clearTimeout(searchTimeout);
-                      searchTimeout = setTimeout(() => {
-                        fetchPages(e.target.value);
-                      }, 300);
-                    });
-                    
-                    // Show results on focus
-                    searchInput?.addEventListener('focus', () => {
-                      if (!cachedResults) {
-                        fetchPages('');
-                      } else {
-                        resultsContainer.classList.remove('hidden');
-                      }
-                    });
-                    
-                    // Hide results when clicking outside
-                    document.addEventListener('click', (e) => {
-                      if (!destinationPicker.contains(e.target)) {
-                        resultsContainer.classList.add('hidden');
-                      }
-                    });
-                    
-                    async function fetchPages(query) {
-                      loadingEl.classList.remove('hidden');
-                      emptyEl.classList.add('hidden');
-                      resultsList.innerHTML = '';
-                      resultsContainer.classList.remove('hidden');
-                      
-                      try {
-                        const res = await fetch(`/api/notion/pages?q=${encodeURIComponent(query)}`);
-                        const data = await res.json();
-                        
-                        if (data.error) {
-                          throw new Error(data.error);
-                        }
-                        
-                        cachedResults = data.results;
-                        showResults(data.results);
-                      } catch (err) {
-                        console.error('Failed to fetch Notion pages:', err);
-                        loadingEl.classList.add('hidden');
-                        emptyEl.textContent = 'Failed to load pages: ' + err.message;
-                        emptyEl.classList.remove('hidden');
-                      }
-                    }
-                    
-                    function showResults(results) {
-                      loadingEl.classList.add('hidden');
-                      resultsList.innerHTML = '';
-                      
-                      if (!results || results.length === 0) {
-                        emptyEl.classList.remove('hidden');
-                        return;
-                      }
-                      
-                      emptyEl.classList.add('hidden');
-                      
-                      // Group by type
-                      const databases = results.filter(r => r.type === 'database');
-                      const pages = results.filter(r => r.type === 'page');
-                      
-                      if (databases.length > 0) {
-                        resultsList.innerHTML += '<div class="px-3 py-1 text-xs font-semibold text-gray-500 bg-gray-50">Databases</div>';
-                        databases.forEach(item => {
-                          resultsList.innerHTML += createResultItem(item);
-                        });
-                      }
-                      
-                      if (pages.length > 0) {
-                        resultsList.innerHTML += '<div class="px-3 py-1 text-xs font-semibold text-gray-500 bg-gray-50">Pages</div>';
-                        pages.forEach(item => {
-                          resultsList.innerHTML += createResultItem(item);
-                        });
-                      }
-                      
-                      // Add click handlers
-                      resultsList.querySelectorAll('[data-notion-item]').forEach(el => {
-                        el.addEventListener('click', () => selectItem(el.dataset));
-                      });
-                    }
-                    
-                    function createResultItem(item) {
-                      const icon = item.icon?.length > 2 ? '📄' : (item.icon || '📄');
-                      return `
-                        <div 
-                          data-notion-item
-                          data-id="${item.id}"
-                          data-type="${item.type}"
-                          data-title="${item.title.replace(/"/g, '&quot;')}"
-                          data-icon="${icon}"
-                          class="px-3 py-2 hover:bg-indigo-50 cursor-pointer flex items-center space-x-2"
-                        >
-                          <span class="text-lg">${icon}</span>
-                          <span class="text-sm text-gray-900 truncate">${item.title}</span>
-                        </div>
-                      `;
-                    }
-                    
-                    function selectItem(data) {
-                      destinationIdInput.value = data.id;
-                      destinationTypeInput.value = data.type;
-                      selectedIcon.textContent = data.icon;
-                      selectedTitle.textContent = data.title;
-                      selectedType.textContent = data.type;
-                      
-                      resultsContainer.classList.add('hidden');
-                      destinationPicker.classList.add('hidden');
-                      currentSelection.classList.remove('hidden');
-                      saveBtn.disabled = false;
-                    }
-                  })();
-                  </script>
-                  <% } else { %>
-                  <p class="text-sm text-gray-500 mt-2">Connect Notion to configure publishing destinations.</p>
-                  <% } %>
-                </div>
-              </div>
-            </li>
-            <li class="col-span-1 divide-y divide-gray-200 rounded-md bg-white shadow">
-              <div class="bg-white px-4 py-5 sm:px-6 rounded-md">
-                <div class="-ml-4 -mt-2 flex flex-wrap items-center justify-between sm:flex-nowrap">
-                  <div class="flex items-center ml-4 mt-2">
-                    <svg class="h-5 w-5 text-purple-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"></path>
+          <!-- Quick Links & Status Section -->
+          <div class="space-y-6">
+            <!-- Recent Recordings -->
+            <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+              <div class="px-6 py-5 border-b border-gray-100">
+                <div class="flex items-center gap-3">
+                  <div class="h-10 w-10 rounded-lg bg-green-100 flex items-center justify-center">
+                    <svg class="h-5 w-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
                     </svg>
-                    <h3 class="text-base font-semibold leading-6 text-gray-900">
-                      Ask My Meetings
-                    </h3>
                   </div>
-                </div>
-                <p class="mt-2 text-sm text-gray-500">Use AI to search and query across all your meeting transcripts and notes.</p>
-                <div class="mt-4">
-                  <form method="POST" action="/api/chat/meetings" class="space-y-2">
-                    <div>
-                      <label class="block text-sm font-medium text-gray-700" for="query">Question</label>
-                      <textarea
-                        id="query"
-                        name="query"
-                        rows="3"
-                        class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
-                        placeholder="e.g., What were the action items from last week's calls?"
-                      ></textarea>
-                    </div>
-                    <button
-                      type="submit"
-                      class="inline-flex items-center rounded-md bg-indigo-600 px-3 py-1 text-xs font-medium text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
-                    >
-                      Ask
-                    </button>
-                  </form>
+                  <h2 class="text-lg font-semibold text-gray-900">Quick Links</h2>
                 </div>
               </div>
-            </li>
-          </ul>
-          </div>
-          <% if (calendars.length > 0) { %>
-            <ul role="list" class="grid grid-cols-1 gap-6">
-              <li
-                class="col-span-1 divide-y divide-gray-200 rounded-md bg-white shadow"
-              >
-                <div class="px-4 py-5 sm:p-6">
-                  <h3 class="text-base font-semibold leading-6 text-gray-900">
-                    Connected Calendars
-                  </h3>
+              <div class="p-4 space-y-2">
+                <a href="/meetings" class="flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-gray-50 transition-colors">
+                  <svg class="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path>
+                  </svg>
+                  <span class="text-sm font-medium text-gray-700">View All Recordings</span>
+                </a>
+                <a href="/settings" class="flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-gray-50 transition-colors">
+                  <svg class="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                  </svg>
+                  <span class="text-sm font-medium text-gray-700">Settings & Integrations</span>
+                </a>
+                <a href="/publishing-targets" class="flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-gray-50 transition-colors">
+                  <svg class="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
+                  </svg>
+                  <span class="text-sm font-medium text-gray-700">Publishing Targets</span>
+                </a>
+              </div>
+            </div>
+
+            <!-- Calendar Status -->
+            <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+              <div class="px-6 py-5 border-b border-gray-100">
+                <div class="flex items-center gap-3">
+                  <div class="h-10 w-10 rounded-lg bg-purple-100 flex items-center justify-center">
+                    <svg class="h-5 w-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                  </div>
+                  <h2 class="text-lg font-semibold text-gray-900">Calendar Status</h2>
                 </div>
-                <ul role="list" class="divide-y divide-gray-100">
-                  <% calendars.forEach(function(calendar){ %> <%-
-                  include('partials/calendar-list-item', {calendar: calendar}); %>
+              </div>
+              <div class="p-4 space-y-3">
+                <% if (calendars.length > 0) { %>
+                  <% calendars.forEach(function(calendar) { %>
+                    <div class="flex items-center justify-between px-3 py-2 rounded-lg bg-gray-50">
+                      <div class="flex items-center gap-2 min-w-0">
+                        <% if (calendar.platform === 'google_calendar') { %>
+                          <img class="h-4 w-4" src="https://upload.wikimedia.org/wikipedia/commons/thumb/a/a5/Google_Calendar_icon_%282020%29.svg/2048px-Google_Calendar_icon_%282020%29.svg.png" alt="Google" />
+                        <% } else { %>
+                          <img class="h-4 w-4" src="https://img.icons8.com/color/480/outlook-calendar.png" alt="Outlook" />
+                        <% } %>
+                        <span class="text-sm text-gray-700 truncate"><%= calendar.email %></span>
+                      </div>
+                      <% const status = calendar.status || calendar.recallData?.status || 'unknown'; %>
+                      <% if (status === 'connected') { %>
+                        <span class="inline-flex items-center rounded-full bg-green-50 px-2 py-0.5 text-xs font-medium text-green-700">Connected</span>
+                      <% } else if (status === 'connecting') { %>
+                        <span class="inline-flex items-center rounded-full bg-yellow-50 px-2 py-0.5 text-xs font-medium text-yellow-700">Connecting...</span>
+                      <% } else { %>
+                        <span class="inline-flex items-center rounded-full bg-red-50 px-2 py-0.5 text-xs font-medium text-red-700">Disconnected</span>
+                      <% } %>
+                    </div>
                   <% }); %>
-                </ul>
-              </li>
-            </ul>
-          <% } %>
+                <% } else { %>
+                  <div class="text-center py-4">
+                    <p class="text-sm text-gray-500">No calendars connected</p>
+                    <a href="<%= connectUrls.googleCalendar %>" class="mt-2 inline-flex items-center text-sm font-medium text-indigo-600 hover:text-indigo-500">
+                      Connect a calendar →
+                    </a>
+                  </div>
+                <% } %>
+              </div>
+            </div>
+          </div>
         </div>
+
       </div>
     </main>
   </div>
 </div>
+
+<script>
+document.getElementById('ai-assistant-form')?.addEventListener('submit', async function(e) {
+  e.preventDefault();
+  const query = document.getElementById('ai-query').value.trim();
+  if (!query) return;
+  
+  const responseArea = document.getElementById('ai-response');
+  const loading = document.getElementById('ai-loading');
+  const result = document.getElementById('ai-result');
+  
+  responseArea.classList.remove('hidden');
+  loading.classList.remove('hidden');
+  result.innerHTML = '';
+  
+  try {
+    const res = await fetch('/api/chat/meetings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ query })
+    });
+    const data = await res.json();
+    
+    loading.classList.add('hidden');
+    if (data.error) {
+      result.innerHTML = '<p class="text-red-200">Sorry, I couldn\'t process that request. Please try again.</p>';
+    } else {
+      result.innerHTML = '<p class="whitespace-pre-wrap">' + (data.answer || data.response || 'No results found.') + '</p>';
+    }
+  } catch (err) {
+    loading.classList.add('hidden');
+    result.innerHTML = '<p class="text-red-200">An error occurred. Please try again.</p>';
+  }
+});
+</script>
+
 <%- include('partials/footer') -%>

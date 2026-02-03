@@ -2384,6 +2384,8 @@ export default async (req, res) => {
       recordingStatus: "missing",
       recordingUrl: null,
       audioUrl: null,
+      teamsRecordingUrl: null,
+      recordingSource: null,
       participants: summaryParticipants,
       description: getDescriptionFromEvent(calendarEvent),
       organizer: calendarEvent ? getAttendeesFromEvent(calendarEvent).find(a => a.organizer) : null,

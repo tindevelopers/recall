@@ -77,13 +77,16 @@ app.use(router);
 
 // Error handling middleware - must be last
 app.use((err, req, res, next) => {
-  // Log the error with full details
+  // One-line log for Railway/grep: "500 /meetings TypeError: ..."
+  const status = err.status || 500;
+  console.error(`[ERROR] ${status} ${req.method} ${req.path} ${err.name || "Error"}: ${err.message}`);
+  // Full details
   console.error('[ERROR] Request failed:', {
     path: req.path,
     method: req.method,
     error: err.message,
     stack: err.stack,
-    status: err.status || 500
+    status,
   });
   
   // Don't send response if headers already sent
@@ -91,7 +94,6 @@ app.use((err, req, res, next) => {
     return next(err);
   }
   
-  const status = err.status || 500;
   res.status(status);
   
   if (process.env.NODE_ENV === "development") {

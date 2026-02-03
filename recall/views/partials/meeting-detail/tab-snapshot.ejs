@@ -1,0 +1,202 @@
+<div class="space-y-6">
+  <div class="overflow-hidden bg-white shadow sm:rounded-lg">
+    <div class="px-4 py-5 sm:px-6 border-b border-gray-200">
+      <h2 class="text-base font-semibold text-gray-900">Meeting Snapshot</h2>
+    </div>
+    <div class="px-4 py-5 sm:px-6 space-y-3 text-sm text-gray-600">
+      <div class="flex items-center justify-between">
+        <span class="text-gray-500">Date</span>
+        <% if (meeting.startTime) { %>
+          <span class="local-datetime font-medium text-gray-900" data-iso="<%= new Date(meeting.startTime).toISOString() %>" data-format="datetime"></span>
+        <% } else { %>
+          <span class="font-medium text-gray-900">Unknown</span>
+        <% } %>
+      </div>
+      <div class="flex items-center justify-between">
+        <span class="text-gray-500">Status</span>
+        <span class="font-medium text-gray-900 capitalize"><%= meeting.status || 'completed' %></span>
+      </div>
+      <% if (meeting.participants && meeting.participants.length > 0) { %>
+        <div class="flex items-center justify-between">
+          <span class="text-gray-500">Participants</span>
+          <span class="font-medium text-gray-900"><%= meeting.participants.length %></span>
+        </div>
+      <% } %>
+      <% if (meeting.calendarEmail) { %>
+        <div class="flex items-center justify-between">
+          <span class="text-gray-500">Calendar</span>
+          <span class="font-medium text-gray-900 truncate max-w-[160px]"><%= meeting.calendarEmail %></span>
+        </div>
+      <% } %>
+      <% if (meeting.platform) { %>
+        <div class="flex items-center justify-between">
+          <span class="text-gray-500">Platform</span>
+          <span class="font-medium text-gray-900 capitalize"><%= meeting.platform %></span>
+        </div>
+      <% } %>
+    </div>
+  </div>
+
+  <div class="overflow-hidden bg-white shadow sm:rounded-lg">
+    <div class="px-4 py-5 sm:px-6 border-b border-gray-200">
+      <h2 class="text-base font-semibold text-gray-900">Quick Actions</h2>
+    </div>
+    <div class="px-4 py-5 sm:px-6 space-y-4">
+      <details class="group rounded-md border border-gray-200 p-3">
+        <summary class="flex cursor-pointer items-center justify-between text-sm font-semibold text-gray-900">
+          AI Summary
+          <svg class="h-4 w-4 text-gray-400 transition-transform group-open:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+          </svg>
+        </summary>
+        <div class="mt-3 space-y-2">
+          <% if (meeting.artifactId && !meeting.hasBeenEnriched) { %>
+            <button
+              type="button"
+              onclick="triggerEnrichment('<%= meeting.artifactId %>', this)"
+              class="w-full inline-flex items-center justify-center rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500"
+            >
+              <span data-enrich-text>Generate Summary</span>
+            </button>
+          <% } else if (meeting.artifactId && meeting.hasBeenEnriched) { %>
+            <button
+              type="button"
+              onclick="triggerEnrichment('<%= meeting.artifactId %>', this)"
+              class="w-full inline-flex items-center justify-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50"
+            >
+              <span data-enrich-text>Re-generate Summary</span>
+            </button>
+          <% } else { %>
+            <p class="text-xs text-gray-500">Summary will appear once the recording is processed.</p>
+          <% } %>
+          <% if (meeting.artifactId) { %>
+            <button
+              type="button"
+              onclick="openSuperAgentPanel()"
+              class="w-full inline-flex items-center justify-center rounded-md bg-amber-500 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-amber-400"
+            >
+              Analyse with Super Agent
+            </button>
+          <% } %>
+        </div>
+      </details>
+
+      <details class="group rounded-md border border-gray-200 p-3">
+        <summary class="flex cursor-pointer items-center justify-between text-sm font-semibold text-gray-900">
+          Publish
+          <svg class="h-4 w-4 text-gray-400 transition-transform group-open:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+          </svg>
+        </summary>
+        <div class="mt-3 space-y-2">
+          <% if (meeting.artifactId) { %>
+            <button
+              type="button"
+              onclick="openNotionDestinationPicker('<%= meeting.artifactId %>')"
+              class="w-full inline-flex items-center justify-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-indigo-600 shadow-sm ring-1 ring-inset ring-indigo-200 hover:bg-indigo-50"
+            >
+              Publish to Notion
+            </button>
+            <button
+              type="button"
+              onclick="openSlackDestinationPicker('<%= meeting.artifactId %>')"
+              class="w-full inline-flex items-center justify-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-sky-600 shadow-sm ring-1 ring-inset ring-sky-200 hover:bg-sky-50"
+            >
+              Publish to Slack
+            </button>
+            <button
+              type="button"
+              onclick="publishToNotion('<%= meeting.artifactId %>', this)"
+              class="w-full inline-flex items-center justify-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-700 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50"
+            >
+              <span data-publish-text>Publish to All Destinations</span>
+            </button>
+          <% } else { %>
+            <p class="text-xs text-gray-500">Publishing is available once the recording is processed.</p>
+          <% } %>
+        </div>
+      </details>
+
+      <details class="group rounded-md border border-gray-200 p-3">
+        <summary class="flex cursor-pointer items-center justify-between text-sm font-semibold text-gray-900">
+          Share
+          <svg class="h-4 w-4 text-gray-400 transition-transform group-open:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+          </svg>
+        </summary>
+        <div class="mt-3 space-y-2">
+          <button
+            type="button"
+            onclick="scrollToShareSection()"
+            class="w-full inline-flex items-center justify-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-700 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50"
+          >
+            Open sharing panel
+          </button>
+        </div>
+      </details>
+
+      <details class="group rounded-md border border-gray-200 p-3">
+        <summary class="flex cursor-pointer items-center justify-between text-sm font-semibold text-gray-900">
+          Exports
+          <svg class="h-4 w-4 text-gray-400 transition-transform group-open:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+          </svg>
+        </summary>
+        <div class="mt-3 space-y-2">
+          <% if (meeting.videoUrl || meeting.artifactId) { %>
+            <% 
+              const videoDownloadUrl = meeting.isShared && meeting.shareInfo?.shareToken 
+                ? `/api/meetings/shared/${meeting.shareInfo.shareToken}/recording/download/video`
+                : `/api/meetings/${meeting.artifactId || meeting.id}/recording/download/video`;
+            %>
+            <a
+              href="<%= videoDownloadUrl %>"
+              class="w-full inline-flex items-center justify-center rounded-md bg-green-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-green-500"
+            >
+              Download Video
+            </a>
+          <% } %>
+          <% if (meeting.audioUrl || meeting.artifactId) { %>
+            <% 
+              const audioDownloadUrl = meeting.isShared && meeting.shareInfo?.shareToken 
+                ? `/api/meetings/shared/${meeting.shareInfo.shareToken}/recording/download/audio`
+                : `/api/meetings/${meeting.artifactId || meeting.id}/recording/download/audio`;
+            %>
+            <a
+              href="<%= audioDownloadUrl %>"
+              class="w-full inline-flex items-center justify-center rounded-md bg-blue-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-500"
+            >
+              Download Audio
+            </a>
+          <% } %>
+          <% if (meeting.summary) { %>
+            <button
+              type="button"
+              onclick="copySummaryToClipboard()"
+              class="w-full inline-flex items-center justify-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-700 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50"
+            >
+              Copy Summary
+            </button>
+          <% } %>
+        </div>
+      </details>
+
+      <details class="group rounded-md border border-gray-200 p-3">
+        <summary class="flex cursor-pointer items-center justify-between text-sm font-semibold text-gray-900">
+          Navigation
+          <svg class="h-4 w-4 text-gray-400 transition-transform group-open:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+          </svg>
+        </summary>
+        <div class="mt-3 space-y-2">
+          <a href="/meetings" class="w-full inline-flex items-center justify-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50">
+            Back to Meetings
+          </a>
+          <a href="/" class="w-full inline-flex items-center justify-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50">
+            Dashboard
+          </a>
+        </div>
+      </details>
+    </div>
+  </div>
+</div>

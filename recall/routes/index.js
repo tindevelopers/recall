@@ -44,6 +44,7 @@ import meetingsDetail from "./meetings/detail.js";
 import meetingsShared from "./meetings/shared.js";
 import meetingsUpdateTranscriptionMode from "./meetings/update-transcription-mode.js";
 import {
+  getMeetingMetadata,
   getTranscript,
   getSummary,
   getActionItems,
@@ -155,7 +156,8 @@ router.get("/meetings/shared/:token", meetingsShared);
 router.get("/meetings/:id", meetingsDetail);
 router.post("/meetings/:eventId/transcription-mode", meetingsUpdateTranscriptionMode);
 
-// Meeting details API for lazy-loading modals
+// Meeting details API for lazy-loading
+router.get("/api/meetings/:meetingId/metadata", getMeetingMetadata);
 router.get("/api/meetings/:meetingId/transcript", getTranscript);
 router.get("/api/meetings/:meetingId/summary", getSummary);
 router.get("/api/meetings/:meetingId/actions", getActionItems);

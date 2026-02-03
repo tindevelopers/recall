@@ -5,8 +5,8 @@
 Run this command to see your DATABASE_URL:
 
 ```bash
-cd /Users/gene/Projects/recall
-railway service v2-demo-worker
+# From project root
+railway link   # or: railway service <your-service-name>
 railway variables | grep -A 4 "DATABASE_URL"
 ```
 

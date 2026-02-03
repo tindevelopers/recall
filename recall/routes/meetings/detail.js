@@ -1,60 +1,80 @@
 import db from "../../db.js";
 import { Op } from "sequelize";
 
-function estimateDurationMs(chunk) {
-  if (
-    typeof chunk.startTimeMs === "number" &&
-    typeof chunk.endTimeMs === "number" &&
-    chunk.endTimeMs > chunk.startTimeMs
-  ) {
-    return chunk.endTimeMs - chunk.startTimeMs;
-  }
-  const wordCount = chunk.text ? chunk.text.trim().split(/\s+/).length : 0;
-  return wordCount * 500;
+// Generic/placeholder titles we should ignore when deriving a display name
+function isGenericMeetingTitle(title) {
+  if (!title) return true;
+  const normalized = String(title).trim().toLowerCase();
+  return (
+    normalized === "meeting" ||
+    normalized === "untitled meeting" ||
+    normalized === "untitled" ||
+    normalized === "(no title)"
+  );
 }
 
-function computeStatsFromTranscript(chunks = []) {
-  if (!Array.isArray(chunks) || chunks.length === 0) {
-    return null;
+/**
+ * Get participants from artifact rawPayload
+ */
+function getParticipantsFromArtifact(artifact) {
+  const data = artifact?.rawPayload?.data || {};
+  const participants = data.participants || data.attendees || [];
+  if (!Array.isArray(participants)) return [];
+  return participants
+    .map((p) => {
+      if (!p) return null;
+      return {
+        email: p.email || p.address || p.user_email || p.userId || null,
+        name: p.name || p.displayName || p.user_display_name || p.user_name || p.email || null,
+      };
+    })
+    .filter(Boolean);
+}
+
+/**
+ * Derive a human-readable meeting title from various sources.
+ */
+function extractMeetingTitle(artifact, calendarEvent) {
+  // 1) Calendar event title (from recallData)
+  const calEventTitle = calendarEvent?.recallData?.meeting_title || calendarEvent?.recallData?.title || calendarEvent?.title;
+  if (calEventTitle && !isGenericMeetingTitle(calEventTitle)) {
+    return calEventTitle;
   }
 
-  const totals = new Map();
-  let totalDurationMs = 0;
+  // 2) Artifact payload title
+  if (artifact?.rawPayload?.data?.title && !isGenericMeetingTitle(artifact.rawPayload.data.title)) {
+    return artifact.rawPayload.data.title;
+  }
 
-  chunks.forEach((chunk) => {
-    const speaker = chunk.speaker || "Unknown";
-    const durationMs = estimateDurationMs(chunk);
-    const wordCount = chunk.text ? chunk.text.trim().split(/\s+/).length : 0;
-    const entry = totals.get(speaker) || { talkTimeMs: 0, turns: 0, wordCount: 0 };
-    entry.talkTimeMs += durationMs;
-    entry.turns += 1;
-    entry.wordCount += wordCount;
-    totals.set(speaker, entry);
-    totalDurationMs += durationMs;
-  });
+  // 3) Bot meeting_metadata title (if present)
+  const botMetaTitle = artifact?.rawPayload?.data?.bot_metadata?.meeting_metadata?.title;
+  if (botMetaTitle && !isGenericMeetingTitle(botMetaTitle)) {
+    return botMetaTitle;
+  }
 
-  const speakers = Array.from(totals.entries()).map(([name, data]) => {
-    const talkTimeSeconds = data.talkTimeMs / 1000;
-    return {
-      name,
-      talkTimeSeconds,
-      talkTimePercent: totalDurationMs ? (data.talkTimeMs / totalDurationMs) * 100 : null,
-      turns: data.turns,
-      wordCount: data.wordCount,
-    };
-  });
+  // 4) Build from participants
+  const participants = getParticipantsFromArtifact(artifact);
+  if (participants.length > 0) {
+    const names = participants
+      .slice(0, 2)
+      .map((p) => p.name || p.email?.split("@")[0])
+      .filter(Boolean);
+    if (names.length > 0) {
+      return `Meeting with ${names.join(" and ")}${participants.length > 2 ? ` +${participants.length - 2}` : ""}`;
+    }
+  }
 
-  return {
-    durationSeconds: totalDurationMs / 1000,
-    speakers,
-  };
+  // 5) Date-based fallback
+  const startTime = calendarEvent?.startTime || artifact?.rawPayload?.data?.start_time || artifact?.createdAt;
+  if (startTime) {
+    const date = new Date(startTime);
+    return `Meeting on ${date.toLocaleDateString("en-US", { month: "numeric", day: "numeric", year: "numeric" })}`;
+  }
+
+  return "Untitled Meeting";
 }
 
 export default async (req, res) => {
-  // #region agent log
-  const detailStartTime = Date.now();
-  fetch('http://127.0.0.1:7250/ingest/bf0206c3-6e13-4499-92a3-7fb2b7527fcf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'routes/meetings/detail.js:entry',message:'Detail page request started',data:{meetingId:req.params.id},timestamp:Date.now(),sessionId:'debug-session',runId:'detail-perf',hypothesisId:'B'})}).catch(()=>{});
-  // #endregion
   if (!req.authenticated) {
     return res.redirect("/sign-in");
   }
@@ -62,17 +82,14 @@ export default async (req, res) => {
   const userId = req.authentication.user.id;
   const meetingId = req.params.id;
 
-  // Try to find as artifact first - support both UUID and readableId
-  // #region agent log
-  const artifactQueryStart = Date.now();
-  fetch('http://127.0.0.1:7250/ingest/bf0206c3-6e13-4499-92a3-7fb2b7527fcf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'routes/meetings/detail.js:artifact_query_start',message:'Starting artifact query',data:{meetingId},timestamp:Date.now(),sessionId:'debug-session',runId:'detail-perf',hypothesisId:'B'})}).catch(()=>{});
-  // #endregion
-  // First, check if user has access via ownership or sharing
+  // FAST INITIAL LOAD: Only fetch minimal metadata, no transcript chunks
+  // Artifacts will be lazy-loaded via JavaScript after page renders
+  
   let hasAccess = false;
   let isOwner = false;
   let shareInfo = null;
   
-  // Try to find the artifact first (without user filter to check sharing)
+  // Find artifact WITHOUT transcript chunks for fast initial load
   let artifact = await db.MeetingArtifact.findOne({
     where: {
       [Op.or]: [
@@ -88,23 +105,16 @@ export default async (req, res) => {
       {
         model: db.MeetingSummary,
       },
-      {
-        model: db.MeetingTranscriptChunk,
-        order: [["sequence", "ASC"]],
-        // Limit chunks to avoid loading thousands at once - we can load more on demand if needed
-        limit: 1000,
-      },
+      // NO MeetingTranscriptChunk - this is what makes it slow!
     ],
   });
   
   if (artifact) {
-    // Check if user owns this meeting
     isOwner = artifact.userId === userId || artifact.ownerUserId === userId;
     
     if (isOwner) {
       hasAccess = true;
     } else {
-      // Check if user has shared access
       const user = await db.User.findByPk(userId);
       const shareWhereClause = {
         meetingArtifactId: artifact.id,
@@ -126,28 +136,26 @@ export default async (req, res) => {
     }
     
     if (!hasAccess) {
-      // User doesn't have access to this meeting
       artifact = null;
     }
   }
-  // #region agent log
-  const artifactQueryEnd = Date.now();
-  fetch('http://127.0.0.1:7250/ingest/bf0206c3-6e13-4499-92a3-7fb2b7527fcf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'routes/meetings/detail.js:artifact_query_end',message:'Artifact query completed',data:{meetingId,queryTimeMs:artifactQueryEnd-artifactQueryStart,hasArtifact:!!artifact,chunkCount:artifact?.MeetingTranscriptChunks?.length||0},timestamp:Date.now(),sessionId:'debug-session',runId:'detail-perf',hypothesisId:'B'})}).catch(()=>{});
-  // #endregion
 
   let summary = null;
-  let transcriptChunks = [];
   let calendarEvent = null;
   let superAgentAnalysis = null;
 
   if (artifact) {
     summary = artifact.MeetingSummaries?.[0] || null;
-    transcriptChunks = artifact.MeetingTranscriptChunks || [];
     calendarEvent = artifact.CalendarEvent;
-    superAgentAnalysis = await db.MeetingSuperAgentAnalysis.findOne({
-      where: { meetingArtifactId: artifact.id },
-      order: [["createdAt", "DESC"]],
-    });
+    try {
+      superAgentAnalysis = await db.MeetingSuperAgentAnalysis.findOne({
+        where: { meetingArtifactId: artifact.id },
+        order: [["createdAt", "DESC"]],
+      });
+    } catch (err) {
+      console.warn("[meetings/detail] MeetingSuperAgentAnalysis lookup failed:", err?.message || err);
+      superAgentAnalysis = null;
+    }
   } else {
     // Try to find as summary
     summary = await db.MeetingSummary.findOne({
@@ -155,12 +163,8 @@ export default async (req, res) => {
       include: [
         {
           model: db.MeetingArtifact,
-          include: [
-            { 
-              model: db.MeetingTranscriptChunk,
-              limit: 1000, // Limit chunks to avoid loading thousands at once
-            },
-          ],
+          required: false,
+          // NO MeetingTranscriptChunk here either
         },
         {
           model: db.CalendarEvent,
@@ -174,48 +178,34 @@ export default async (req, res) => {
     }
 
     artifact = summary.MeetingArtifact;
-    transcriptChunks = artifact?.MeetingTranscriptChunks || [];
     calendarEvent = summary.CalendarEvent;
     if (artifact?.id) {
-      superAgentAnalysis = await db.MeetingSuperAgentAnalysis.findOne({
-        where: { meetingArtifactId: artifact.id },
-        order: [["createdAt", "DESC"]],
-      });
+      try {
+        superAgentAnalysis = await db.MeetingSuperAgentAnalysis.findOne({
+          where: { meetingArtifactId: artifact.id },
+          order: [["createdAt", "DESC"]],
+        });
+      } catch (err) {
+        console.warn("[meetings/detail] MeetingSuperAgentAnalysis lookup failed:", err?.message || err);
+        superAgentAnalysis = null;
+      }
     }
   }
 
-  // Build transcript from chunks or rawPayload
-  let transcriptData = transcriptChunks.map(chunk => ({
-    id: chunk.id,
-    speaker: chunk.speaker || "Unknown",
-    text: chunk.text,
-    startTimeMs: chunk.startTimeMs,
-    endTimeMs: chunk.endTimeMs,
-  }));
-  
-  // If no transcript chunks, try to parse from rawPayload (for API-synced artifacts)
-  if (transcriptData.length === 0 && artifact?.rawPayload?.data?.transcript) {
-    const rawTranscript = artifact.rawPayload.data.transcript;
-    if (Array.isArray(rawTranscript)) {
-      transcriptData = rawTranscript.map((item, index) => ({
-        id: `raw-${index}`,
-        speaker: item.speaker || item.speaker_name || "Unknown",
-        text: Array.isArray(item.words) 
-          ? item.words.map(w => w.text || w.word || w).join(' ')
-          : (item.text || item.transcript || ''),
-        startTimeMs: item.start_time || item.start_ms || item.start || 0,
-        endTimeMs: item.end_time || item.end_ms || item.end || 0,
-      }));
-    }
+  // Get transcript chunk count (fast query, no data transfer)
+  let transcriptChunkCount = 0;
+  if (artifact?.id) {
+    transcriptChunkCount = await db.MeetingTranscriptChunk.count({
+      where: { meetingArtifactId: artifact.id },
+    });
   }
 
-  const derivedStats = computeStatsFromTranscript(transcriptData);
-
-  // Build meeting data
+  // Build meeting data - MINIMAL for fast initial render
+  // Heavy data (transcript, stats) will be lazy-loaded
   const meeting = {
     id: artifact?.id || summary?.id,
     readableId: artifact?.readableId || null,
-    title: calendarEvent?.title || artifact?.rawPayload?.data?.title || "Untitled Meeting",
+    title: extractMeetingTitle(artifact, calendarEvent),
     startTime: calendarEvent?.startTime || artifact?.rawPayload?.data?.start_time || artifact?.createdAt || summary?.createdAt,
     endTime: calendarEvent?.endTime || artifact?.rawPayload?.data?.end_time || null,
     status: artifact?.status || summary?.status || "completed",
@@ -223,19 +213,18 @@ export default async (req, res) => {
     calendarEmail: calendarEvent?.Calendar?.email || null,
     platform: calendarEvent?.platform || null,
     
-    // Recording URLs - check multiple locations including media_shortcuts and archived recordings
-    // Prioritize archived recordings, then cached URLs, then source URLs
+    // Recording URLs
     videoUrl: 
       artifact?.archivedRecordingUrl ||
       artifact?.rawPayload?.data?.video_url || 
       artifact?.rawPayload?.data?.recording_url || 
-    artifact?.rawPayload?.data?.media_shortcuts?.video_mixed?.data?.download_url ||
+      artifact?.rawPayload?.data?.media_shortcuts?.video_mixed?.data?.download_url ||
       artifact?.rawPayload?.data?.media_shortcuts?.video?.data?.download_url ||
       artifact?.sourceRecordingUrl ||
       null,
     audioUrl: 
       artifact?.rawPayload?.data?.audio_url || 
-    artifact?.rawPayload?.data?.media_shortcuts?.audio_mixed?.data?.download_url ||
+      artifact?.rawPayload?.data?.media_shortcuts?.audio_mixed?.data?.download_url ||
       artifact?.rawPayload?.data?.media_shortcuts?.audio?.data?.download_url ||
       null,
     teamsRecordingUrl:
@@ -245,7 +234,7 @@ export default async (req, res) => {
       artifact?.rawPayload?.data?.sharePointRecordingUrl ||
       null,
     
-    // Summary data
+    // Summary data - include if available (usually small)
     summary: summary?.summary || null,
     actionItems: summary?.actionItems || [],
     followUps: summary?.followUps || [],
@@ -254,7 +243,6 @@ export default async (req, res) => {
     detailedNotes: summary?.detailedNotes || [],
     
     // Sentiment and insights
-    // Handle sentiment as object {label, score, confidence} or string
     sentiment: summary?.sentiment 
       ? (typeof summary.sentiment === 'string' 
           ? summary.sentiment 
@@ -264,7 +252,7 @@ export default async (req, res) => {
     keyInsights: summary?.keyInsights || [],
     decisions: summary?.decisions || [],
     outcome: summary?.outcome || null,
-    stats: summary?.stats || derivedStats || null,
+    stats: summary?.stats || null, // Stats will be computed from transcript when lazy-loaded
     summarySource: summary?.source || null,
 
     superAgentAnalysis: superAgentAnalysis
@@ -288,12 +276,14 @@ export default async (req, res) => {
       : null,
     superAgentEnabled: process.env.SUPER_AGENT_ENABLED === "true",
     
-    // Transcript
-    transcript: transcriptData,
+    // LAZY LOADING: Transcript will be fetched via API
+    transcript: [], // Empty - will be lazy-loaded
+    transcriptChunkCount, // Tell the UI how many chunks to expect
+    lazyLoadTranscript: transcriptChunkCount > 0, // Flag to trigger lazy loading
     
     // Metadata
     createdAt: artifact?.createdAt || summary?.createdAt,
-    rawPayload: artifact?.rawPayload || null,
+    rawPayload: null, // Don't send raw payload to client - it's huge
     
     // For enrichment trigger
     artifactId: artifact?.id || null,
@@ -313,20 +303,18 @@ export default async (req, res) => {
   };
 
   // Get publish deliveries for this meeting
-  // #region agent log
-  const publishQueryStart = Date.now();
-  fetch('http://127.0.0.1:7250/ingest/bf0206c3-6e13-4499-92a3-7fb2b7527fcf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'routes/meetings/detail.js:publish_query_start',message:'Starting publish deliveries query',data:{hasSummary:!!summary,summaryId:summary?.id},timestamp:Date.now(),sessionId:'debug-session',runId:'detail-perf',hypothesisId:'C'})}).catch(()=>{});
-  // #endregion
-  const publishDeliveries = summary ? await db.PublishDelivery.findAll({
-    where: { meetingSummaryId: summary.id },
-    include: [{ model: db.PublishTarget }],
-    order: [["createdAt", "DESC"]],
-  }) : [];
-  // #region agent log
-  const publishQueryEnd = Date.now();
-  const totalTime = Date.now() - detailStartTime;
-  fetch('http://127.0.0.1:7250/ingest/bf0206c3-6e13-4499-92a3-7fb2b7527fcf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'routes/meetings/detail.js:publish_query_end',message:'Publish query completed and page ready',data:{publishQueryTimeMs:publishQueryEnd-publishQueryStart,totalTimeMs:totalTime,deliveryCount:publishDeliveries.length},timestamp:Date.now(),sessionId:'debug-session',runId:'detail-perf',hypothesisId:'C'})}).catch(()=>{});
-  // #endregion
+  let publishDeliveries = [];
+  try {
+    if (summary) {
+      publishDeliveries = await db.PublishDelivery.findAll({
+        where: { meetingSummaryId: summary.id },
+        include: [{ model: db.PublishTarget }],
+        order: [["createdAt", "DESC"]],
+      });
+    }
+  } catch (err) {
+    console.warn("[meetings/detail] PublishDelivery lookup failed:", err?.message || err);
+  }
 
   return res.render("meeting-detail.ejs", {
     notice: req.notice,

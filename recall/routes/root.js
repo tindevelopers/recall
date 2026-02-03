@@ -6,6 +6,7 @@ import {
 import { buildNotionOAuthUrl } from "../logic/notion-oauth.js";
 import Recall from "../services/recall/index.js";
 import { getPageOrDatabase } from "../services/notion/api-client.js";
+import db from "../db.js";
 
 export default async (req, res) => {
   if (req.authenticated) {
@@ -98,10 +99,45 @@ export default async (req, res) => {
       }
     }
     
+    // Fetch upcoming meetings (next 7 days)
+    const now = new Date();
+    const sevenDaysFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+    const calendarIds = calendars.map(c => c.id);
+    
+    let upcomingMeetings = [];
+    if (calendarIds.length > 0) {
+      try {
+        const { Op } = await import("sequelize");
+        upcomingMeetings = await db.CalendarEvent.findAll({
+          where: {
+            calendarId: { [Op.in]: calendarIds },
+          },
+          order: [["createdAt", "DESC"]],
+          limit: 100,
+        });
+        
+        // Filter to upcoming meetings (start_time > now) and sort by start time
+        upcomingMeetings = upcomingMeetings
+          .filter(event => {
+            const startTime = new Date(event.recallData?.start_time);
+            return startTime > now && startTime < sevenDaysFromNow;
+          })
+          .sort((a, b) => {
+            const aTime = new Date(a.recallData?.start_time);
+            const bTime = new Date(b.recallData?.start_time);
+            return aTime - bTime;
+          })
+          .slice(0, 10); // Limit to 10 upcoming meetings
+      } catch (err) {
+        console.error("Failed to fetch upcoming meetings:", err.message);
+      }
+    }
+    
     return res.render("index.ejs", {
       notice: req.notice,
       user: req.authentication.user,
       calendars,
+      upcomingMeetings,
       notion: {
         integration: notionIntegration?.[0] || null,
         target: notionTarget?.[0] || null,

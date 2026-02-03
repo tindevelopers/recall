@@ -3,7 +3,9 @@
 
 set -e
 
-cd /Users/gene/Projects/recall
+# Run from project root (directory containing recall/)
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$SCRIPT_DIR"
 
 echo "🚀 Setting up Localhost with Railway Database"
 echo "=============================================="
