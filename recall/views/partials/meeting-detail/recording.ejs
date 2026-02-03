@@ -1,0 +1,116 @@
+<% if (meeting.videoUrl || meeting.audioUrl) { %>
+  <div class="overflow-hidden bg-white shadow sm:rounded-lg">
+    <div class="px-4 py-5 sm:px-6 border-b border-gray-200">
+      <h2 class="text-lg font-semibold text-gray-900 flex items-center">
+        <svg class="w-5 h-5 mr-2 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
+        </svg>
+        Recording
+      </h2>
+    </div>
+    <div class="px-4 py-5 sm:px-6">
+      <% if (meeting.videoUrl && meeting.audioUrl) { %>
+        <div class="flex space-x-2 mb-4">
+          <button 
+            type="button" 
+            onclick="toggleMedia('video')" 
+            id="video-toggle-btn"
+            class="inline-flex items-center rounded-md bg-indigo-600 px-3 py-2 text-sm font-medium text-white shadow-sm hover:bg-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+          >
+            <svg class="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
+            </svg>
+            Video
+          </button>
+          <button 
+            type="button" 
+            onclick="toggleMedia('audio')" 
+            id="audio-toggle-btn"
+            class="inline-flex items-center rounded-md bg-white px-3 py-2 text-sm font-medium text-gray-700 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+          >
+            <svg class="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3"></path>
+            </svg>
+            Audio Only
+          </button>
+        </div>
+      <% } %>
+
+      <% if (meeting.videoUrl) { %>
+        <div id="video-player-container" class="mb-4">
+          <div class="relative bg-black rounded-lg overflow-hidden aspect-video">
+            <video 
+              id="video-player"
+              controls 
+              class="w-full h-full"
+              poster=""
+            >
+              <source src="<%= meeting.videoUrl %>" type="video/mp4">
+              Your browser does not support the video tag.
+            </video>
+          </div>
+        </div>
+      <% } %>
+
+      <% if (meeting.audioUrl) { %>
+        <div id="audio-player-container" class="mb-4 <%= meeting.videoUrl ? 'hidden' : '' %>">
+          <div class="bg-gradient-to-r from-indigo-500 to-purple-600 rounded-lg p-6">
+            <div class="flex items-center justify-center mb-4">
+              <div class="w-20 h-20 bg-white/20 rounded-full flex items-center justify-center">
+                <svg class="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3"></path>
+                </svg>
+              </div>
+            </div>
+            <p class="text-white text-center text-sm font-medium mb-4"><%= meeting.title %></p>
+            <audio 
+              id="audio-player"
+              controls 
+              class="w-full"
+            >
+              <source src="<%= meeting.audioUrl %>" type="audio/mpeg">
+              Your browser does not support the audio element.
+            </audio>
+          </div>
+        </div>
+      <% } %>
+
+      <div class="flex flex-wrap gap-3 pt-4 border-t border-gray-200">
+        <% if (meeting.videoUrl || meeting.artifactId) { %>
+          <% 
+            const videoDownloadUrl = meeting.isShared && meeting.shareInfo?.shareToken 
+              ? `/api/meetings/shared/${meeting.shareInfo.shareToken}/recording/download/video`
+              : `/api/meetings/${meeting.artifactId || meeting.id}/recording/download/video`;
+          %>
+          <a
+            href="<%= videoDownloadUrl %>"
+            download
+            class="inline-flex items-center rounded-md bg-green-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-green-500"
+          >
+            <svg class="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
+            </svg>
+            Download Video
+          </a>
+        <% } %>
+        <% if (meeting.audioUrl || meeting.artifactId) { %>
+          <% 
+            const audioDownloadUrl = meeting.isShared && meeting.shareInfo?.shareToken 
+              ? `/api/meetings/shared/${meeting.shareInfo.shareToken}/recording/download/audio`
+              : `/api/meetings/${meeting.artifactId || meeting.id}/recording/download/audio`;
+          %>
+          <a
+            href="<%= audioDownloadUrl %>"
+            download
+            class="inline-flex items-center rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-500"
+          >
+            <svg class="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
+            </svg>
+            Download Audio
+          </a>
+        <% } %>
+      </div>
+    </div>
+  </div>
+<% } %>

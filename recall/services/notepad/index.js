@@ -135,6 +135,8 @@ export default {
     const title = metadata?.title || "Meeting";
     const participants = metadata?.participants || [];
     const when = metadata?.startTime || "";
+    const speakerStats = metadata?.speakerStats || [];
+    const durationSeconds = metadata?.durationSeconds || null;
     
     // Format participant names for better context
     const participantNames = Array.isArray(participants)
@@ -153,6 +155,9 @@ export default {
       requestedOutputs.push("follow_ups: Array of suggested follow-up items and next steps, including any commitments or promises made during the meeting");
     }
     requestedOutputs.push("topics: Array of main topics/themes discussed, with brief context for each");
+    requestedOutputs.push("highlights: Array of 5-10 concise bullets focused on decisions, outcomes, risks, or major updates. Each item should include: title (short), summary (1-2 sentences), speaker (who drove it), timestamp_seconds (number or null), category (decision|risk|update|action|note), impact (high|medium|low).");
+    requestedOutputs.push("detailed_notes: Array of 8-15 paraphrased quote-style bullets. Each item: speaker, paraphrase (1-2 sentences capturing meaning), quote (short optional verbatim phrase), topic, timestamp_seconds (number or null), importance (high|medium|low). Prefer high-signal statements over filler.");
+    requestedOutputs.push("stats: Object with lightweight stats. Include duration_seconds if inferable, and speakers: [{ name, talk_time_seconds, talk_time_percent, turns }]. If timing data is unclear, provide a reasonable estimate and note it is estimated.");
     requestedOutputs.push("sentiment: Object with 'score' (-1 to 1, negative to positive), 'label' (negative/neutral/positive), and 'confidence' (0-1). Consider overall tone, language used, and emotional indicators");
     requestedOutputs.push("key_insights: Array of key insights, innovative ideas, important realizations, or valuable suggestions from the meeting, each with 'insight' (the idea) and 'importance' (high/medium/low)");
     requestedOutputs.push("decisions: Array of decisions made during the meeting, each with 'decision' (what was decided) and 'context' (who made it and why). Distinguish between actual decisions and discussions");
@@ -173,6 +178,21 @@ Guidelines for the summary:
 - Make it scannable but comprehensive - include enough detail to be useful
 - Use clear, professional language
 
+Guidelines for highlights:
+- 5-10 bullets, concise and scannable
+- Focus on decisions, agreements, risks, blockers, and major updates
+- Include the driving speaker and a timestamp when available; otherwise set timestamp_seconds to null
+
+Guidelines for detailed_notes (paraphrased quotes):
+- 8-15 bullets capturing the most important spoken statements
+- Paraphrase meaning in 1-2 sentences; include a short direct quote snippet when useful
+- Include speaker and timestamp when available; otherwise set timestamp_seconds to null
+- Prefer high-signal phrases, commitments, and nuanced points over generic chatter
+
+Guidelines for stats:
+- Include per-speaker talk time seconds and percent; add speaking turns if derivable
+- If timing is missing, provide a coherent estimate and state that it is estimated
+
 Guidelines for action items:
 - Extract specific, actionable tasks mentioned in the conversation
 - Identify the person responsible (if mentioned) by matching speaker names
@@ -192,10 +212,19 @@ Guidelines for key insights:
 Return valid JSON with these fields: ${requestedOutputs.map((o, i) => `${i + 1}. ${o.split(':')[0]}`).join(", ")}. Be thorough and accurate - this summary will be used to make important decisions.`;
 
     // Format the user message with better structure
+    const talkTimeHint =
+      speakerStats && speakerStats.length
+        ? `Speaker talk-time hints (seconds, may be approximate): ${speakerStats
+            .map((s) => `${s.name || "Unknown"}: ${Math.round(s.talkTimeSeconds || 0)}s${s.talkTimePercent ? ` (${s.talkTimePercent.toFixed(1)}%)` : ""}`)
+            .join("; ")}`
+        : "Speaker talk-time hints: not available";
+
     const userMessage = `Meeting Details:
 Title: ${title}
 Date/Time: ${when}
 Participants: ${participantNames || "Not specified"}
+${durationSeconds ? `Estimated duration (seconds): ${durationSeconds}` : "Estimated duration: not available"}
+${talkTimeHint}
 
 Transcript:
 ${transcriptText}
@@ -216,7 +245,7 @@ Please analyze this meeting transcript and provide a comprehensive summary with 
     const response = await chatCompletion(messages, {
       responseFormat: "json_object",
       temperature: 0.3, // Lower temperature for more focused, factual summaries
-      maxTokens: 4000, // Ensure enough tokens for comprehensive summaries
+      maxTokens: 5500, // Allow additional space for detailed sections
     });
 
     function safeParseJson(text) {
@@ -235,6 +264,9 @@ Please analyze this meeting transcript and provide a comprehensive summary with 
       actionItems: settings.enableActionItems !== false ? (parsed.action_items || parsed.actions || []) : [],
       followUps: settings.enableFollowUps !== false ? (parsed.follow_ups || parsed.followups || []) : [],
       topics: parsed.topics || parsed.key_points || [],
+      highlights: parsed.highlights || parsed.highlight_bullets || [],
+      detailedNotes: parsed.detailed_notes || parsed.detailedNotes || parsed.notes_detailed || [],
+      stats: parsed.stats || null,
       sentiment: parsed.sentiment || { score: 0, label: "neutral", confidence: 0.5 },
       keyInsights: parsed.key_insights || parsed.keyInsights || [],
       decisions: parsed.decisions || [],

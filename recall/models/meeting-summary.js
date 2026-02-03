@@ -54,6 +54,21 @@ export default (sequelize) => {
         allowNull: true,
         comment: "Key insights/ideas from the meeting: [{ insight: string, importance: string }]",
       },
+      highlights: {
+        type: DataTypes.JSON,
+        allowNull: true,
+        comment: "Concise highlights/decisions with speakers and optional timestamps [{ title, summary, speaker, timestampSeconds, category, impact }]",
+      },
+      detailedNotes: {
+        type: DataTypes.JSON,
+        allowNull: true,
+        comment: "Paraphrased quote-style bullets with context [{ speaker, timestampSeconds, paraphrase, quote, topic, importance }]",
+      },
+      stats: {
+        type: DataTypes.JSON,
+        allowNull: true,
+        comment: "Lightweight meeting stats (duration, per-speaker talk time, counts)",
+      },
       decisions: {
         type: DataTypes.JSON,
         allowNull: true,

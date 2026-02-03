@@ -14,188 +14,17 @@
   <%- include('partials/navigation', { user: user, currentPage: 'meetings' }) -%>
   <%- include('partials/notice', { notice: notice }) -%>
   <div class="py-10">
-    <header>
-      <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <div class="md:flex md:items-center md:justify-between">
-          <div class="min-w-0 flex-1">
-            <nav class="flex mb-4" aria-label="Breadcrumb">
-              <ol role="list" class="flex items-center space-x-2">
-                <li>
-                  <a href="/meetings" class="text-sm font-medium text-gray-500 hover:text-gray-700">Meetings</a>
-                </li>
-                <li>
-                  <svg class="h-5 w-5 flex-shrink-0 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
-                    <path fill-rule="evenodd" d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z" clip-rule="evenodd"></path>
-                  </svg>
-                </li>
-                <li>
-                  <span class="text-sm font-medium text-gray-900"><%= meeting.title %></span>
-                </li>
-              </ol>
-            </nav>
-            <h1 class="text-2xl font-bold leading-tight tracking-tight text-gray-900">
-              <%= meeting.title %>
-            </h1>
-            <div class="mt-2 flex flex-col sm:flex-row sm:flex-wrap sm:space-x-6">
-              <div class="mt-2 flex items-center text-sm text-gray-500">
-                <svg class="mr-1.5 h-5 w-5 flex-shrink-0 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
-                </svg>
-                <% if (meeting.startTime) { %>
-                  <span class="local-datetime" data-iso="<%= new Date(meeting.startTime).toISOString() %>" data-format="full"></span>
-                <% } else { %>
-                  Date unknown
-                <% } %>
-              </div>
-              <% if (meeting.calendarEmail) { %>
-                <div class="mt-2 flex items-center text-sm text-gray-500">
-                  <svg class="mr-1.5 h-5 w-5 flex-shrink-0 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
-                  </svg>
-                  <%= meeting.calendarEmail %>
-                </div>
-              <% } %>
-              <% if (meeting.participants && meeting.participants.length > 0) { %>
-                <div class="mt-2 flex items-center text-sm text-gray-500">
-                  <svg class="mr-1.5 h-5 w-5 flex-shrink-0 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
-                  </svg>
-                  <%= meeting.participants.length %> participant<%= meeting.participants.length !== 1 ? 's' : '' %>
-                </div>
-              <% } %>
-            </div>
-          </div>
-        </div>
-      </div>
-    </header>
+    <%- include('partials/meeting-detail/header', { meeting: meeting }) -%>
     <main>
       <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 mt-8">
-        <div class="grid grid-cols-1 gap-6 sm:grid-cols-3">
+        <div class="grid grid-cols-1 gap-6 lg:grid-cols-12">
           <!-- Main content column -->
-          <div class="sm:col-span-2 space-y-6">
+          <div class="lg:col-span-8 space-y-6">
             
-            <!-- Media Player Section -->
-            <% if (meeting.videoUrl || meeting.audioUrl) { %>
-              <div class="overflow-hidden bg-white shadow sm:rounded-lg">
-                <div class="px-4 py-5 sm:px-6 border-b border-gray-200">
-                  <h2 class="text-lg font-semibold text-gray-900 flex items-center">
-                    <svg class="w-5 h-5 mr-2 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
-                    </svg>
-                    Recording
-                  </h2>
-                </div>
-                <div class="px-4 py-5 sm:px-6">
-                  <!-- Media Toggle Buttons -->
-                  <% if (meeting.videoUrl && meeting.audioUrl) { %>
-                    <div class="flex space-x-2 mb-4">
-                      <button 
-                        type="button" 
-                        onclick="toggleMedia('video')" 
-                        id="video-toggle-btn"
-                        class="inline-flex items-center rounded-md bg-indigo-600 px-3 py-2 text-sm font-medium text-white shadow-sm hover:bg-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
-                      >
-                        <svg class="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
-                        </svg>
-                        Video
-                      </button>
-                      <button 
-                        type="button" 
-                        onclick="toggleMedia('audio')" 
-                        id="audio-toggle-btn"
-                        class="inline-flex items-center rounded-md bg-white px-3 py-2 text-sm font-medium text-gray-700 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
-                      >
-                        <svg class="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3"></path>
-                        </svg>
-                        Audio Only
-                      </button>
-                    </div>
-                  <% } %>
+            <%- include('partials/meeting-detail/recording', { meeting: meeting }) -%>
+            <%- include('partials/meeting-detail/tabs', { meeting: meeting, publishDeliveries: publishDeliveries }) -%>
 
-                  <!-- Video Player -->
-                  <% if (meeting.videoUrl) { %>
-                    <div id="video-player-container" class="mb-4">
-                      <div class="relative bg-black rounded-lg overflow-hidden aspect-video">
-                        <video 
-                          id="video-player"
-                          controls 
-                          class="w-full h-full"
-                          poster=""
-                        >
-                          <source src="<%= meeting.videoUrl %>" type="video/mp4">
-                          Your browser does not support the video tag.
-                        </video>
-                      </div>
-                    </div>
-                  <% } %>
-
-                  <!-- Audio Player -->
-                  <% if (meeting.audioUrl) { %>
-                    <div id="audio-player-container" class="mb-4 <%= meeting.videoUrl ? 'hidden' : '' %>">
-                      <div class="bg-gradient-to-r from-indigo-500 to-purple-600 rounded-lg p-6">
-                        <div class="flex items-center justify-center mb-4">
-                          <div class="w-20 h-20 bg-white/20 rounded-full flex items-center justify-center">
-                            <svg class="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3"></path>
-                            </svg>
-                          </div>
-                        </div>
-                        <p class="text-white text-center text-sm font-medium mb-4"><%= meeting.title %></p>
-                        <audio 
-                          id="audio-player"
-                          controls 
-                          class="w-full"
-                        >
-                          <source src="<%= meeting.audioUrl %>" type="audio/mpeg">
-                          Your browser does not support the audio element.
-                        </audio>
-                      </div>
-                    </div>
-                  <% } %>
-
-                  <!-- Download Buttons -->
-                  <div class="flex flex-wrap gap-3 pt-4 border-t border-gray-200">
-                    <% if (meeting.videoUrl || meeting.artifactId) { %>
-                      <% 
-                        const videoDownloadUrl = meeting.isShared && meeting.shareInfo?.shareToken 
-                          ? `/api/meetings/shared/${meeting.shareInfo.shareToken}/recording/download/video`
-                          : `/api/meetings/${meeting.artifactId || meeting.id}/recording/download/video`;
-                      %>
-                      <a
-                        href="<%= videoDownloadUrl %>"
-                        download
-                        class="inline-flex items-center rounded-md bg-green-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-green-500"
-                      >
-                        <svg class="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
-                        </svg>
-                        Download Video
-                      </a>
-                    <% } %>
-                    <% if (meeting.audioUrl || meeting.artifactId) { %>
-                      <% 
-                        const audioDownloadUrl = meeting.isShared && meeting.shareInfo?.shareToken 
-                          ? `/api/meetings/shared/${meeting.shareInfo.shareToken}/recording/download/audio`
-                          : `/api/meetings/${meeting.artifactId || meeting.id}/recording/download/audio`;
-                      %>
-                      <a
-                        href="<%= audioDownloadUrl %>"
-                        download
-                        class="inline-flex items-center rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-500"
-                      >
-                        <svg class="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
-                        </svg>
-                        Download Audio
-                      </a>
-                    <% } %>
-                  </div>
-                </div>
-              </div>
-            <% } %>
-
+            <% if (false) { %>
             <!-- Tabbed Content Section -->
             <div class="overflow-hidden bg-white shadow sm:rounded-lg">
               <!-- Tab Navigation - Responsive with horizontal scroll -->
@@ -788,9 +617,15 @@
                 </div>
               </div>
             </div>
+            <% } %>
 
           </div>
 
+          <div class="lg:col-span-4">
+            <%- include('partials/meeting-detail/sidebar', { meeting: meeting }) -%>
+          </div>
+
+          <% if (false) { %>
           <!-- Sidebar -->
           <div class="sm:col-span-1 space-y-6">
             
@@ -1186,6 +1021,7 @@
                 </a>
               </div>
             </div>
+          <% } %>
 
           </div>
         </div>
@@ -1194,11 +1030,14 @@
   </div>
 </div>
 
+<%- include('partials/meeting-detail/actions-drawer', { meeting: meeting }) -%>
+
 <script>
   // Store meeting ID for use in JavaScript (could be UUID or readableId)
   const meetingId = '<%= meeting.readableId || meeting.id %>';
   const artifactId = '<%= meeting.artifactId || "" %>';
   const topicsData = <%- JSON.stringify(meeting.topics || []) %>;
+  const meetingSummaryText = <%- JSON.stringify(meeting.summary || "") %>;
 
   // Format all datetime elements to user's local timezone
   document.addEventListener('DOMContentLoaded', function() {
@@ -1226,28 +1065,122 @@
       
       el.textContent = formatted;
     });
+
+    switchTab('summary', { focus: false });
+
+    const tabButtons = Array.from(document.querySelectorAll('.tab-btn'));
+    tabButtons.forEach((tab, index) => {
+      tab.addEventListener('keydown', (event) => {
+        const isHorizontal = event.key === 'ArrowRight' || event.key === 'ArrowLeft';
+        const isEdge = event.key === 'Home' || event.key === 'End';
+        if (!isHorizontal && !isEdge) return;
+        event.preventDefault();
+
+        let nextIndex = index;
+        if (event.key === 'ArrowRight') {
+          nextIndex = (index + 1) % tabButtons.length;
+        } else if (event.key === 'ArrowLeft') {
+          nextIndex = (index - 1 + tabButtons.length) % tabButtons.length;
+        } else if (event.key === 'Home') {
+          nextIndex = 0;
+        } else if (event.key === 'End') {
+          nextIndex = tabButtons.length - 1;
+        }
+
+        const nextTab = tabButtons[nextIndex];
+        const tabName = nextTab?.id?.replace('tab-', '');
+        if (tabName) {
+          switchTab(tabName, { focus: true });
+        }
+      });
+    });
   });
 
   // Tab switching functionality
-  function switchTab(tabName) {
-    // Hide all content
+  function switchTab(tabName, options = {}) {
+    const targetContent = document.getElementById('content-' + tabName);
+    const activeTab = document.getElementById('tab-' + tabName);
+    if (!targetContent || !activeTab) return;
+
     document.querySelectorAll('.tab-content').forEach(content => {
       content.classList.add('hidden');
     });
     
-    // Remove active state from all tabs
     document.querySelectorAll('.tab-btn').forEach(btn => {
       btn.classList.remove('border-indigo-500', 'text-indigo-600');
       btn.classList.add('border-transparent', 'text-gray-500', 'hover:border-gray-300', 'hover:text-gray-700');
+      btn.setAttribute('aria-selected', 'false');
+      btn.setAttribute('tabindex', '-1');
     });
     
-    // Show selected content
-    document.getElementById('content-' + tabName).classList.remove('hidden');
+    targetContent.classList.remove('hidden');
     
-    // Activate selected tab
-    const activeTab = document.getElementById('tab-' + tabName);
     activeTab.classList.remove('border-transparent', 'text-gray-500', 'hover:border-gray-300', 'hover:text-gray-700');
     activeTab.classList.add('border-indigo-500', 'text-indigo-600');
+    activeTab.setAttribute('aria-selected', 'true');
+    activeTab.setAttribute('tabindex', '0');
+
+    const tabSelect = document.getElementById('tab-select');
+    if (tabSelect && tabSelect.value !== tabName) {
+      tabSelect.value = tabName;
+    }
+
+    if (options.focus) {
+      activeTab.focus();
+    }
+  }
+
+  let actionsDrawerLastFocus = null;
+
+  function openActionsDrawer() {
+    const drawer = document.getElementById('actions-drawer');
+    if (!drawer) return;
+    actionsDrawerLastFocus = document.activeElement;
+    drawer.classList.remove('hidden');
+    document.body.classList.add('overflow-hidden');
+    const focusTarget = drawer.querySelector('button, [href], input, select, textarea');
+    if (focusTarget) {
+      focusTarget.focus();
+    }
+  }
+
+  function closeActionsDrawer() {
+    const drawer = document.getElementById('actions-drawer');
+    if (!drawer) return;
+    drawer.classList.add('hidden');
+    document.body.classList.remove('overflow-hidden');
+    if (actionsDrawerLastFocus && typeof actionsDrawerLastFocus.focus === 'function') {
+      actionsDrawerLastFocus.focus();
+    }
+  }
+
+  document.addEventListener('keydown', function(event) {
+    if (event.key === 'Escape') {
+      const drawer = document.getElementById('actions-drawer');
+      if (drawer && !drawer.classList.contains('hidden')) {
+        closeActionsDrawer();
+      }
+    }
+  });
+
+  function scrollToShareSection() {
+    switchTab('summary', { focus: false });
+    const section = document.getElementById('share-meeting-section');
+    if (!section) {
+      showNotification('Share section not available', 'error');
+      return;
+    }
+    section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  function copySummaryToClipboard() {
+    const summaryEl = document.querySelector('#content-summary .prose');
+    const text = (summaryEl?.innerText || meetingSummaryText || '').trim();
+    if (!text) {
+      showNotification('No summary to copy', 'error');
+      return;
+    }
+    copyTextToClipboard(text);
   }
 
   // Topics accordion + helpers
@@ -1484,9 +1417,13 @@
   }
 
   // Enrichment trigger functionality
-  async function triggerEnrichment(artifactId) {
-    const btn = document.getElementById('enrich-btn');
-    const btnText = document.getElementById('enrich-btn-text');
+  async function triggerEnrichment(artifactId, buttonEl) {
+    const btn = buttonEl || document.getElementById('enrich-btn');
+    const btnText = (btn && btn.querySelector('[data-enrich-text]')) || document.getElementById('enrich-btn-text');
+    if (!btn || !btnText) {
+      showNotification('Unable to trigger enrichment from this view.', 'error');
+      return;
+    }
     
     // Disable button and show loading state
     btn.disabled = true;
@@ -1556,10 +1493,10 @@
   }
 
   // Manual publish to Notion
-  async function publishToNotion(artifactId) {
-    const btn = document.getElementById('publish-btn');
-    const btnText = document.getElementById('publish-btn-text');
-    if (!btn) return;
+  async function publishToNotion(artifactId, buttonEl) {
+    const btn = buttonEl || document.getElementById('publish-btn');
+    const btnText = (btn && btn.querySelector('[data-publish-text]')) || document.getElementById('publish-btn-text');
+    if (!btn || !btnText) return;
     btn.disabled = true;
     btn.classList.add('opacity-75', 'cursor-not-allowed');
     const originalText = btnText.textContent;

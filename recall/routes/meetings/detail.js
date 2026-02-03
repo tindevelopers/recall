@@ -1,6 +1,55 @@
 import db from "../../db.js";
 import { Op } from "sequelize";
 
+function estimateDurationMs(chunk) {
+  if (
+    typeof chunk.startTimeMs === "number" &&
+    typeof chunk.endTimeMs === "number" &&
+    chunk.endTimeMs > chunk.startTimeMs
+  ) {
+    return chunk.endTimeMs - chunk.startTimeMs;
+  }
+  const wordCount = chunk.text ? chunk.text.trim().split(/\s+/).length : 0;
+  return wordCount * 500;
+}
+
+function computeStatsFromTranscript(chunks = []) {
+  if (!Array.isArray(chunks) || chunks.length === 0) {
+    return null;
+  }
+
+  const totals = new Map();
+  let totalDurationMs = 0;
+
+  chunks.forEach((chunk) => {
+    const speaker = chunk.speaker || "Unknown";
+    const durationMs = estimateDurationMs(chunk);
+    const wordCount = chunk.text ? chunk.text.trim().split(/\s+/).length : 0;
+    const entry = totals.get(speaker) || { talkTimeMs: 0, turns: 0, wordCount: 0 };
+    entry.talkTimeMs += durationMs;
+    entry.turns += 1;
+    entry.wordCount += wordCount;
+    totals.set(speaker, entry);
+    totalDurationMs += durationMs;
+  });
+
+  const speakers = Array.from(totals.entries()).map(([name, data]) => {
+    const talkTimeSeconds = data.talkTimeMs / 1000;
+    return {
+      name,
+      talkTimeSeconds,
+      talkTimePercent: totalDurationMs ? (data.talkTimeMs / totalDurationMs) * 100 : null,
+      turns: data.turns,
+      wordCount: data.wordCount,
+    };
+  });
+
+  return {
+    durationSeconds: totalDurationMs / 1000,
+    speakers,
+  };
+}
+
 export default async (req, res) => {
   // #region agent log
   const detailStartTime = Date.now();
@@ -149,6 +198,8 @@ export default async (req, res) => {
     }
   }
 
+  const derivedStats = computeStatsFromTranscript(transcriptData);
+
   // Build meeting data
   const meeting = {
     id: artifact?.id || summary?.id,
@@ -182,6 +233,8 @@ export default async (req, res) => {
     actionItems: summary?.actionItems || [],
     followUps: summary?.followUps || [],
     topics: summary?.topics || [],
+    highlights: summary?.highlights || [],
+    detailedNotes: summary?.detailedNotes || [],
     
     // Sentiment and insights
     // Handle sentiment as object {label, score, confidence} or string
@@ -194,6 +247,7 @@ export default async (req, res) => {
     keyInsights: summary?.keyInsights || [],
     decisions: summary?.decisions || [],
     outcome: summary?.outcome || null,
+    stats: summary?.stats || derivedStats || null,
     summarySource: summary?.source || null,
     
     // Transcript
