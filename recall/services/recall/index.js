@@ -212,6 +212,14 @@ const recallService = {
       method: "DELETE",
     });
   },
+
+  /** GET a single calendar event by id (used by shared-bot scheduling to check .bots). */
+  getCalendarEvent: async (eventId) => {
+    return await client.request({
+      path: `/api/v2/calendar-events/${eventId}/`,
+      method: "GET",
+    });
+  },
   
   // Bot and Notepad API methods
   getBotV1: async (botId) => {

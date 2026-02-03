@@ -1862,7 +1862,9 @@
       return;
     }
     renderSuperAgentAnalysis(initialSuperAgentAnalysis);
-    if (!initialSuperAgentAnalysis || initialSuperAgentAnalysis.status === 'processing') {
+    // Poll when there's no analysis yet, or when one is queued/processing (so we update when worker finishes)
+    const inProgress = initialSuperAgentAnalysis && (initialSuperAgentAnalysis.status === 'processing' || initialSuperAgentAnalysis.status === 'queued');
+    if (!initialSuperAgentAnalysis || inProgress) {
       scheduleSuperAgentPoll();
     }
   }
