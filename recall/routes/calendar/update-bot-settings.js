@@ -49,6 +49,7 @@ export default async (req, res) => {
     enableSummary = "off",
     enableActionItems = "off",
     enableFollowUps = "off",
+    enableSuperAgent = "off",
     aiProvider = "recall",
     aiModel = "",
     // Publishing
@@ -77,6 +78,7 @@ export default async (req, res) => {
   calendar.enableSummary = enableSummary === "on";
   calendar.enableActionItems = enableActionItems === "on";
   calendar.enableFollowUps = enableFollowUps === "on";
+  calendar.enableSuperAgent = enableSuperAgent === "on";
 
   // Update publishing settings
   calendar.autoPublishToNotion = autoPublishToNotion === "on";

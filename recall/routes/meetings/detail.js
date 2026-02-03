@@ -1,4 +1,5 @@
 import db from "../../db.js";
+import { isSuperAgentEnabled } from "../../utils/super-agent.js";
 import { Op } from "sequelize";
 
 // Generic/placeholder titles we should ignore when deriving a display name
@@ -274,7 +275,7 @@ export default async (req, res) => {
           updatedAt: superAgentAnalysis.updatedAt,
         }
       : null,
-    superAgentEnabled: process.env.SUPER_AGENT_ENABLED === "true",
+    superAgentEnabled: isSuperAgentEnabled(calendarEvent?.Calendar),
     
     // LAZY LOADING: Transcript will be fetched via API
     transcript: [], // Empty - will be lazy-loaded

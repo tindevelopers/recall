@@ -115,6 +115,13 @@ export default (sequelize) => {
         defaultValue: true,
         field: "enable_follow_ups",
       },
+      enableSuperAgent: {
+        type: DataTypes.BOOLEAN,
+        allowNull: false,
+        defaultValue: false,
+        field: "enable_super_agent",
+        comment: "Enable AssemblyAI Super Agent (premium) analysis from Settings → Bot Settings",
+      },
       // AI provider and model selection
       aiProvider: {
         type: DataTypes.ENUM("recall", "openai", "assemblyai", "anthropic"),

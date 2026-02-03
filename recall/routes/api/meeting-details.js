@@ -1,11 +1,8 @@
 import db from "../../db.js";
 import { backgroundQueue } from "../../queue.js";
 import { findAccessibleArtifact } from "../../services/meetings/access.js";
+import { isSuperAgentEnabled } from "../../utils/super-agent.js";
 import { Op } from "sequelize";
-
-function isSuperAgentEnabled() {
-  return process.env.SUPER_AGENT_ENABLED === "true";
-}
 
 // Generic/placeholder titles we should ignore when deriving a display name
 function isGenericMeetingTitle(title) {
@@ -199,7 +196,7 @@ export async function getMeetingMetadata(req, res) {
       hasTranscript: transcriptCount > 0,
       transcriptChunkCount: transcriptCount,
       superAgentStatus: superAgentAnalysis?.status || null,
-      superAgentEnabled: isSuperAgentEnabled(),
+      superAgentEnabled: isSuperAgentEnabled(calendarEvent?.Calendar),
       
       // Ownership
       isOwner,
@@ -533,10 +530,6 @@ export async function triggerSuperAgentAnalysis(req, res) {
     return res.status(401).json({ error: "Unauthorized" });
   }
 
-  if (!isSuperAgentEnabled()) {
-    return res.status(403).json({ error: "Super Agent is not enabled for this account" });
-  }
-
   if (!process.env.ASSEMBLYAI_API_KEY) {
     return res.status(503).json({ error: "AssemblyAI is not configured" });
   }
@@ -556,11 +549,17 @@ export async function triggerSuperAgentAnalysis(req, res) {
       return res.status(404).json({ error: "Meeting not found" });
     }
 
-    const artifact = await db.MeetingArtifact.findByPk(accessibleArtifact.id);
+    const artifact = await db.MeetingArtifact.findByPk(accessibleArtifact.id, {
+      include: [
+        { model: db.CalendarEvent, include: [{ model: db.Calendar }] },
+      ],
+    });
     if (!artifact) {
       return res.status(404).json({ error: "Meeting artifact not found" });
     }
-
+    if (!isSuperAgentEnabled(artifact.CalendarEvent?.Calendar)) {
+      return res.status(403).json({ error: "Super Agent is not enabled for this account" });
+    }
     const requestedFeatures = normalizeRequestedFeatures(req.body?.features || {});
 
     const analysis = await db.MeetingSuperAgentAnalysis.create({
