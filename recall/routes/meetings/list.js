@@ -573,24 +573,57 @@ async function syncBotArtifacts(calendars, userId) {
     const isComplete = ['done', 'fatal', 'analysis_done', 'recording_done'].includes(statusCode) ||
                        ['done', 'fatal', 'analysis_done', 'recording_done'].includes(lastStatus);
     
-    console.log(`[MEETINGS] Bot ${bot.id}: statusCode=${statusCode}, lastStatus=${lastStatus}, isComplete=${isComplete}`);
+    // Note: Removed per-bot logging to reduce log noise (was logging for every bot)
     return isComplete;
   });
   
   console.log(`[MEETINGS] Found ${completedBots.length} completed bots (processing max ${fetchLimit})`);
-  // Process up to fetchLimit bots (which may be higher than MAX_COMPLETED_BOTS in backfill mode)
-  const botsToProcess = completedBots.slice(0, fetchLimit);
   
-  // Get calendar recallIds for matching
-  const calendarRecallIds = calendars.map(c => c.recallId);
+  // Get calendar recallIds for matching - IMPORTANT: Only process bots that belong to this user's calendars
+  const calendarRecallIds = calendars.map(c => c.recallId).filter(Boolean);
+  console.log(`[MEETINGS] User's calendar recallIds: ${calendarRecallIds.join(', ')}`);
+  
+  // Filter bots to only those belonging to this user's calendars
+  // A bot belongs to a user if its calendar_meetings[].id matches one of the user's calendar recallIds
+  const userBots = completedBots.filter(bot => {
+    // Check if bot has calendar_meetings that match user's calendars
+    const botCalendarIds = (bot.calendar_meetings || []).map(cm => cm.id);
+    const matchesCalendar = botCalendarIds.some(id => calendarRecallIds.includes(id));
+    
+    // Also check calendar_event_id field
+    const calendarEventId = bot.calendar_event_id;
+    const matchesEventId = calendarEventId && calendarRecallIds.includes(calendarEventId);
+    
+    // If no calendar info, we can't determine ownership - skip for now
+    // (These will be orphaned bots that can't be assigned to a user)
+    if (!matchesCalendar && !matchesEventId && botCalendarIds.length === 0 && !calendarEventId) {
+      // Bot has no calendar association - check if we can match by meeting URL
+      // For now, skip these as we can't determine ownership
+      return false;
+    }
+    
+    return matchesCalendar || matchesEventId;
+  });
+  
+  console.log(`[MEETINGS] Filtered to ${userBots.length} bots belonging to user's calendars (out of ${completedBots.length} completed)`);
+  
+  // Process up to fetchLimit bots (which may be higher than MAX_COMPLETED_BOTS in backfill mode)
+  const botsToProcess = userBots.slice(0, fetchLimit);
   
   for (const bot of botsToProcess) {
     const botId = bot.id;
     const botStatus = bot.status?.code || bot.status;
     
-    // Check if we already have an artifact for this bot
+    // Check if we already have an artifact for this bot FOR THIS USER
+    // Important: Check both userId and ownerUserId to handle artifacts created by different users
     const existingArtifact = await db.MeetingArtifact.findOne({
-      where: { recallBotId: botId },
+      where: { 
+        recallBotId: botId,
+        [Op.or]: [
+          { userId: userId },
+          { ownerUserId: userId },
+        ],
+      },
     });
     
     if (existingArtifact) {
