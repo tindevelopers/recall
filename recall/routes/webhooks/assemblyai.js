@@ -15,6 +15,18 @@ export default async (req, res) => {
   fetch('http://127.0.0.1:7248/ingest/9df62f0f-78c1-44fb-821f-c3c7b9f764cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'webhooks/assemblyai.js',message:'assemblyai_webhook_received',data:{transcriptId:req.body?.id,status:req.body?.status,hasError:!!req.body?.error},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H14'})}).catch(()=>{});
   // #endregion
 
+  // #region agent log - H3: Webhook secret validation result (no secrets)
+  try {
+    const expectedConfigured = !!process.env.ASSEMBLYAI_WEBHOOK_SECRET;
+    const headerName =
+      (process.env.ASSEMBLYAI_WEBHOOK_HEADER_NAME || "x-assemblyai-webhook-secret").toLowerCase();
+    const received = req.headers?.[headerName];
+    const receivedPresent = typeof received === "string" && received.length > 0;
+    const valid = isValidSecret(req);
+    fetch('http://127.0.0.1:7250/ingest/bf0206c3-6e13-4499-92a3-7fb2b7527fcf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'webhooks/assemblyai.js',message:'assemblyai_webhook_auth',data:{expectedConfigured,headerName,receivedPresent,valid,transcriptId:req.body?.id||null,status:req.body?.status||null},timestamp:Date.now(),sessionId:'debug-session',runId:'pre-fix',hypothesisId:'H3'})}).catch(()=>{});
+  } catch (_) {}
+  // #endregion
+
   if (!isValidSecret(req)) {
     return res.status(401).json({ error: "Invalid webhook signature" });
   }

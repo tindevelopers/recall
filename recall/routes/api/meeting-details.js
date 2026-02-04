@@ -684,6 +684,9 @@ export async function getSuperAgentAnalysis(req, res) {
   const userEmail = req.authentication.user.email || null;
 
   try {
+    // #region agent log - H2s: Server poll entry
+    fetch('http://127.0.0.1:7250/ingest/bf0206c3-6e13-4499-92a3-7fb2b7527fcf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'meeting-details.js:getSuperAgentAnalysis',message:'sa_get_enter',data:{meetingId,userId},timestamp:Date.now(),sessionId:'debug-session',runId:'pre-fix',hypothesisId:'H2s'})}).catch(()=>{});
+    // #endregion
     const accessibleArtifact = await findAccessibleArtifact({
       meetingIdOrReadableId: meetingId,
       userId,
@@ -698,6 +701,32 @@ export async function getSuperAgentAnalysis(req, res) {
       where: { meetingArtifactId: accessibleArtifact.id },
       order: [["createdAt", "DESC"]],
     });
+
+    // #region agent log - H2t: Server poll computed response shape
+    try {
+      const responseAnalysis = analysis
+        ? {
+            id: analysis.id,
+            status: analysis.status,
+            requestedFeatures: analysis.requestedFeatures || {},
+            detailedSummary: analysis.detailedSummary || null,
+            actionItems: analysis.actionItems || [],
+            decisions: analysis.decisions || [],
+            highlights: analysis.highlights || [],
+            chapters: analysis.chapters || [],
+            sentiment: analysis.sentiment || null,
+            topics: analysis.topics || [],
+            contentSafety: analysis.contentSafety || null,
+            translation: analysis.translation || null,
+            errorMessage: analysis.errorMessage || null,
+            createdAt: analysis.createdAt,
+            updatedAt: analysis.updatedAt,
+          }
+        : null;
+      const keys = responseAnalysis && typeof responseAnalysis === "object" ? Object.keys(responseAnalysis) : [];
+      fetch('http://127.0.0.1:7250/ingest/bf0206c3-6e13-4499-92a3-7fb2b7527fcf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'meeting-details.js:getSuperAgentAnalysis',message:'sa_get_shape',data:{meetingId,artifactId:accessibleArtifact.id,hasAnalysis:!!analysis,analysisId:analysis?.id||null,status:analysis?.status||null,responseKeys:keys},timestamp:Date.now(),sessionId:'debug-session',runId:'pre-fix',hypothesisId:'H2t'})}).catch(()=>{});
+    } catch (_) {}
+    // #endregion
 
     // #region agent log - H13: Debug Super Agent poll response
     fetch('http://127.0.0.1:7248/ingest/9df62f0f-78c1-44fb-821f-c3c7b9f764cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'meeting-details.js:getSuperAgentAnalysis',message:'super_agent_poll_response',data:{meetingId,artifactId:accessibleArtifact.id,hasAnalysis:!!analysis,analysisId:analysis?.id,status:analysis?.status,hasChapters:!!(analysis?.chapters?.length),chaptersCount:analysis?.chapters?.length||0,hasTopics:!!(analysis?.topics),topicsType:typeof analysis?.topics,hasDetailedSummary:!!analysis?.detailedSummary,assemblyTranscriptId:analysis?.assemblyTranscriptId},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H13'})}).catch(()=>{});

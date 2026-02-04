@@ -1682,6 +1682,17 @@
   }
 
   function renderSuperAgentAnalysis(analysis) {
+    // #region agent log - H1: Super Agent render inputs/status
+    try {
+      window.__saDbg = window.__saDbg || { renderCount: 0, fetchCount: 0 };
+      if ((window.__saDbg.renderCount || 0) < 3) {
+        const analysisKeys = analysis && typeof analysis === 'object' ? Object.keys(analysis) : [];
+        const computedStatus = !analysis ? null : (analysis.status || 'processing');
+        fetch('http://127.0.0.1:7250/ingest/bf0206c3-6e13-4499-92a3-7fb2b7527fcf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'meeting-detail.ejs:renderSuperAgentAnalysis',message:'sa_render',data:{meetingId,artifactId,superAgentEnabled,analysisType:analysis===null?'null':typeof analysis,analysisKeys,analysisStatus:analysis?.status||null,computedStatus},timestamp:Date.now(),sessionId:'debug-session',runId:'pre-fix',hypothesisId:'H1'})}).catch(()=>{});
+        window.__saDbg.renderCount = (window.__saDbg.renderCount || 0) + 1;
+      }
+    } catch (_) {}
+    // #endregion
     const progress = document.getElementById('super-agent-progress');
     const results = document.getElementById('super-agent-results');
     const errorEl = document.getElementById('super-agent-error');
@@ -1792,9 +1803,36 @@
   async function fetchSuperAgentAnalysis() {
     if (!meetingId || !artifactId) return null;
     try {
+      // #region agent log - H2: Super Agent poll request/response shape
+      try {
+        window.__saDbg = window.__saDbg || { renderCount: 0, fetchCount: 0 };
+        if ((window.__saDbg.fetchCount || 0) < 5) {
+          fetch('http://127.0.0.1:7250/ingest/bf0206c3-6e13-4499-92a3-7fb2b7527fcf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'meeting-detail.ejs:fetchSuperAgentAnalysis',message:'sa_fetch_start',data:{meetingId,artifactId},timestamp:Date.now(),sessionId:'debug-session',runId:'pre-fix',hypothesisId:'H2'})}).catch(()=>{});
+        }
+      } catch (_) {}
+      // #endregion
       const response = await fetch(`/api/meetings/${meetingId}/super-agent`);
+      // #region agent log - H2b: Super Agent poll response details
+      try {
+        window.__saDbg = window.__saDbg || { renderCount: 0, fetchCount: 0 };
+        if ((window.__saDbg.fetchCount || 0) < 5) {
+          fetch('http://127.0.0.1:7250/ingest/bf0206c3-6e13-4499-92a3-7fb2b7527fcf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'meeting-detail.ejs:fetchSuperAgentAnalysis',message:'sa_fetch_http',data:{meetingId,artifactId,ok:response.ok,status:response.status},timestamp:Date.now(),sessionId:'debug-session',runId:'pre-fix',hypothesisId:'H2b'})}).catch(()=>{});
+        }
+      } catch (_) {}
+      // #endregion
       if (!response.ok) return null;
       const data = await response.json();
+      // #region agent log - H2c: Super Agent poll parsed payload
+      try {
+        window.__saDbg = window.__saDbg || { renderCount: 0, fetchCount: 0 };
+        if ((window.__saDbg.fetchCount || 0) < 5) {
+          const analysis = data?.analysis;
+          const analysisKeys = analysis && typeof analysis === 'object' ? Object.keys(analysis) : [];
+          fetch('http://127.0.0.1:7250/ingest/bf0206c3-6e13-4499-92a3-7fb2b7527fcf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'meeting-detail.ejs:fetchSuperAgentAnalysis',message:'sa_fetch_json',data:{meetingId,artifactId,hasAnalysis:!!analysis,analysisType:analysis===null?'null':typeof analysis,analysisKeys,analysisStatus:analysis?.status||null},timestamp:Date.now(),sessionId:'debug-session',runId:'pre-fix',hypothesisId:'H2c'})}).catch(()=>{});
+          window.__saDbg.fetchCount = (window.__saDbg.fetchCount || 0) + 1;
+        }
+      } catch (_) {}
+      // #endregion
       return data.analysis || null;
     } catch (error) {
       console.error('Failed to fetch Super Agent analysis:', error);
@@ -1894,6 +1932,17 @@
 
   function initializeSuperAgent() {
     if (!artifactId) return;
+    // #region agent log - H4: Super Agent initialization auto-poll decision
+    try {
+      const initKeys = initialSuperAgentAnalysis && typeof initialSuperAgentAnalysis === 'object'
+        ? Object.keys(initialSuperAgentAnalysis)
+        : [];
+      const initStatus = initialSuperAgentAnalysis?.status || null;
+      const inProgressInit = !!(initialSuperAgentAnalysis && (initStatus === 'processing' || initStatus === 'queued'));
+      const willPoll = !!(!initialSuperAgentAnalysis || inProgressInit);
+      fetch('http://127.0.0.1:7250/ingest/bf0206c3-6e13-4499-92a3-7fb2b7527fcf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'meeting-detail.ejs:initializeSuperAgent',message:'sa_init',data:{meetingId,artifactId,superAgentEnabled,initialType:initialSuperAgentAnalysis===null?'null':typeof initialSuperAgentAnalysis,initialKeys:initKeys,initialStatus:initStatus,inProgressInit,willPoll},timestamp:Date.now(),sessionId:'debug-session',runId:'pre-fix',hypothesisId:'H4'})}).catch(()=>{});
+    } catch (_) {}
+    // #endregion
     if (!superAgentEnabled) {
       renderSuperAgentAnalysis(null);
       return;

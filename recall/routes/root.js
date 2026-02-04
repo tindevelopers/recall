@@ -117,6 +117,7 @@ export default async (req, res) => {
         });
         
         // Filter to upcoming meetings (start_time > now) and sort by start time
+        // Keep more than 5 so "scroll for more" has content
         upcomingMeetings = upcomingMeetings
           .filter(event => {
             const startTime = new Date(event.recallData?.start_time);
@@ -126,18 +127,77 @@ export default async (req, res) => {
             const aTime = new Date(a.recallData?.start_time);
             const bTime = new Date(b.recallData?.start_time);
             return aTime - bTime;
-          })
-          .slice(0, 10); // Limit to 10 upcoming meetings
+          });
+        // Pass all upcoming for scrollable list (view shows first 5 visible + scroll for more)
       } catch (err) {
         console.error("Failed to fetch upcoming meetings:", err.message);
       }
     }
-    
+
+    // Fetch last 5 past meetings (recorded/synced) for home
+    let pastMeetings = [];
+    try {
+      const { Op } = await import("sequelize");
+      const userId = req.authentication.user.id;
+      let sharedArtifactIds = [];
+      const user = await db.User.findByPk(userId);
+      if (user?.email) {
+        const shares = await db.MeetingShare.findAll({
+          where: {
+            status: "accepted",
+            [Op.or]: [{ sharedWithUserId: userId }, { sharedWithEmail: user.email.toLowerCase() }],
+          },
+          attributes: ["meetingArtifactId"],
+        });
+        sharedArtifactIds = shares.map((s) => s.meetingArtifactId);
+      }
+      const artifactResult = await db.MeetingArtifact.findAll({
+        where: {
+          [Op.or]: [
+            { userId },
+            { ownerUserId: userId },
+            ...(sharedArtifactIds.length > 0 ? [{ id: { [Op.in]: sharedArtifactIds } }] : []),
+          ],
+        },
+        include: [
+          { model: db.CalendarEvent, required: false },
+          { model: db.MeetingSummary, required: false },
+        ],
+        order: [["createdAt", "DESC"]],
+        limit: 5,
+      });
+      pastMeetings = artifactResult.map((artifact) => {
+        const cal = artifact.CalendarEvent;
+        const summary = (artifact.MeetingSummaries && artifact.MeetingSummaries[0]) || artifact.MeetingSummary;
+        const data = artifact.rawPayload?.data || {};
+        const startTime =
+          data.start_time || (cal && cal.recallData?.start_time) || artifact.createdAt;
+        const title =
+          summary?.title ||
+          (cal && (cal.recallData?.raw?.summary || cal.recallData?.raw?.subject)) ||
+          data.title ||
+          data.meeting_title ||
+          "Meeting";
+        const platform = cal?.platform || null;
+        return {
+          id: artifact.id,
+          title: title || "Meeting",
+          startTime,
+          durationSeconds: data.duration_seconds || artifact.recordingDuration || null,
+          platform,
+          hasRecording: !!(data.video_url || data.recording_url || artifact.sourceRecordingUrl),
+        };
+      });
+    } catch (err) {
+      console.error("Failed to fetch past meetings:", err.message);
+    }
+
     return res.render("index.ejs", {
       notice: req.notice,
       user: req.authentication.user,
       calendars,
       upcomingMeetings,
+      pastMeetings,
       notion: {
         integration: notionIntegration?.[0] || null,
         target: notionTarget?.[0] || null,
