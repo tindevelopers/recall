@@ -305,17 +305,65 @@ Please analyze this meeting transcript and provide a comprehensive summary with 
     }
 
     const json = await response.json();
-    const content = json.choices?.[0]?.message?.content || "";
+    let content = json.choices?.[0]?.message?.content || "";
+    const finishReason = json.choices?.[0]?.finish_reason;
+
+    // Handle empty or truncated responses
+    if (!content || content.trim() === "") {
+      console.error("[AssemblyAI] LLM Gateway returned empty content, finishReason:", finishReason);
+      throw new Error(`AssemblyAI LLM Gateway returned empty response (finish_reason: ${finishReason || "unknown"})`);
+    }
+
+    // Strip markdown code blocks if present (```json ... ``` or ``` ... ```)
+    if (typeof content === "string") {
+      content = content.trim();
+      // Remove ```json or ``` at start
+      if (content.startsWith("```json")) {
+        content = content.slice(7);
+      } else if (content.startsWith("```")) {
+        content = content.slice(3);
+      }
+      // Remove ``` at end
+      if (content.endsWith("```")) {
+        content = content.slice(0, -3);
+      }
+      content = content.trim();
+    }
 
     let parsed;
     try {
       parsed = typeof content === "string" ? JSON.parse(content) : content;
     } catch (parseError) {
-      throw new Error("AssemblyAI LLM Gateway returned invalid JSON");
+      console.error("[AssemblyAI] Failed to parse LLM response as JSON:", parseError.message);
+      console.error("[AssemblyAI] Content preview:", content?.substring?.(0, 500));
+      throw new Error(`AssemblyAI LLM Gateway returned invalid JSON: ${parseError.message}`);
+    }
+
+    // Handle detailed_summary - it may be an object with executive_summary/detailed_narrative
+    // or a plain string. The database expects a string.
+    let detailedSummary = "";
+    const rawSummary = parsed.detailed_summary || parsed.summary;
+    if (typeof rawSummary === "string") {
+      detailedSummary = rawSummary;
+    } else if (rawSummary && typeof rawSummary === "object") {
+      // Convert object format to string
+      const parts = [];
+      if (rawSummary.executive_summary) {
+        parts.push(`**Executive Summary**\n${rawSummary.executive_summary}`);
+      }
+      if (rawSummary.detailed_narrative) {
+        parts.push(`**Detailed Narrative**\n${rawSummary.detailed_narrative}`);
+      }
+      // Fallback: if object has other structure, stringify it nicely
+      if (parts.length === 0) {
+        detailedSummary = JSON.stringify(rawSummary, null, 2);
+      } else {
+        detailedSummary = parts.join("\n\n");
+      }
     }
 
     return {
-      detailedSummary: parsed.detailed_summary || parsed.summary || "",
+      detailedSummary,
       actionItems: parsed.action_items || [],
       decisions: parsed.decisions || [],
       highlights: parsed.highlights || [],
