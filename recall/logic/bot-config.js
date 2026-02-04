@@ -112,10 +112,11 @@ export function buildBotConfig({ calendar, event, publicUrl }) {
     }
   }
 
-  // Bot detection - detect other AI bots and leave when only bots remain
-  // This prevents our bot from staying in meetings with only other AI bots
+  // Bot detection: tell the difference between real participants and other notetakers/bots.
+  // If another notetaker (e.g. Otter, Fireflies, human-named "Notetaker") is detected and only
+  // bots remain in the meeting, our bot will disconnect and leave to avoid duplicate notes.
   botConfig.bot_detection = {
-    // Detect bots by common naming patterns
+    // Detect other notetakers/bots by participant display names
     using_participant_names: {
       keywords: [
         // Generic bot indicators
@@ -163,7 +164,7 @@ export function buildBotConfig({ calendar, event, publicUrl }) {
       // Leave 10 seconds after detecting only bots remain
       timeout: 10,
     },
-    // Also detect bots by behavior - participants who never speak or share screen
+    // Also detect by behavior: participants who never speak or share screen are likely bots
     using_participant_events: {
       types: ["active_speaker", "screen_share"],
       // Start detecting after 5 minutes
@@ -172,6 +173,7 @@ export function buildBotConfig({ calendar, event, publicUrl }) {
       timeout: 30,
     },
   };
+  // Result: bot leaves when it detects only other notetakers/bots (no real participants).
 
   return botConfig;
 }

@@ -1618,6 +1618,21 @@ export default async (req, res) => {
       } else if (event.shouldRecordManual === false) {
         recordStatus = 'do_not_record';
       }
+
+      // Derive bot status for display: in_meeting, meeting_finished, processed, or scheduled
+      let botStatusDisplay = 'scheduled';
+      if (hasBots) {
+        const firstBot = event.bots[0];
+        const code = (firstBot?.status?.code ?? firstBot?.status ?? '').toString().toLowerCase();
+        if (['in_call_recording', 'in_call_not_recording', 'in_call', 'joined_call'].includes(code)) {
+          botStatusDisplay = 'in_meeting';
+        } else if (['call_ended', 'left_call', 'left'].includes(code)) {
+          botStatusDisplay = 'meeting_finished';
+        } else if (['done', 'analysis_done', 'recording_done'].includes(code)) {
+          botStatusDisplay = 'processed';
+        }
+        // else: joining_call, in_waiting_room, or unknown → keep 'scheduled'
+      }
       
       // Get attendees for display
       const attendees = getAttendeesFromEvent(event);
@@ -1633,6 +1648,7 @@ export default async (req, res) => {
         platform: event.Calendar?.platform || null,
         calendarEmail: event.Calendar?.email || null,
         recordStatus,
+        botStatusDisplay,  // 'scheduled' | 'in_meeting' | 'meeting_finished' | 'processed'
         recallEventId: event.recallId,
         transcriptionMode: event.transcriptionMode,  // Per-event override (null = use calendar default)
         effectiveTranscriptionMode,  // Resolved value for display

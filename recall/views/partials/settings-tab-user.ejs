@@ -28,6 +28,36 @@
     </div>
   </div>
 
+  <!-- Update profile form -->
+  <div class="bg-white rounded-2xl border border-gray-200 p-6">
+    <h3 class="text-lg font-semibold text-gray-900 mb-4">Update your profile</h3>
+    <form method="POST" action="/profile" class="space-y-4 max-w-md">
+      <div>
+        <label for="profile-name" class="block text-sm font-medium text-gray-700">Display name</label>
+        <input
+          type="text"
+          id="profile-name"
+          name="name"
+          value="<%= user.name || '' %>"
+          placeholder="Your name"
+          class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm"
+          required
+        />
+        <p class="mt-1 text-xs text-gray-500">This name appears in the header and on your profile.</p>
+      </div>
+      <div>
+        <p class="text-sm text-gray-500">Email: <span class="font-medium text-gray-700"><%= user.email %></span></p>
+        <p class="text-xs text-gray-400">Email cannot be changed here. Contact support if you need to update it.</p>
+      </div>
+      <button
+        type="submit"
+        class="inline-flex items-center rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
+      >
+        Save changes
+      </button>
+    </form>
+  </div>
+
   <!-- Connected Calendars -->
   <div class="space-y-4">
     <div class="flex items-center justify-between">

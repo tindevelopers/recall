@@ -57,6 +57,7 @@ import getRecording from "./api/get-recording.js";
 import publishMeeting from "./api/publish-meeting.js";
 import { listDestinations as apiNotionDestinations, publishToNotionDestination } from "./api/notion-destinations.js";
 import settingsGet from "./settings/get.js";
+import profileUpdate from "./profile/update.js";
 import apiWebhooks from "./api/webhooks.js";
 import meetingSharesRouter from "./api/meeting-shares.js";
 import recordingProxyRouter from "./api/recording-proxy.js";
@@ -178,6 +179,7 @@ router.use("/api", meetingSharesRouter);
 router.use("/api", recordingProxyRouter);
 
 router.get("/settings", settingsGet);
+router.post("/profile", profileUpdate);
 
 router.get("*", catchAll);
 
