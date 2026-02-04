@@ -588,22 +588,19 @@ async function syncBotArtifacts(calendars, userId) {
   const botCalendarDebug = completedBots.slice(0, 5).map(bot => ({
     botId: bot.id,
     botName: bot.bot_name || bot.name,
-    meetingUrl: bot.meeting_url?.substring(0, 50),
+    meetingUrl: typeof bot.meeting_url === 'string' ? bot.meeting_url?.substring(0, 50) : JSON.stringify(bot.meeting_url)?.substring(0, 50),
     calendarMeetings: (bot.calendar_meetings || []).map(cm => ({ id: cm.id, title: cm.title?.substring(0, 30) })),
     calendarEventId: bot.calendar_event_id,
     schedulingSource: bot.scheduling_source,
     createdAt: bot.created_at,
   }));
-  console.log(`[DEBUG] H10:bot_calendar_info`, JSON.stringify({
-    userCalendarRecallIds: calendarRecallIds,
-    userCalendarsCount: calendars.length,
-    userCalendars: calendars.map(c => ({ id: c.id, recallId: c.recallId, email: c.email })),
-    first5BotsCalendarInfo: botCalendarDebug,
-  }));
+  fetch('http://127.0.0.1:7248/ingest/9df62f0f-78c1-44fb-821f-c3c7b9f764cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'list.js:H10',message:'bot_calendar_matching',data:{userCalendarRecallIds:calendarRecallIds,userCalendarsCount:calendars.length,userCalendars:calendars.map(c=>({id:c.id,recallId:c.recallId,email:c.email})),first5BotsCalendarInfo:botCalendarDebug,completedBotsCount:completedBots.length},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H10'})}).catch(()=>{});
   // #endregion
   
   // Filter bots to only those belonging to this user's calendars
   // A bot belongs to a user if its calendar_meetings[].id matches one of the user's calendar recallIds
+  // FIX: If bots have no calendar association (empty calendar_meetings), still process them
+  // since they're from the same Recall.ai workspace and should be visible to the user
   const userBots = completedBots.filter(bot => {
     // Check if bot has calendar_meetings that match user's calendars
     const botCalendarIds = (bot.calendar_meetings || []).map(cm => cm.id);
@@ -613,18 +610,22 @@ async function syncBotArtifacts(calendars, userId) {
     const calendarEventId = bot.calendar_event_id;
     const matchesEventId = calendarEventId && calendarRecallIds.includes(calendarEventId);
     
-    // If no calendar info, we can't determine ownership - skip for now
-    // (These will be orphaned bots that can't be assigned to a user)
-    if (!matchesCalendar && !matchesEventId && botCalendarIds.length === 0 && !calendarEventId) {
-      // Bot has no calendar association - check if we can match by meeting URL
-      // For now, skip these as we can't determine ownership
-      return false;
+    // If bot has calendar info, only include if it matches user's calendars
+    if (botCalendarIds.length > 0 || calendarEventId) {
+      return matchesCalendar || matchesEventId;
     }
     
-    return matchesCalendar || matchesEventId;
+    // FIX: If bot has NO calendar association (empty calendar_meetings and no calendar_event_id),
+    // include it anyway - these are likely manually scheduled bots or bots from before
+    // calendar integration was set up. They should still be visible to the workspace user.
+    return true;
   });
   
   console.log(`[MEETINGS] Filtered to ${userBots.length} bots belonging to user's calendars (out of ${completedBots.length} completed)`);
+  
+  // #region agent log - H10b: Log filtering result
+  fetch('http://127.0.0.1:7248/ingest/9df62f0f-78c1-44fb-821f-c3c7b9f764cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'list.js:H10b',message:'bot_filter_result',data:{userBotsCount:userBots.length,completedBotsCount:completedBots.length,userBotsFirst3:userBots.slice(0,3).map(b=>({id:b.id,name:b.bot_name||b.name,calMeetings:b.calendar_meetings?.length||0}))},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H10b'})}).catch(()=>{});
+  // #endregion
   
   // Process up to fetchLimit bots (which may be higher than MAX_COMPLETED_BOTS in backfill mode)
   const botsToProcess = userBots.slice(0, fetchLimit);
@@ -1869,7 +1870,7 @@ export default async (req, res) => {
       const sDate = new Date(startTime);
       return sDate >= todayStartCheck;
     });
-    console.log(`[DEBUG] H1-H7:artifacts_fetched`, JSON.stringify({totalArtifacts:artifacts.length,artifactsFromTodayByCreatedAt:artifactsFromToday.length,artifactsFromTodayByStartTime:artifactsByStartTime.length,artifactsFromToday:artifactsFromToday.map(a=>({id:a.id,createdAt:a.createdAt,eventType:a.eventType,hasCalendarEvent:!!a.CalendarEvent,calendarEventStartTime:a.CalendarEvent?.startTime,rawStartTime:a.rawPayload?.data?.start_time})),artifactsByStartTime:artifactsByStartTime.map(a=>({id:a.id,createdAt:a.createdAt,rawStartTime:a.rawPayload?.data?.start_time,calendarStartTime:a.CalendarEvent?.startTime})),dateFiltersApplied:Object.keys(dateFilters).length>0,dateFilters:JSON.stringify(dateFilters),todayStartCheck:todayStartCheck.toISOString()}));
+    fetch('http://127.0.0.1:7248/ingest/9df62f0f-78c1-44fb-821f-c3c7b9f764cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'list.js:H1-H7',message:'artifacts_fetched',data:{totalArtifacts:artifacts.length,artifactsFromTodayByCreatedAt:artifactsFromToday.length,artifactsFromTodayByStartTime:artifactsByStartTime.length,first5Artifacts:artifacts.slice(0,5).map(a=>({id:a.id,createdAt:a.createdAt,userId:a.userId,ownerUserId:a.ownerUserId})),artifactsFromToday:artifactsFromToday.map(a=>({id:a.id,createdAt:a.createdAt})),dateFiltersApplied:Object.keys(dateFilters).length>0,todayStartCheck:todayStartCheck.toISOString()},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H1-H7'})}).catch(()=>{});
     // #endregion
     
     // Check for transcript chunks existence in batch (much faster than loading all chunks)
@@ -2541,15 +2542,15 @@ export default async (req, res) => {
   // #region agent log
   // H1/H2/H3/H6: Log all meetings before sorting to see if today's meetings exist and their dates
   // Use UTC-based "today" calculation to avoid timezone issues
-  const now = new Date();
-  const todayStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 0, 0, 0, 0));
-  const todayEnd = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 23, 59, 59, 999));
+  const nowForSort = new Date();
+  const todayStart = new Date(Date.UTC(nowForSort.getUTCFullYear(), nowForSort.getUTCMonth(), nowForSort.getUTCDate(), 0, 0, 0, 0));
+  const todayEnd = new Date(Date.UTC(nowForSort.getUTCFullYear(), nowForSort.getUTCMonth(), nowForSort.getUTCDate(), 23, 59, 59, 999));
   const todaysMeetings = meetings.filter(m => {
     const mDate = new Date(m.startTime || m.createdAt);
     return mDate >= todayStart && mDate <= todayEnd;
   });
   // Also check meetings from the last 48 hours to catch timezone edge cases
-  const last48Hours = new Date(now.getTime() - 48 * 60 * 60 * 1000);
+  const last48Hours = new Date(nowForSort.getTime() - 48 * 60 * 60 * 1000);
   const recentMeetingsLast48h = meetings.filter(m => {
     const mDate = new Date(m.startTime || m.createdAt);
     return mDate >= last48Hours;
@@ -2562,7 +2563,7 @@ export default async (req, res) => {
     type: m.type,
     hasCalendarEvent: !!m.calendarEventId,
   }));
-  console.log(`[DEBUG] H1-H3-H6:before_sort`, JSON.stringify({totalMeetings:meetings.length,todaysMeetingsCount:todaysMeetings.length,last48hMeetingsCount:recentMeetingsLast48h.length,todaysMeetings:todaysMeetings.map(m=>({id:m.id,title:m.title?.substring(0,30),startTime:m.startTime,createdAt:m.createdAt})),last48hMeetings:recentMeetingsLast48h.slice(0,5).map(m=>({id:m.id,title:m.title?.substring(0,30),startTime:m.startTime,createdAt:m.createdAt})),first10Meetings:recentMeetings,todayStartUTC:todayStart.toISOString(),todayEndUTC:todayEnd.toISOString(),nowUTC:now.toISOString(),serverTimezone:Intl.DateTimeFormat().resolvedOptions().timeZone,sortParam:sort,fromFilter:from||null,toFilter:to||null}));
+  fetch('http://127.0.0.1:7248/ingest/9df62f0f-78c1-44fb-821f-c3c7b9f764cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'list.js:H1-H3-H6',message:'before_sort',data:{totalMeetings:meetings.length,todaysMeetingsCount:todaysMeetings.length,last48hMeetingsCount:recentMeetingsLast48h.length,todaysMeetings:todaysMeetings.map(m=>({id:m.id,title:m.title?.substring(0,30),startTime:m.startTime,createdAt:m.createdAt})),first10Meetings:recentMeetings,todayStartUTC:todayStart.toISOString(),todayEndUTC:todayEnd.toISOString(),nowUTC:nowForSort.toISOString()},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H1-H3-H6'})}).catch(()=>{});
   // #endregion
   
   meetings.sort((a, b) => {
@@ -2585,7 +2586,7 @@ export default async (req, res) => {
     createdAt: m.createdAt,
     sortKey: new Date(m.startTime || m.createdAt).toISOString(),
   }));
-  console.log(`[DEBUG] H3-H5:after_sort`, JSON.stringify({sortedFirst10,sortParam:sort,totalMeetings:meetings.length}));
+  fetch('http://127.0.0.1:7248/ingest/9df62f0f-78c1-44fb-821f-c3c7b9f764cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'list.js:H3-H5',message:'after_sort',data:{sortedFirst10,sortParam:sort,totalMeetings:meetings.length},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H3-H5'})}).catch(()=>{});
   // #endregion
 
   // Pagination: Calculate totals and slice after filtering/sorting
