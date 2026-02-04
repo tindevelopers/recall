@@ -269,12 +269,13 @@ function getTranscriptCount(transcript) {
  * This is a fallback for when webhooks don't reach the local server
  */
 async function syncBotArtifacts(calendars, userId) {
-  const MAX_COMPLETED_BOTS = 20; // avoid OOM by capping fetches per sync
-  // List recent bots directly from Recall API
+  // Process more bots per sync so newly finished meetings appear sooner (was 20/50).
+  const MAX_COMPLETED_BOTS = 100;
+  const LIST_BOTS_LIMIT = 200;
   let bots = [];
   try {
-    console.log(`[MEETINGS] Fetching bots from Recall API...`);
-    bots = await Recall.listBots({ limit: 50 });
+    console.log(`[MEETINGS] Fetching bots from Recall API (limit ${LIST_BOTS_LIMIT})...`);
+    bots = await Recall.listBots({ limit: LIST_BOTS_LIMIT });
     console.log(`[MEETINGS] Found ${bots.length} bots from Recall API`);
   } catch (error) {
     console.error(`[MEETINGS] Error listing bots from Recall API:`, error.message);
@@ -310,15 +311,24 @@ async function syncBotArtifacts(calendars, userId) {
   
   console.log(`[MEETINGS] Found ${completedBots.length} completed bots (processing max ${MAX_COMPLETED_BOTS})`);
   const botsToProcess = completedBots.slice(0, MAX_COMPLETED_BOTS);
+  // Only process bots we don't already have artifacts for (incremental sync)
+  const existingByBot = await db.MeetingArtifact.findAll({
+    where: { recallBotId: { [Op.in]: botsToProcess.map(b => b.id) } },
+    attributes: ['recallBotId'],
+  });
+  const existingBotIds = new Set(existingByBot.map(a => a.recallBotId));
+  const newBotsToProcess = botsToProcess.filter(b => !existingBotIds.has(b.id));
+  if (newBotsToProcess.length < botsToProcess.length) {
+    console.log(`[MEETINGS] Skipping ${botsToProcess.length - newBotsToProcess.length} bots (already have artifacts), processing ${newBotsToProcess.length} new`);
+  }
   
   // Get calendar recallIds for matching
   const calendarRecallIds = calendars.map(c => c.recallId);
   
-  for (const bot of botsToProcess) {
+  for (const bot of newBotsToProcess) {
     const botId = bot.id;
     const botStatus = bot.status?.code || bot.status;
     
-    // Check if we already have an artifact for this bot
     const existingArtifact = await db.MeetingArtifact.findOne({
       where: { recallBotId: botId },
     });
@@ -538,7 +548,22 @@ async function syncBotArtifacts(calendars, userId) {
       });
       
       console.log(`[MEETINGS] Created artifact ${artifact.id} for bot ${botId}`);
-      
+      if (!calendarEvent) {
+        console.warn(
+          `[MEETINGS] Artifact ${artifact.id} has no calendar event link (calendarEventId=null). ` +
+          `Meeting may not appear in Past list until a matching calendar event exists. Bot ${botId}, meeting_url=${bot.meeting_url || 'n/a'}`
+        );
+        // Try again to link by meeting URL (calendar may have synced in parallel)
+        const linked = await db.CalendarEvent.findOne({
+          where: { meetingUrl: bot.meeting_url },
+          include: [{ model: db.Calendar, where: { userId }, required: true }],
+        });
+        if (linked) {
+          await artifact.update({ calendarEventId: linked.id, recallEventId: linked.recallId });
+          console.log(`[MEETINGS] Linked artifact ${artifact.id} to calendar event ${linked.id} by meeting URL`);
+        }
+      }
+
       // Create MeetingTranscriptChunk records for the chat API to use
       if (hasTranscriptContent(transcript)) {
         try {
@@ -757,42 +782,52 @@ export default async (req, res) => {
   perfTimings.calendarsFetched = Date.now() - perfStart;
   // #endregion
   const syncCacheKey = `sync-${userId}`;
-  const cachedSync = syncCache.get(syncCacheKey);
+  const currentSync = syncCache.get(syncCacheKey);
   const now = Date.now();
   // Use shorter throttle for past meetings tab to catch newly finished meetings faster
-  // Check if user is viewing past meetings (has hash #past or is on page > 1, which suggests past meetings)
   const isViewingPastMeetings = req.url.includes('#past') || page > 1;
   const throttleMs = isViewingPastMeetings ? SYNC_THROTTLE_PAST_MEETINGS_MS : SYNC_THROTTLE_MS;
-  const shouldSync = !cachedSync || (now - cachedSync.lastSyncTime > throttleMs);
-  
+  const shouldSync = !currentSync || (now - currentSync.lastSyncTime > throttleMs);
+  const syncInProgress = currentSync?.inProgress || false;
+
   // #region agent log
   perfTimings.syncSkipped = !shouldSync;
-  perfTimings.syncCacheAge = cachedSync ? now - cachedSync.lastSyncTime : null;
+  perfTimings.syncCacheAge = currentSync ? now - currentSync.lastSyncTime : null;
   // #endregion
-  
-  if (calendars.length > 0 && shouldSync) {
-    // Mark sync as in progress to prevent concurrent syncs
-    syncCache.set(syncCacheKey, { lastSyncTime: now, inProgress: true });
-    
-    const syncStartTime = Date.now();
-    await Promise.all(calendars.map(cal => syncCalendarEvents(cal)));
-    // #region agent log
-    perfTimings.syncCalendarEvents = Date.now() - syncStartTime;
-    // #endregion
-    console.log(`[MEETINGS] On-demand sync completed in ${Date.now() - syncStartTime}ms`);
-    
-    // Sync bot artifacts for past events (fallback for missing webhooks)
-    const botSyncStartTime = Date.now();
-    await syncBotArtifacts(calendars, userId);
-    // #region agent log
-    perfTimings.syncBotArtifacts = Date.now() - botSyncStartTime;
-    // #endregion
-    console.log(`[MEETINGS] Bot artifact sync completed in ${Date.now() - botSyncStartTime}ms`);
-    
-    // Update cache with completion time
-    syncCache.set(syncCacheKey, { lastSyncTime: Date.now(), inProgress: false });
+
+  // Run sync in background so the page renders immediately with current DB data.
+  // This avoids blocking for 10+ minutes and lets users see existing meetings while sync runs.
+  if (calendars.length > 0 && shouldSync && !syncInProgress) {
+    syncCache.set(syncCacheKey, { lastSyncTime: now, inProgress: true, syncStartTime: now });
+    (async () => {
+      const syncStartTime = Date.now();
+      try {
+        console.log(`[MEETINGS] Starting background sync for ${calendars.length} calendar(s)...`);
+        const calendarSyncPromise = Promise.all(calendars.map(cal => syncCalendarEvents(cal)));
+        const calendarTimeout = new Promise((_, reject) =>
+          setTimeout(() => reject(new Error("Sync timeout after 5 minutes")), 5 * 60 * 1000)
+        );
+        await Promise.race([calendarSyncPromise, calendarTimeout]);
+        console.log(`[MEETINGS] Calendar sync completed in ${Date.now() - syncStartTime}ms`);
+        const botSyncStart = Date.now();
+        const botSyncPromise = syncBotArtifacts(calendars, userId);
+        const botTimeout = new Promise((_, reject) =>
+          setTimeout(() => reject(new Error("Bot sync timeout after 3 minutes")), 3 * 60 * 1000)
+        );
+        await Promise.race([botSyncPromise, botTimeout]);
+        console.log(`[MEETINGS] Bot artifact sync completed in ${Date.now() - botSyncStart}ms`);
+        syncCache.set(syncCacheKey, { lastSyncTime: Date.now(), inProgress: false });
+      } catch (err) {
+        console.error(`[MEETINGS] Background sync error:`, err.message);
+        syncCache.set(syncCacheKey, { lastSyncTime: now, inProgress: false });
+      }
+    })();
+    console.log(`[MEETINGS] Background sync started (page will render with current data)`);
   } else if (calendars.length > 0) {
-    console.log(`[MEETINGS] Skipping sync - last sync was ${Math.round((now - (cachedSync?.lastSyncTime || 0)) / 1000)}s ago`);
+    const reason = syncInProgress
+      ? `sync in progress (started ${Math.round((now - (currentSync?.syncStartTime || now)) / 1000)}s ago)`
+      : `last sync was ${Math.round((now - (currentSync?.lastSyncTime || 0)) / 1000)}s ago`;
+    console.log(`[MEETINGS] Skipping sync - ${reason}`);
   }
 
   // Get upcoming events from all calendars (future events only)
@@ -976,6 +1011,63 @@ export default async (req, res) => {
     // #region agent log
     perfTimings.fetchArtifacts = Date.now() - artifactsStart;
     // #endregion
+
+    // Include past meetings that have no linked calendar event (e.g. bot finished before calendar sync).
+    // These would otherwise never show in Past list. Fetch on page 1 and merge so they appear.
+    if (page === 1) {
+      try {
+        const orphanArtifacts = await db.MeetingArtifact.findAll({
+          where: { userId, calendarEventId: null },
+          include: [{ model: db.MeetingSummary, required: false }],
+          order: [["createdAt", "DESC"]],
+          limit: 100,
+        });
+        const nowDateForOrphans = nowDate;
+        const pastOrphans = orphanArtifacts.filter((a) => {
+          const startTime = a.rawPayload?.data?.start_time;
+          if (!startTime) return false;
+          try {
+            return new Date(startTime) < nowDateForOrphans;
+          } catch {
+            return false;
+          }
+        });
+        if (pastOrphans.length > 0) {
+          const orphanIds = pastOrphans.map((a) => a.id);
+          const orphanChunkCounts = await db.MeetingTranscriptChunk.findAll({
+            attributes: [
+              "meetingArtifactId",
+              [db.sequelize.fn("COUNT", db.sequelize.col("id")), "chunkCount"],
+            ],
+            where: { meetingArtifactId: { [Op.in]: orphanIds } },
+            group: ["meetingArtifactId"],
+            raw: true,
+          });
+          const orphanChunkMap = new Map(
+            orphanChunkCounts.map((c) => [
+              c.meetingArtifactId,
+              parseInt(c.chunkCount) || 0,
+            ])
+          );
+          pastOrphans.forEach((a) => {
+            a.hasTranscriptChunks = (orphanChunkMap.get(a.id) || 0) > 0;
+          });
+          const combined = [...artifacts, ...pastOrphans];
+          combined.sort((a, b) => {
+            const at = a.rawPayload?.data?.start_time || a.createdAt;
+            const bt = b.rawPayload?.data?.start_time || b.createdAt;
+            return new Date(bt) - new Date(at);
+          });
+          artifacts = combined.slice(0, PAGE_SIZE);
+          totalArtifactsCount += pastOrphans.length;
+          console.log(
+            `[MEETINGS] Included ${pastOrphans.length} past meeting(s) without calendar link on page 1`
+          );
+        }
+      } catch (orphanErr) {
+        console.error(`[MEETINGS] Error fetching orphan artifacts:`, orphanErr.message);
+      }
+    }
   } catch (error) {
     console.error(`[MEETINGS] Error fetching meeting artifacts:`, error);
   }
@@ -1333,6 +1425,8 @@ export default async (req, res) => {
     totalPages,
   });
   
+  const lastSyncAge = currentSync ? Math.round((now - (currentSync.lastSyncTime || 0)) / 1000) : null;
+
   return res.render("meetings.ejs", {
     notice: req.notice,
     user: req.authentication.user,
@@ -1341,10 +1435,13 @@ export default async (req, res) => {
     hasCalendars: calendars.length > 0,
     page,
     totalPages,
+    totalCount,
     hasNext,
     hasPrev,
     totalTimeSeconds,
     totalTimeFormatted,
+    lastSyncAge,
+    syncInProgress,
     filters: {
       q: q || "",
       from: from || "",
