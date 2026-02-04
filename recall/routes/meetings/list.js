@@ -583,6 +583,25 @@ async function syncBotArtifacts(calendars, userId) {
   const calendarRecallIds = calendars.map(c => c.recallId).filter(Boolean);
   console.log(`[MEETINGS] User's calendar recallIds: ${calendarRecallIds.join(', ')}`);
   
+  // #region agent log - H10: Debug bot-to-calendar matching
+  // Log the first 5 completed bots' calendar info to understand why they're not matching
+  const botCalendarDebug = completedBots.slice(0, 5).map(bot => ({
+    botId: bot.id,
+    botName: bot.bot_name || bot.name,
+    meetingUrl: bot.meeting_url?.substring(0, 50),
+    calendarMeetings: (bot.calendar_meetings || []).map(cm => ({ id: cm.id, title: cm.title?.substring(0, 30) })),
+    calendarEventId: bot.calendar_event_id,
+    schedulingSource: bot.scheduling_source,
+    createdAt: bot.created_at,
+  }));
+  console.log(`[DEBUG] H10:bot_calendar_info`, JSON.stringify({
+    userCalendarRecallIds: calendarRecallIds,
+    userCalendarsCount: calendars.length,
+    userCalendars: calendars.map(c => ({ id: c.id, recallId: c.recallId, email: c.email })),
+    first5BotsCalendarInfo: botCalendarDebug,
+  }));
+  // #endregion
+  
   // Filter bots to only those belonging to this user's calendars
   // A bot belongs to a user if its calendar_meetings[].id matches one of the user's calendar recallIds
   const userBots = completedBots.filter(bot => {
