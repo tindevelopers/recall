@@ -1843,7 +1843,7 @@ export default async (req, res) => {
       const aDate = new Date(a.createdAt);
       return aDate >= todayStartCheck;
     });
-    fetch('http://127.0.0.1:7248/ingest/9df62f0f-78c1-44fb-821f-c3c7b9f764cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'routes/meetings/list.js:artifacts_fetched',message:'Artifacts fetched from DB',data:{totalArtifacts:artifacts.length,artifactsFromTodayCount:artifactsFromToday.length,artifactsFromToday:artifactsFromToday.map(a=>({id:a.id,createdAt:a.createdAt,eventType:a.eventType,hasCalendarEvent:!!a.CalendarEvent,calendarEventStartTime:a.CalendarEvent?.startTime,rawStartTime:a.rawPayload?.data?.start_time})),dateFiltersApplied:Object.keys(dateFilters).length>0,dateFilters:JSON.stringify(dateFilters)},timestamp:Date.now(),sessionId:'debug-session',runId:'past-meetings-debug',hypothesisId:'H1'})}).catch(()=>{});
+    console.log(`[DEBUG] H1:artifacts_fetched`, JSON.stringify({totalArtifacts:artifacts.length,artifactsFromTodayCount:artifactsFromToday.length,artifactsFromToday:artifactsFromToday.map(a=>({id:a.id,createdAt:a.createdAt,eventType:a.eventType,hasCalendarEvent:!!a.CalendarEvent,calendarEventStartTime:a.CalendarEvent?.startTime,rawStartTime:a.rawPayload?.data?.start_time})),dateFiltersApplied:Object.keys(dateFilters).length>0,dateFilters:JSON.stringify(dateFilters),todayStartCheck:todayStartCheck.toISOString()}));
     // #endregion
     
     // Check for transcript chunks existence in batch (much faster than loading all chunks)
@@ -2084,7 +2084,7 @@ export default async (req, res) => {
     // H4: Log deduplication for today's artifacts
     const artifactCreatedToday = new Date(artifact.createdAt) >= todayStartCheck;
     if (artifactCreatedToday) {
-      fetch('http://127.0.0.1:7248/ingest/9df62f0f-78c1-44fb-821f-c3c7b9f764cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'routes/meetings/list.js:dedupe_today',message:'Deduplication key for today artifact',data:{artifactId:artifact.id,artifactCreatedAt:artifact.createdAt,dedupeKey,hasExistingMeeting:meetingsMap.has(dedupeKey),existingMeetingId:meetingsMap.get(dedupeKey)?.id,existingMeetingCreatedAt:meetingsMap.get(dedupeKey)?.createdAt},timestamp:Date.now(),sessionId:'debug-session',runId:'past-meetings-debug',hypothesisId:'H4'})}).catch(()=>{});
+      console.log(`[DEBUG] H4:dedupe_today`, JSON.stringify({artifactId:artifact.id,artifactCreatedAt:artifact.createdAt,dedupeKey,hasExistingMeeting:meetingsMap.has(dedupeKey),existingMeetingId:meetingsMap.get(dedupeKey)?.id,existingMeetingCreatedAt:meetingsMap.get(dedupeKey)?.createdAt}));
     }
     // #endregion
     
@@ -2530,7 +2530,7 @@ export default async (req, res) => {
     type: m.type,
     hasCalendarEvent: !!m.calendarEventId,
   }));
-  fetch('http://127.0.0.1:7248/ingest/9df62f0f-78c1-44fb-821f-c3c7b9f764cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'routes/meetings/list.js:before_sort',message:'Meetings before sorting',data:{totalMeetings:meetings.length,todaysMeetingsCount:todaysMeetings.length,todaysMeetings:todaysMeetings.map(m=>({id:m.id,title:m.title?.substring(0,30),startTime:m.startTime,createdAt:m.createdAt})),first10Meetings:recentMeetings,todayStart:todayStart.toISOString(),todayEnd:todayEnd.toISOString(),sortParam:sort},timestamp:Date.now(),sessionId:'debug-session',runId:'past-meetings-debug',hypothesisId:'H1-H3'})}).catch(()=>{});
+  console.log(`[DEBUG] H1-H3:before_sort`, JSON.stringify({totalMeetings:meetings.length,todaysMeetingsCount:todaysMeetings.length,todaysMeetings:todaysMeetings.map(m=>({id:m.id,title:m.title?.substring(0,30),startTime:m.startTime,createdAt:m.createdAt})),first10Meetings:recentMeetings,todayStart:todayStart.toISOString(),todayEnd:todayEnd.toISOString(),sortParam:sort}));
   // #endregion
   
   meetings.sort((a, b) => {
@@ -2553,7 +2553,7 @@ export default async (req, res) => {
     createdAt: m.createdAt,
     sortKey: new Date(m.startTime || m.createdAt).toISOString(),
   }));
-  fetch('http://127.0.0.1:7248/ingest/9df62f0f-78c1-44fb-821f-c3c7b9f764cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'routes/meetings/list.js:after_sort',message:'Meetings after sorting (first 10)',data:{sortedFirst10,sortParam:sort},timestamp:Date.now(),sessionId:'debug-session',runId:'past-meetings-debug',hypothesisId:'H3-H5'})}).catch(()=>{});
+  console.log(`[DEBUG] H3-H5:after_sort`, JSON.stringify({sortedFirst10,sortParam:sort,totalMeetings:meetings.length}));
   // #endregion
 
   // Pagination: Calculate totals and slice after filtering/sorting
