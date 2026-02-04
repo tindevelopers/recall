@@ -1855,6 +1855,43 @@
     }
   }
 
+  async function retrySuperAgentAnalysis() {
+    if (!meetingId) {
+      showNotification('No meeting ID available', 'error');
+      return;
+    }
+
+    const retryBtn = document.getElementById('super-agent-retry');
+    if (retryBtn) {
+      retryBtn.disabled = true;
+      retryBtn.textContent = 'Retrying...';
+    }
+
+    try {
+      const response = await fetch(`/api/meetings/${meetingId}/super-agent/retry`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to retry Super Agent analysis');
+      }
+
+      showNotification('Retry queued - analysis will complete shortly', 'success');
+      scheduleSuperAgentPoll();
+    } catch (error) {
+      showNotification(error.message || 'Failed to retry Super Agent', 'error');
+    } finally {
+      if (retryBtn) {
+        retryBtn.disabled = false;
+        retryBtn.textContent = 'Retry';
+      }
+    }
+  }
+
   function initializeSuperAgent() {
     if (!artifactId) return;
     if (!superAgentEnabled) {

@@ -160,6 +160,14 @@
             <div id="super-agent-progress" class="hidden items-center gap-3 text-sm text-gray-600">
               <div class="h-4 w-4 animate-spin rounded-full border-2 border-amber-500 border-t-transparent"></div>
               <span>Super Agent analysis in progress…</span>
+              <button
+                type="button"
+                id="super-agent-retry"
+                onclick="retrySuperAgentAnalysis()"
+                class="ml-4 inline-flex items-center rounded-md bg-gray-100 px-3 py-1 text-xs font-medium text-gray-700 hover:bg-gray-200"
+              >
+                Retry
+              </button>
             </div>
 
             <div id="super-agent-error" class="hidden rounded-md bg-red-50 px-3 py-2 text-sm text-red-700"></div>

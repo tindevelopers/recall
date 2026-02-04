@@ -51,6 +51,7 @@ import {
   triggerEnrichment,
   triggerSuperAgentAnalysis,
   getSuperAgentAnalysis,
+  retrySuperAgentAnalysis,
 } from "./api/meeting-details.js";
 import refreshRecording from "./api/refresh-recording.js";
 import getRecording from "./api/get-recording.js";
@@ -165,6 +166,7 @@ router.get("/api/meetings/:meetingId/actions", getActionItems);
 router.post("/api/meetings/enrich", triggerEnrichment);
 router.post("/api/meetings/:meetingId/super-agent/analyze", triggerSuperAgentAnalysis);
 router.get("/api/meetings/:meetingId/super-agent", getSuperAgentAnalysis);
+router.post("/api/meetings/:meetingId/super-agent/retry", retrySuperAgentAnalysis);
 router.get("/api/meetings/:meetingId/recording", getRecording);
 router.post("/api/meetings/:meetingId/refresh-recording", refreshRecording);
 router.post("/api/meetings/:meetingId/publish", publishMeeting);

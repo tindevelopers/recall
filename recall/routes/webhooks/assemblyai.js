@@ -11,6 +11,10 @@ function isValidSecret(req) {
 }
 
 export default async (req, res) => {
+  // #region agent log - H14: Debug AssemblyAI webhook received
+  fetch('http://127.0.0.1:7248/ingest/9df62f0f-78c1-44fb-821f-c3c7b9f764cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'webhooks/assemblyai.js',message:'assemblyai_webhook_received',data:{transcriptId:req.body?.id,status:req.body?.status,hasError:!!req.body?.error},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H14'})}).catch(()=>{});
+  // #endregion
+
   if (!isValidSecret(req)) {
     return res.status(401).json({ error: "Invalid webhook signature" });
   }
@@ -27,6 +31,10 @@ export default async (req, res) => {
       where: { assemblyTranscriptId: transcriptId },
       order: [["createdAt", "DESC"]],
     });
+
+    // #region agent log - H14b: Debug AssemblyAI webhook analysis lookup
+    fetch('http://127.0.0.1:7248/ingest/9df62f0f-78c1-44fb-821f-c3c7b9f764cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'webhooks/assemblyai.js',message:'assemblyai_webhook_analysis_lookup',data:{transcriptId,status,foundAnalysis:!!analysis,analysisId:analysis?.id,currentStatus:analysis?.status},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H14b'})}).catch(()=>{});
+    // #endregion
 
     if (!analysis) {
       return res.sendStatus(204);
@@ -53,6 +61,10 @@ export default async (req, res) => {
         removeOnFail: false,
       }
     );
+
+    // #region agent log - H14c: Debug AssemblyAI webhook job queued
+    fetch('http://127.0.0.1:7248/ingest/9df62f0f-78c1-44fb-821f-c3c7b9f764cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'webhooks/assemblyai.js',message:'assemblyai_webhook_job_queued',data:{transcriptId,analysisId:analysis.id,jobId:`super-agent-complete-${analysis.id}`},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H14c'})}).catch(()=>{});
+    // #endregion
 
     return res.sendStatus(200);
   } catch (error) {

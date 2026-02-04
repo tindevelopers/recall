@@ -57,6 +57,10 @@ function attachTimestamps(items, utterances) {
 export default async (job) => {
   const { analysisId, transcriptId } = job.data;
 
+  // #region agent log - H15: Debug Super Agent complete processor start
+  fetch('http://127.0.0.1:7248/ingest/9df62f0f-78c1-44fb-821f-c3c7b9f764cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'meeting-super-agent-complete.js',message:'super_agent_complete_start',data:{analysisId,transcriptId},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H15'})}).catch(()=>{});
+  // #endregion
+
   const analysis = analysisId
     ? await db.MeetingSuperAgentAnalysis.findByPk(analysisId)
     : await db.MeetingSuperAgentAnalysis.findOne({
@@ -139,9 +143,16 @@ export default async (job) => {
       errorMessage: null,
     });
 
+    // #region agent log - H15b: Debug Super Agent complete success
+    fetch('http://127.0.0.1:7248/ingest/9df62f0f-78c1-44fb-821f-c3c7b9f764cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'meeting-super-agent-complete.js',message:'super_agent_complete_success',data:{analysisId:analysis.id,hasDetailedSummary:!!summaryResult.detailedSummary,actionItemsCount:actionItems?.length||0,decisionsCount:decisions?.length||0,highlightsCount:highlights?.length||0,chaptersCount:transcript.chapters?.length||0,hasTopics:!!transcript.iab_categories_result},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H15b'})}).catch(()=>{});
+    // #endregion
+
     console.log(`[SuperAgent] Analysis ${analysis.id} completed`);
   } catch (error) {
     console.error(`[SuperAgent] Failed to complete analysis ${analysis?.id}:`, error);
+    // #region agent log - H15c: Debug Super Agent complete error
+    fetch('http://127.0.0.1:7248/ingest/9df62f0f-78c1-44fb-821f-c3c7b9f764cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'meeting-super-agent-complete.js',message:'super_agent_complete_error',data:{analysisId:analysis?.id,error:error?.message,stack:error?.stack?.substring(0,500)},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H15c'})}).catch(()=>{});
+    // #endregion
     await analysis.update({
       status: "error",
       errorMessage: error?.message || "Failed to complete Super Agent analysis",

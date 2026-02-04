@@ -35,27 +35,56 @@ function getParticipantsFromArtifact(artifact) {
 }
 
 /**
+ * Try to identify meeting platform from URL.
+ */
+function extractTitleFromUrl(url) {
+  try {
+    const urlObj = new URL(url);
+    const host = urlObj.hostname.toLowerCase();
+    if (host.includes("zoom.us")) return "Zoom Meeting";
+    if (host.includes("meet.google.com")) return "Google Meet";
+    if (host.includes("teams.microsoft.com")) return "Microsoft Teams Meeting";
+    if (host.includes("webex.com")) return "Webex Meeting";
+    return null;
+  } catch (err) {
+    return null;
+  }
+}
+
+/**
  * Derive a human-readable meeting title from various sources.
  */
 function extractMeetingTitle(artifact, calendarEvent) {
-  // 1) Calendar event title (from recallData)
-  const calEventTitle = calendarEvent?.recallData?.meeting_title || calendarEvent?.recallData?.title || calendarEvent?.title;
+  // 1) Calendar event title (virtual field that gets summary/subject from raw data)
+  if (calendarEvent?.title && !isGenericMeetingTitle(calendarEvent.title)) {
+    return calendarEvent.title;
+  }
+
+  // 2) Calendar event recallData title fields
+  const calEventTitle = calendarEvent?.recallData?.meeting_title || calendarEvent?.recallData?.title;
   if (calEventTitle && !isGenericMeetingTitle(calEventTitle)) {
     return calEventTitle;
   }
 
-  // 2) Artifact payload title
+  // 3) Artifact payload title
   if (artifact?.rawPayload?.data?.title && !isGenericMeetingTitle(artifact.rawPayload.data.title)) {
     return artifact.rawPayload.data.title;
   }
 
-  // 3) Bot meeting_metadata title (if present)
+  // 4) Bot meeting_metadata title (if present)
   const botMetaTitle = artifact?.rawPayload?.data?.bot_metadata?.meeting_metadata?.title;
   if (botMetaTitle && !isGenericMeetingTitle(botMetaTitle)) {
     return botMetaTitle;
   }
 
-  // 4) Build from participants
+  // 5) Derive from meeting URL
+  const meetingUrl = artifact?.rawPayload?.data?.meeting_url || calendarEvent?.meetingUrl;
+  if (meetingUrl) {
+    const urlTitle = extractTitleFromUrl(meetingUrl);
+    if (urlTitle) return urlTitle;
+  }
+
+  // 6) Build from participants
   const participants = getParticipantsFromArtifact(artifact);
   if (participants.length > 0) {
     const names = participants
@@ -67,7 +96,7 @@ function extractMeetingTitle(artifact, calendarEvent) {
     }
   }
 
-  // 5) Date-based fallback
+  // 7) Date-based fallback
   const startTime = calendarEvent?.startTime || artifact?.rawPayload?.data?.start_time || artifact?.createdAt;
   if (startTime) {
     const date = new Date(startTime);
@@ -544,7 +573,12 @@ export async function triggerSuperAgentAnalysis(req, res) {
     return res.status(401).json({ error: "Unauthorized" });
   }
 
+  // #region agent log - H11: Debug Super Agent trigger
+  fetch('http://127.0.0.1:7248/ingest/9df62f0f-78c1-44fb-821f-c3c7b9f764cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'meeting-details.js:triggerSuperAgent',message:'super_agent_trigger_start',data:{meetingId:req.params.meetingId,hasAssemblyAIKey:!!process.env.ASSEMBLYAI_API_KEY,userId:req.authentication?.user?.id},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H11'})}).catch(()=>{});
+  // #endregion
+
   if (!process.env.ASSEMBLYAI_API_KEY) {
+    console.log('[SuperAgent] ASSEMBLYAI_API_KEY not configured');
     return res.status(503).json({ error: "AssemblyAI is not configured" });
   }
 
@@ -560,6 +594,7 @@ export async function triggerSuperAgentAnalysis(req, res) {
     });
 
     if (!accessibleArtifact) {
+      console.log(`[SuperAgent] Artifact not found for meetingId: ${meetingId}`);
       return res.status(404).json({ error: "Meeting not found" });
     }
 
@@ -583,7 +618,14 @@ export async function triggerSuperAgentAnalysis(req, res) {
         calendarForSuperAgent = ownerCalendar || null;
       }
     }
-    if (!isSuperAgentEnabled(calendarForSuperAgent)) {
+    
+    // #region agent log - H11b: Debug Super Agent enabled check
+    const superAgentEnabledResult = isSuperAgentEnabled(calendarForSuperAgent);
+    fetch('http://127.0.0.1:7248/ingest/9df62f0f-78c1-44fb-821f-c3c7b9f764cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'meeting-details.js:triggerSuperAgent',message:'super_agent_enabled_check',data:{meetingId,artifactId:artifact.id,calendarId:calendarForSuperAgent?.id,calendarEnableSuperAgent:calendarForSuperAgent?.enableSuperAgent,envSuperAgentEnabled:process.env.SUPER_AGENT_ENABLED,isSuperAgentEnabledResult:superAgentEnabledResult},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H11b'})}).catch(()=>{});
+    // #endregion
+    
+    if (!superAgentEnabledResult) {
+      console.log(`[SuperAgent] Super Agent not enabled - calendar: ${calendarForSuperAgent?.id}, enableSuperAgent: ${calendarForSuperAgent?.enableSuperAgent}, env: ${process.env.SUPER_AGENT_ENABLED}`);
       return res.status(403).json({ error: "Super Agent is not enabled for this account" });
     }
     const requestedFeatures = normalizeRequestedFeatures(req.body?.features || {});
@@ -610,6 +652,10 @@ export async function triggerSuperAgentAnalysis(req, res) {
       }
     );
 
+    // #region agent log - H11c: Debug Super Agent job queued
+    fetch('http://127.0.0.1:7248/ingest/9df62f0f-78c1-44fb-821f-c3c7b9f764cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'meeting-details.js:triggerSuperAgent',message:'super_agent_job_queued',data:{analysisId:analysis.id,meetingArtifactId:artifact.id,userId,requestedFeatures,jobId:`super-agent-start-${analysis.id}`},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H11c'})}).catch(()=>{});
+    // #endregion
+
     return res.json({
       success: true,
       analysisId: analysis.id,
@@ -617,6 +663,9 @@ export async function triggerSuperAgentAnalysis(req, res) {
     });
   } catch (error) {
     console.error(`[API] Super Agent analyze error for meeting ${meetingId}:`, error);
+    // #region agent log - H11d: Debug Super Agent error
+    fetch('http://127.0.0.1:7248/ingest/9df62f0f-78c1-44fb-821f-c3c7b9f764cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'meeting-details.js:triggerSuperAgent',message:'super_agent_trigger_error',data:{meetingId,error:error?.message,stack:error?.stack?.substring(0,500)},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H11d'})}).catch(()=>{});
+    // #endregion
     return res.status(500).json({ error: "Failed to trigger Super Agent analysis" });
   }
 }
@@ -650,6 +699,10 @@ export async function getSuperAgentAnalysis(req, res) {
       order: [["createdAt", "DESC"]],
     });
 
+    // #region agent log - H13: Debug Super Agent poll response
+    fetch('http://127.0.0.1:7248/ingest/9df62f0f-78c1-44fb-821f-c3c7b9f764cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'meeting-details.js:getSuperAgentAnalysis',message:'super_agent_poll_response',data:{meetingId,artifactId:accessibleArtifact.id,hasAnalysis:!!analysis,analysisId:analysis?.id,status:analysis?.status,hasChapters:!!(analysis?.chapters?.length),chaptersCount:analysis?.chapters?.length||0,hasTopics:!!(analysis?.topics),topicsType:typeof analysis?.topics,hasDetailedSummary:!!analysis?.detailedSummary,assemblyTranscriptId:analysis?.assemblyTranscriptId},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H13'})}).catch(()=>{});
+    // #endregion
+
     if (!analysis) {
       return res.json({ analysis: null });
     }
@@ -676,5 +729,96 @@ export async function getSuperAgentAnalysis(req, res) {
   } catch (error) {
     console.error(`[API] Error fetching Super Agent analysis for meeting ${meetingId}:`, error);
     return res.status(500).json({ error: "Failed to fetch Super Agent analysis" });
+  }
+}
+
+/**
+ * Retry/complete a stuck Super Agent analysis
+ * POST /api/meetings/:meetingId/super-agent/retry
+ * 
+ * This endpoint manually fetches the transcript from AssemblyAI and completes
+ * the analysis if it's stuck in "processing" state (e.g., webhook didn't arrive).
+ */
+export async function retrySuperAgentAnalysis(req, res) {
+  if (!req.authenticated) {
+    return res.status(401).json({ error: "Unauthorized" });
+  }
+
+  const { meetingId } = req.params;
+  const userId = req.authentication.user.id;
+  const userEmail = req.authentication.user.email || null;
+
+  // #region agent log - H16: Debug Super Agent retry start
+  fetch('http://127.0.0.1:7248/ingest/9df62f0f-78c1-44fb-821f-c3c7b9f764cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'meeting-details.js:retrySuperAgentAnalysis',message:'super_agent_retry_start',data:{meetingId,userId},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H16'})}).catch(()=>{});
+  // #endregion
+
+  try {
+    const accessibleArtifact = await findAccessibleArtifact({
+      meetingIdOrReadableId: meetingId,
+      userId,
+      userEmail,
+    });
+
+    if (!accessibleArtifact) {
+      return res.status(404).json({ error: "Meeting not found" });
+    }
+
+    const analysis = await db.MeetingSuperAgentAnalysis.findOne({
+      where: { meetingArtifactId: accessibleArtifact.id },
+      order: [["createdAt", "DESC"]],
+    });
+
+    if (!analysis) {
+      return res.status(404).json({ error: "No Super Agent analysis found for this meeting" });
+    }
+
+    if (analysis.status === "completed") {
+      return res.json({ 
+        success: true, 
+        message: "Analysis already completed",
+        analysis: {
+          id: analysis.id,
+          status: analysis.status,
+        }
+      });
+    }
+
+    if (!analysis.assemblyTranscriptId) {
+      return res.status(400).json({ error: "No AssemblyAI transcript ID found - analysis may not have been submitted" });
+    }
+
+    // Queue the completion job to process the transcript
+    await backgroundQueue.add(
+      "meeting.super_agent.complete",
+      { 
+        analysisId: analysis.id, 
+        transcriptId: analysis.assemblyTranscriptId 
+      },
+      {
+        jobId: `super-agent-retry-${analysis.id}-${Date.now()}`,
+        removeOnComplete: true,
+        removeOnFail: false,
+      }
+    );
+
+    // #region agent log - H16b: Debug Super Agent retry job queued
+    fetch('http://127.0.0.1:7248/ingest/9df62f0f-78c1-44fb-821f-c3c7b9f764cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'meeting-details.js:retrySuperAgentAnalysis',message:'super_agent_retry_queued',data:{analysisId:analysis.id,transcriptId:analysis.assemblyTranscriptId},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H16b'})}).catch(()=>{});
+    // #endregion
+
+    return res.json({
+      success: true,
+      message: "Retry job queued - analysis will be completed shortly",
+      analysis: {
+        id: analysis.id,
+        status: analysis.status,
+        assemblyTranscriptId: analysis.assemblyTranscriptId,
+      }
+    });
+  } catch (error) {
+    console.error(`[API] Error retrying Super Agent analysis for meeting ${meetingId}:`, error);
+    // #region agent log - H16c: Debug Super Agent retry error
+    fetch('http://127.0.0.1:7248/ingest/9df62f0f-78c1-44fb-821f-c3c7b9f764cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'meeting-details.js:retrySuperAgentAnalysis',message:'super_agent_retry_error',data:{meetingId,error:error?.message},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H16c'})}).catch(()=>{});
+    // #endregion
+    return res.status(500).json({ error: "Failed to retry Super Agent analysis" });
   }
 }

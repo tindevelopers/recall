@@ -69,6 +69,10 @@ function buildTranscriptionConfig(requestedFeatures = {}, webhookUrl) {
 export default async (job) => {
   const { analysisId, meetingArtifactId, requestedFeatures } = job.data;
 
+  // #region agent log - H12: Debug Super Agent processor start
+  fetch('http://127.0.0.1:7248/ingest/9df62f0f-78c1-44fb-821f-c3c7b9f764cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'meeting-super-agent-start.js:processor',message:'super_agent_processor_start',data:{analysisId,meetingArtifactId,requestedFeatures},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H12'})}).catch(()=>{});
+  // #endregion
+
   const analysis = await db.MeetingSuperAgentAnalysis.findByPk(analysisId);
   if (!analysis) {
     console.warn(`[SuperAgent] Analysis ${analysisId} not found`);
@@ -94,6 +98,9 @@ export default async (job) => {
       status: "error",
       errorMessage: "Meeting artifact not found",
     });
+    // #region agent log - H12b: Debug artifact not found
+    fetch('http://127.0.0.1:7248/ingest/9df62f0f-78c1-44fb-821f-c3c7b9f764cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'meeting-super-agent-start.js:processor',message:'super_agent_artifact_not_found',data:{analysisId,meetingArtifactId},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H12b'})}).catch(()=>{});
+    // #endregion
     return;
   }
 
@@ -103,6 +110,9 @@ export default async (job) => {
       status: "error",
       errorMessage: "No recording URL available for analysis",
     });
+    // #region agent log - H12c: Debug no recording URL
+    fetch('http://127.0.0.1:7248/ingest/9df62f0f-78c1-44fb-821f-c3c7b9f764cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'meeting-super-agent-start.js:processor',message:'super_agent_no_recording_url',data:{analysisId,artifactId:artifact.id,archivedRecordingUrl:artifact.archivedRecordingUrl?.substring(0,50),sourceRecordingUrl:artifact.sourceRecordingUrl?.substring(0,50),rawPayloadKeys:Object.keys(artifact.rawPayload||{})},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H12c'})}).catch(()=>{});
+    // #endregion
     return;
   }
 
@@ -112,12 +122,19 @@ export default async (job) => {
       status: "error",
       errorMessage: "PUBLIC_URL not configured for AssemblyAI webhooks",
     });
+    // #region agent log - H12d: Debug no public URL
+    fetch('http://127.0.0.1:7248/ingest/9df62f0f-78c1-44fb-821f-c3c7b9f764cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'meeting-super-agent-start.js:processor',message:'super_agent_no_public_url',data:{analysisId,PUBLIC_URL:process.env.PUBLIC_URL,RAILWAY_PUBLIC_DOMAIN:process.env.RAILWAY_PUBLIC_DOMAIN,RAILWAY_STATIC_URL:process.env.RAILWAY_STATIC_URL},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H12d'})}).catch(()=>{});
+    // #endregion
     return;
   }
 
   const webhookUrl = `${publicUrl}/webhooks/assemblyai`;
   const features = requestedFeatures || analysis.requestedFeatures || {};
   const config = buildTranscriptionConfig(features, webhookUrl);
+
+  // #region agent log - H12e: Debug before AssemblyAI submission
+  fetch('http://127.0.0.1:7248/ingest/9df62f0f-78c1-44fb-821f-c3c7b9f764cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'meeting-super-agent-start.js:processor',message:'super_agent_before_assemblyai_submit',data:{analysisId,recordingUrlPrefix:recordingUrl?.substring(0,80),webhookUrl,features,configKeys:Object.keys(config||{}),hasAssemblyAIKey:!!process.env.ASSEMBLYAI_API_KEY},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H12e'})}).catch(()=>{});
+  // #endregion
 
   try {
     const { transcript, requestBody } = await AssemblyAI.submitTranscript({
@@ -133,11 +150,18 @@ export default async (job) => {
       errorMessage: null,
     });
 
+    // #region agent log - H12f: Debug AssemblyAI submission success
+    fetch('http://127.0.0.1:7248/ingest/9df62f0f-78c1-44fb-821f-c3c7b9f764cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'meeting-super-agent-start.js:processor',message:'super_agent_assemblyai_submitted',data:{analysisId,transcriptId:transcript.id,status:'processing'},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H12f'})}).catch(()=>{});
+    // #endregion
+
     console.log(
       `[SuperAgent] Submitted AssemblyAI transcript ${transcript.id} for analysis ${analysis.id}`
     );
   } catch (error) {
     console.error(`[SuperAgent] Failed to submit transcript:`, error);
+    // #region agent log - H12g: Debug AssemblyAI submission error
+    fetch('http://127.0.0.1:7248/ingest/9df62f0f-78c1-44fb-821f-c3c7b9f764cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'meeting-super-agent-start.js:processor',message:'super_agent_assemblyai_error',data:{analysisId,error:error?.message,stack:error?.stack?.substring(0,500)},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H12g'})}).catch(()=>{});
+    // #endregion
     await analysis.update({
       status: "error",
       errorMessage: error?.message || "Failed to submit transcription",

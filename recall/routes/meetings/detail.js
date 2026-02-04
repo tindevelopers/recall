@@ -33,27 +33,56 @@ function getParticipantsFromArtifact(artifact) {
 }
 
 /**
+ * Try to identify meeting platform from URL.
+ */
+function extractTitleFromUrl(url) {
+  try {
+    const urlObj = new URL(url);
+    const host = urlObj.hostname.toLowerCase();
+    if (host.includes("zoom.us")) return "Zoom Meeting";
+    if (host.includes("meet.google.com")) return "Google Meet";
+    if (host.includes("teams.microsoft.com")) return "Microsoft Teams Meeting";
+    if (host.includes("webex.com")) return "Webex Meeting";
+    return null;
+  } catch (err) {
+    return null;
+  }
+}
+
+/**
  * Derive a human-readable meeting title from various sources.
  */
 function extractMeetingTitle(artifact, calendarEvent) {
-  // 1) Calendar event title (from recallData)
-  const calEventTitle = calendarEvent?.recallData?.meeting_title || calendarEvent?.recallData?.title || calendarEvent?.title;
+  // 1) Calendar event title (virtual field that gets summary/subject from raw data)
+  if (calendarEvent?.title && !isGenericMeetingTitle(calendarEvent.title)) {
+    return calendarEvent.title;
+  }
+
+  // 2) Calendar event recallData title fields
+  const calEventTitle = calendarEvent?.recallData?.meeting_title || calendarEvent?.recallData?.title;
   if (calEventTitle && !isGenericMeetingTitle(calEventTitle)) {
     return calEventTitle;
   }
 
-  // 2) Artifact payload title
+  // 3) Artifact payload title
   if (artifact?.rawPayload?.data?.title && !isGenericMeetingTitle(artifact.rawPayload.data.title)) {
     return artifact.rawPayload.data.title;
   }
 
-  // 3) Bot meeting_metadata title (if present)
+  // 4) Bot meeting_metadata title (if present)
   const botMetaTitle = artifact?.rawPayload?.data?.bot_metadata?.meeting_metadata?.title;
   if (botMetaTitle && !isGenericMeetingTitle(botMetaTitle)) {
     return botMetaTitle;
   }
 
-  // 4) Build from participants
+  // 5) Derive from meeting URL
+  const meetingUrl = artifact?.rawPayload?.data?.meeting_url || calendarEvent?.meetingUrl;
+  if (meetingUrl) {
+    const urlTitle = extractTitleFromUrl(meetingUrl);
+    if (urlTitle) return urlTitle;
+  }
+
+  // 6) Build from participants
   const participants = getParticipantsFromArtifact(artifact);
   if (participants.length > 0) {
     const names = participants
@@ -65,7 +94,7 @@ function extractMeetingTitle(artifact, calendarEvent) {
     }
   }
 
-  // 5) Date-based fallback
+  // 7) Date-based fallback
   const startTime = calendarEvent?.startTime || artifact?.rawPayload?.data?.start_time || artifact?.createdAt;
   if (startTime) {
     const date = new Date(startTime);
