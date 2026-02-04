@@ -1837,13 +1837,20 @@ export default async (req, res) => {
     artifacts = artifactResult;
     
     // #region agent log
-    // H1: Check if today's artifacts exist in the database
+    // H1/H7: Check if today's artifacts exist in the database
     // Note: todayStartCheck is defined at function scope above
     const artifactsFromToday = artifacts.filter(a => {
       const aDate = new Date(a.createdAt);
       return aDate >= todayStartCheck;
     });
-    console.log(`[DEBUG] H1:artifacts_fetched`, JSON.stringify({totalArtifacts:artifacts.length,artifactsFromTodayCount:artifactsFromToday.length,artifactsFromToday:artifactsFromToday.map(a=>({id:a.id,createdAt:a.createdAt,eventType:a.eventType,hasCalendarEvent:!!a.CalendarEvent,calendarEventStartTime:a.CalendarEvent?.startTime,rawStartTime:a.rawPayload?.data?.start_time})),dateFiltersApplied:Object.keys(dateFilters).length>0,dateFilters:JSON.stringify(dateFilters),todayStartCheck:todayStartCheck.toISOString()}));
+    // Also check artifacts by their actual start_time (not createdAt)
+    const artifactsByStartTime = artifacts.filter(a => {
+      const startTime = a.rawPayload?.data?.start_time || a.CalendarEvent?.startTime;
+      if (!startTime) return false;
+      const sDate = new Date(startTime);
+      return sDate >= todayStartCheck;
+    });
+    console.log(`[DEBUG] H1-H7:artifacts_fetched`, JSON.stringify({totalArtifacts:artifacts.length,artifactsFromTodayByCreatedAt:artifactsFromToday.length,artifactsFromTodayByStartTime:artifactsByStartTime.length,artifactsFromToday:artifactsFromToday.map(a=>({id:a.id,createdAt:a.createdAt,eventType:a.eventType,hasCalendarEvent:!!a.CalendarEvent,calendarEventStartTime:a.CalendarEvent?.startTime,rawStartTime:a.rawPayload?.data?.start_time})),artifactsByStartTime:artifactsByStartTime.map(a=>({id:a.id,createdAt:a.createdAt,rawStartTime:a.rawPayload?.data?.start_time,calendarStartTime:a.CalendarEvent?.startTime})),dateFiltersApplied:Object.keys(dateFilters).length>0,dateFilters:JSON.stringify(dateFilters),todayStartCheck:todayStartCheck.toISOString()}));
     // #endregion
     
     // Check for transcript chunks existence in batch (much faster than loading all chunks)
@@ -2513,14 +2520,20 @@ export default async (req, res) => {
 
   // Sorting
   // #region agent log
-  // H1/H2/H3: Log all meetings before sorting to see if today's meetings exist and their dates
-  const todayStart = new Date();
-  todayStart.setHours(0, 0, 0, 0);
-  const todayEnd = new Date();
-  todayEnd.setHours(23, 59, 59, 999);
+  // H1/H2/H3/H6: Log all meetings before sorting to see if today's meetings exist and their dates
+  // Use UTC-based "today" calculation to avoid timezone issues
+  const now = new Date();
+  const todayStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 0, 0, 0, 0));
+  const todayEnd = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 23, 59, 59, 999));
   const todaysMeetings = meetings.filter(m => {
     const mDate = new Date(m.startTime || m.createdAt);
     return mDate >= todayStart && mDate <= todayEnd;
+  });
+  // Also check meetings from the last 48 hours to catch timezone edge cases
+  const last48Hours = new Date(now.getTime() - 48 * 60 * 60 * 1000);
+  const recentMeetingsLast48h = meetings.filter(m => {
+    const mDate = new Date(m.startTime || m.createdAt);
+    return mDate >= last48Hours;
   });
   const recentMeetings = meetings.slice(0, 10).map(m => ({
     id: m.id,
@@ -2530,7 +2543,7 @@ export default async (req, res) => {
     type: m.type,
     hasCalendarEvent: !!m.calendarEventId,
   }));
-  console.log(`[DEBUG] H1-H3:before_sort`, JSON.stringify({totalMeetings:meetings.length,todaysMeetingsCount:todaysMeetings.length,todaysMeetings:todaysMeetings.map(m=>({id:m.id,title:m.title?.substring(0,30),startTime:m.startTime,createdAt:m.createdAt})),first10Meetings:recentMeetings,todayStart:todayStart.toISOString(),todayEnd:todayEnd.toISOString(),sortParam:sort}));
+  console.log(`[DEBUG] H1-H3-H6:before_sort`, JSON.stringify({totalMeetings:meetings.length,todaysMeetingsCount:todaysMeetings.length,last48hMeetingsCount:recentMeetingsLast48h.length,todaysMeetings:todaysMeetings.map(m=>({id:m.id,title:m.title?.substring(0,30),startTime:m.startTime,createdAt:m.createdAt})),last48hMeetings:recentMeetingsLast48h.slice(0,5).map(m=>({id:m.id,title:m.title?.substring(0,30),startTime:m.startTime,createdAt:m.createdAt})),first10Meetings:recentMeetings,todayStartUTC:todayStart.toISOString(),todayEndUTC:todayEnd.toISOString(),nowUTC:now.toISOString(),serverTimezone:Intl.DateTimeFormat().resolvedOptions().timeZone,sortParam:sort,fromFilter:from||null,toFilter:to||null}));
   // #endregion
   
   meetings.sort((a, b) => {
