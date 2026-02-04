@@ -1797,6 +1797,10 @@ export default async (req, res) => {
     // Continue without shared meetings if there's an error
   }
   
+  // Define todayStartCheck at function scope so it's accessible in all instrumentation blocks
+  const todayStartCheck = new Date();
+  todayStartCheck.setHours(0, 0, 0, 0);
+  
   try {
     // OPTIMIZATION: Don't include MeetingTranscriptChunk - it can have thousands of rows per artifact
     // Instead, we'll check for transcript existence separately using a count query
@@ -1834,8 +1838,7 @@ export default async (req, res) => {
     
     // #region agent log
     // H1: Check if today's artifacts exist in the database
-    const todayStartCheck = new Date();
-    todayStartCheck.setHours(0, 0, 0, 0);
+    // Note: todayStartCheck is defined at function scope above
     const artifactsFromToday = artifacts.filter(a => {
       const aDate = new Date(a.createdAt);
       return aDate >= todayStartCheck;
