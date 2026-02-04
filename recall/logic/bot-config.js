@@ -115,6 +115,9 @@ export function buildBotConfig({ calendar, event, publicUrl }) {
   // Bot detection: tell the difference between real participants and other notetakers/bots.
   // If another notetaker (e.g. Otter, Fireflies, human-named "Notetaker") is detected and only
   // bots remain in the meeting, our bot will disconnect and leave to avoid duplicate notes.
+  // Use a short activate_after (90s) so short meetings still trigger leave; previously 300s
+  // meant the bot would stay if all humans left before 5 minutes.
+  const botDetectionActivateAfter = 90;
   botConfig.bot_detection = {
     // Detect other notetakers/bots by participant display names
     using_participant_names: {
@@ -159,16 +162,15 @@ export function buildBotConfig({ calendar, event, publicUrl }) {
         "loom",
         "recall",
       ],
-      // Start detecting after 5 minutes to allow humans time to join
-      activate_after: 300,
+      // Start detecting after 90s so short meetings still trigger leave when only bots remain
+      activate_after: botDetectionActivateAfter,
       // Leave 10 seconds after detecting only bots remain
       timeout: 10,
     },
     // Also detect by behavior: participants who never speak or share screen are likely bots
     using_participant_events: {
       types: ["active_speaker", "screen_share"],
-      // Start detecting after 5 minutes
-      activate_after: 300,
+      activate_after: botDetectionActivateAfter,
       // Leave 30 seconds after detecting no human activity
       timeout: 30,
     },

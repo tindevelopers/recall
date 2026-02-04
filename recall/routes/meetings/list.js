@@ -1832,6 +1832,17 @@ export default async (req, res) => {
     });
     artifacts = artifactResult;
     
+    // #region agent log
+    // H1: Check if today's artifacts exist in the database
+    const todayStartCheck = new Date();
+    todayStartCheck.setHours(0, 0, 0, 0);
+    const artifactsFromToday = artifacts.filter(a => {
+      const aDate = new Date(a.createdAt);
+      return aDate >= todayStartCheck;
+    });
+    fetch('http://127.0.0.1:7248/ingest/9df62f0f-78c1-44fb-821f-c3c7b9f764cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'routes/meetings/list.js:artifacts_fetched',message:'Artifacts fetched from DB',data:{totalArtifacts:artifacts.length,artifactsFromTodayCount:artifactsFromToday.length,artifactsFromToday:artifactsFromToday.map(a=>({id:a.id,createdAt:a.createdAt,eventType:a.eventType,hasCalendarEvent:!!a.CalendarEvent,calendarEventStartTime:a.CalendarEvent?.startTime,rawStartTime:a.rawPayload?.data?.start_time})),dateFiltersApplied:Object.keys(dateFilters).length>0,dateFilters:JSON.stringify(dateFilters)},timestamp:Date.now(),sessionId:'debug-session',runId:'past-meetings-debug',hypothesisId:'H1'})}).catch(()=>{});
+    // #endregion
+    
     // Check for transcript chunks existence in batch (much faster than loading all chunks)
     if (artifacts.length > 0) {
       const artifactIds = artifacts.map(a => a.id);
@@ -2066,6 +2077,14 @@ export default async (req, res) => {
     
     const dedupeKey = getMeetingDeduplicationKey(artifact, calendarEvent);
     
+    // #region agent log
+    // H4: Log deduplication for today's artifacts
+    const artifactCreatedToday = new Date(artifact.createdAt) >= todayStartCheck;
+    if (artifactCreatedToday) {
+      fetch('http://127.0.0.1:7248/ingest/9df62f0f-78c1-44fb-821f-c3c7b9f764cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'routes/meetings/list.js:dedupe_today',message:'Deduplication key for today artifact',data:{artifactId:artifact.id,artifactCreatedAt:artifact.createdAt,dedupeKey,hasExistingMeeting:meetingsMap.has(dedupeKey),existingMeetingId:meetingsMap.get(dedupeKey)?.id,existingMeetingCreatedAt:meetingsMap.get(dedupeKey)?.createdAt},timestamp:Date.now(),sessionId:'debug-session',runId:'past-meetings-debug',hypothesisId:'H4'})}).catch(()=>{});
+    }
+    // #endregion
+    
     // Check if we already have a meeting with this key
     const existingMeeting = meetingsMap.get(dedupeKey);
     
@@ -2089,6 +2108,11 @@ export default async (req, res) => {
       
       // If current artifact is not better, skip it
       if (currentScore <= existingScore) {
+        // #region agent log
+        if (artifactCreatedToday) {
+          fetch('http://127.0.0.1:7248/ingest/9df62f0f-78c1-44fb-821f-c3c7b9f764cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'routes/meetings/list.js:dedupe_skip_today',message:'SKIPPING today artifact due to lower score',data:{artifactId:artifact.id,currentScore,existingScore,existingMeetingId:existingMeeting.id,existingMeetingCreatedAt:existingMeeting.createdAt,dedupeKey},timestamp:Date.now(),sessionId:'debug-session',runId:'past-meetings-debug',hypothesisId:'H4'})}).catch(()=>{});
+        }
+        // #endregion
         console.log(`[MEETINGS] Skipping duplicate artifact ${artifact.id} (score: ${currentScore} <= ${existingScore}) for meeting key: ${dedupeKey}`);
         continue;
       }
@@ -2485,6 +2509,27 @@ export default async (req, res) => {
   }
 
   // Sorting
+  // #region agent log
+  // H1/H2/H3: Log all meetings before sorting to see if today's meetings exist and their dates
+  const todayStart = new Date();
+  todayStart.setHours(0, 0, 0, 0);
+  const todayEnd = new Date();
+  todayEnd.setHours(23, 59, 59, 999);
+  const todaysMeetings = meetings.filter(m => {
+    const mDate = new Date(m.startTime || m.createdAt);
+    return mDate >= todayStart && mDate <= todayEnd;
+  });
+  const recentMeetings = meetings.slice(0, 10).map(m => ({
+    id: m.id,
+    title: m.title?.substring(0, 30),
+    startTime: m.startTime,
+    createdAt: m.createdAt,
+    type: m.type,
+    hasCalendarEvent: !!m.calendarEventId,
+  }));
+  fetch('http://127.0.0.1:7248/ingest/9df62f0f-78c1-44fb-821f-c3c7b9f764cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'routes/meetings/list.js:before_sort',message:'Meetings before sorting',data:{totalMeetings:meetings.length,todaysMeetingsCount:todaysMeetings.length,todaysMeetings:todaysMeetings.map(m=>({id:m.id,title:m.title?.substring(0,30),startTime:m.startTime,createdAt:m.createdAt})),first10Meetings:recentMeetings,todayStart:todayStart.toISOString(),todayEnd:todayEnd.toISOString(),sortParam:sort},timestamp:Date.now(),sessionId:'debug-session',runId:'past-meetings-debug',hypothesisId:'H1-H3'})}).catch(()=>{});
+  // #endregion
+  
   meetings.sort((a, b) => {
     if (sort === "oldest") {
       return new Date(a.startTime || a.createdAt) - new Date(b.startTime || b.createdAt);
@@ -2495,6 +2540,18 @@ export default async (req, res) => {
     // default newest
     return new Date(b.startTime || b.createdAt) - new Date(a.startTime || a.createdAt);
   });
+
+  // #region agent log
+  // H3/H5: Log meetings after sorting to see order
+  const sortedFirst10 = meetings.slice(0, 10).map(m => ({
+    id: m.id,
+    title: m.title?.substring(0, 30),
+    startTime: m.startTime,
+    createdAt: m.createdAt,
+    sortKey: new Date(m.startTime || m.createdAt).toISOString(),
+  }));
+  fetch('http://127.0.0.1:7248/ingest/9df62f0f-78c1-44fb-821f-c3c7b9f764cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'routes/meetings/list.js:after_sort',message:'Meetings after sorting (first 10)',data:{sortedFirst10,sortParam:sort},timestamp:Date.now(),sessionId:'debug-session',runId:'past-meetings-debug',hypothesisId:'H3-H5'})}).catch(()=>{});
+  // #endregion
 
   // Pagination: Calculate totals and slice after filtering/sorting
   const totalCount = meetings.length;
