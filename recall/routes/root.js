@@ -178,12 +178,6 @@ export default async (req, res) => {
               attendees: attendees.slice(0, 5),  // Limit to first 5 for display
             };
           });
-        // #region agent log
-        // Debug: Log first 3 upcoming meetings to verify title sources
-        upcomingMeetings.slice(0, 3).forEach((event, idx) => {
-          fetch('http://127.0.0.1:7250/ingest/bf0206c3-6e13-4499-92a3-7fb2b7527fcf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'routes/root.js:upcomingMeetings',message:'Upcoming meeting title after transform',data:{idx,eventId:event.id,platform:event.platform,title:event.title},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H5'})}).catch(()=>{});
-        });
-        // #endregion
         // Pass all upcoming for scrollable list (view shows first 5 visible + scroll for more)
       } catch (err) {
         console.error("Failed to fetch upcoming meetings:", err.message);
@@ -223,9 +217,6 @@ export default async (req, res) => {
         order: [["createdAt", "DESC"]],
         limit: 5,
       });
-      // #region agent log
-      fetch('http://127.0.0.1:7250/ingest/bf0206c3-6e13-4499-92a3-7fb2b7527fcf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'routes/root.js:artifactQuery',message:'All artifacts for past meetings',data:{artifactCount:artifactResult.length,artifacts:artifactResult.slice(0,10).map(a=>({id:a.id,calendarEventId:a.calendarEventId,hasCalEvent:!!a.CalendarEvent,calEventTitle:a.CalendarEvent?.title,calEventRawSummary:a.CalendarEvent?.recallData?.raw?.summary,dataTitle:a.rawPayload?.data?.title,recallBotId:a.recallBotId,createdAt:a.createdAt}))},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H19'})}).catch(()=>{});
-      // #endregion
       
       // Build a map of CalendarEvents by recallId for lookup
       const calendarEventIds = artifactResult
@@ -257,12 +248,6 @@ export default async (req, res) => {
         for (const { botId, data } of botResults) {
           if (data) botDataMap.set(botId, data);
         }
-        // #region agent log
-        if (botResults.length > 0) {
-          const sampleBot = botResults[0]?.data;
-          fetch('http://127.0.0.1:7250/ingest/bf0206c3-6e13-4499-92a3-7fb2b7527fcf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'routes/root.js:botDataStructure',message:'Sample bot data structure from Recall API',data:{botId:botResults[0]?.botId,topLevelKeys:sampleBot ? Object.keys(sampleBot) : [],hasCalMeetings:!!sampleBot?.calendar_meetings,hasMeetingMetadata:!!sampleBot?.meeting_metadata,hasParticipants:!!sampleBot?.participants,sampleCalMeetings:sampleBot?.calendar_meetings?.slice?.(0,1),sampleParticipants:sampleBot?.participants?.slice?.(0,2),meetingMetadata:sampleBot?.meeting_metadata},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H12'})}).catch(()=>{});
-        }
-        // #endregion
       }
       
       pastMeetings = artifactResult.map((artifact) => {
@@ -286,9 +271,6 @@ export default async (req, res) => {
         // These fields are populated when artifact is created (new architecture)
         if (artifact.title && !isGeneric(artifact.title)) {
           const attendees = artifact.attendeesJson || [];
-          // #region agent log
-          fetch('http://127.0.0.1:7250/ingest/bf0206c3-6e13-4499-92a3-7fb2b7527fcf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'routes/root.js:pastMeetings:fastPath',message:'Using cached title and attendees',data:{artifactId:artifact.id,cachedTitle:artifact.title,cachedAttendeesCount:attendees.length},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H20'})}).catch(()=>{});
-          // #endregion
           return {
             id: artifact.id,
             title: artifact.title,
@@ -445,9 +427,6 @@ export default async (req, res) => {
           }));
         }
         
-        // #region agent log
-        fetch('http://127.0.0.1:7250/ingest/bf0206c3-6e13-4499-92a3-7fb2b7527fcf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'routes/root.js:pastMeetings:slowPath',message:'Extracted title/attendees from sources',data:{artifactId:artifact.id,finalTitle:title,attendeesCount:attendees.length,attendeeNames:attendees.slice(0,3).map(a=>a.name),hasOrganizer:attendees.some(a=>a.organizer)},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H17'})}).catch(()=>{});
-        // #endregion
         return {
           id: artifact.id,
           title: title,
