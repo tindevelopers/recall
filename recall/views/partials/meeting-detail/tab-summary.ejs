@@ -24,11 +24,12 @@
           <span data-enrich-text>Re-generate Summary</span>
         </button>
       <% } %>
-      <% if (meeting.artifactId) { %>
+      <% if (meeting.artifactId && meeting.hasPremiumAccess) { %>
         <button
           type="button"
           onclick="openSuperAgentPanel()"
-          class="inline-flex items-center rounded-md bg-amber-500 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-amber-400 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2"
+          data-tier="premium"
+          class="hidden inline-flex items-center rounded-md bg-amber-500 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-amber-400 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2"
         >
           <svg class="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6l4 2m6-2a10 10 0 11-20 0 10 10 0 0120 0z"></path>
@@ -69,11 +70,19 @@
     </button>
   </div>
 
+  <div data-tier="premium" class="hidden">
+    <%- include('tab-premium', { meeting, publishDeliveries }) -%>
+  </div>
+
+  <div data-tier="standard">
   <div class="grid grid-cols-1 gap-6 lg:grid-cols-12">
     <div class="lg:col-span-7 space-y-6">
       <div class="overflow-hidden bg-white shadow sm:rounded-lg">
-        <div class="px-4 py-5 sm:px-6 border-b border-gray-200">
+        <div class="px-4 py-5 sm:px-6 border-b border-gray-200 flex items-center justify-between">
           <h2 class="text-base font-semibold text-gray-900">Summary</h2>
+          <span class="inline-flex items-center rounded-full bg-indigo-50 px-2 py-0.5 text-xs font-medium text-indigo-700 ring-1 ring-inset ring-indigo-200">
+            Source: Recall/OpenAI
+          </span>
         </div>
         <div class="px-4 py-5 sm:px-6">
           <% if (meeting.summary) { %>
@@ -91,114 +100,6 @@
           <% } %>
         </div>
       </div>
-
-      <% if (meeting.artifactId) { %>
-        <div id="super-agent-section" class="overflow-hidden bg-white shadow sm:rounded-lg">
-          <div class="px-4 py-5 sm:px-6 border-b border-gray-200 flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <h2 class="text-base font-semibold text-gray-900">Super Agent Analysis</h2>
-              <p class="text-xs text-gray-500">Premium analysis with chapters and deeper insights.</p>
-            </div>
-            <span id="super-agent-status-pill" class="inline-flex items-center rounded-full bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-600 ring-1 ring-inset ring-gray-300">
-              Not started
-            </span>
-          </div>
-          <div class="px-4 py-5 sm:px-6 space-y-4">
-            <div id="super-agent-config" class="space-y-4">
-              <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <label class="block text-sm font-medium text-gray-700">
-                  Translate to (optional)
-                  <select id="super-agent-translate" class="mt-1 block w-full rounded-md border-gray-300 text-sm shadow-sm focus:border-amber-500 focus:ring-amber-500">
-                    <option value="">No translation</option>
-                    <option value="es">Spanish</option>
-                    <option value="fr">French</option>
-                    <option value="de">German</option>
-                    <option value="pt">Portuguese</option>
-                    <option value="ja">Japanese</option>
-                    <option value="ko">Korean</option>
-                  </select>
-                </label>
-                <div class="text-xs text-gray-500">
-                  Auto Chapters are always enabled for Super Agent.
-                </div>
-              </div>
-              <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <label class="flex items-center justify-between rounded-md border border-gray-200 px-3 py-2 text-sm">
-                  <span>Topic Detection</span>
-                  <input id="super-agent-topic" type="checkbox" class="h-4 w-4 rounded border-gray-300 text-amber-600 focus:ring-amber-500" />
-                </label>
-                <label class="flex items-center justify-between rounded-md border border-gray-200 px-3 py-2 text-sm">
-                  <span>Content Moderation</span>
-                  <input id="super-agent-moderation" type="checkbox" class="h-4 w-4 rounded border-gray-300 text-amber-600 focus:ring-amber-500" />
-                </label>
-                <label class="flex items-center justify-between rounded-md border border-gray-200 px-3 py-2 text-sm">
-                  <span>PII Redaction</span>
-                  <input id="super-agent-pii" type="checkbox" class="h-4 w-4 rounded border-gray-300 text-amber-600 focus:ring-amber-500" />
-                </label>
-                <label class="flex items-center justify-between rounded-md border border-gray-200 px-3 py-2 text-sm">
-                  <span>Profanity Filtering</span>
-                  <input id="super-agent-profanity" type="checkbox" class="h-4 w-4 rounded border-gray-300 text-amber-600 focus:ring-amber-500" />
-                </label>
-                <label class="flex items-center justify-between rounded-md border border-gray-200 px-3 py-2 text-sm">
-                  <span>Sentiment Analysis</span>
-                  <input id="super-agent-sentiment" type="checkbox" class="h-4 w-4 rounded border-gray-300 text-amber-600 focus:ring-amber-500" />
-                </label>
-              </div>
-              <div class="flex flex-wrap items-center gap-3">
-                <button
-                  type="button"
-                  id="super-agent-trigger"
-                  onclick="triggerSuperAgentAnalysis()"
-                  class="inline-flex items-center rounded-md bg-amber-500 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-amber-400 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2"
-                >
-                  Analyse with Super Agent
-                </button>
-                <p class="text-xs text-gray-500">Runs AssemblyAI transcription + LLM Gateway.</p>
-              </div>
-            </div>
-
-            <div id="super-agent-progress" class="hidden items-center gap-3 text-sm text-gray-600">
-              <div class="h-4 w-4 animate-spin rounded-full border-2 border-amber-500 border-t-transparent"></div>
-              <span>Super Agent analysis in progress…</span>
-              <button
-                type="button"
-                id="super-agent-retry"
-                onclick="retrySuperAgentAnalysis()"
-                class="ml-4 inline-flex items-center rounded-md bg-gray-100 px-3 py-1 text-xs font-medium text-gray-700 hover:bg-gray-200"
-              >
-                Retry
-              </button>
-            </div>
-
-            <div id="super-agent-error" class="hidden rounded-md bg-red-50 px-3 py-2 text-sm text-red-700"></div>
-
-            <div id="super-agent-results" class="hidden space-y-6">
-              <div>
-                <h3 class="text-sm font-semibold text-gray-900">Detailed Summary</h3>
-                <p id="super-agent-summary" class="mt-2 text-sm text-gray-700 whitespace-pre-wrap"></p>
-              </div>
-              <div>
-                <h3 class="text-sm font-semibold text-gray-900">Chapters</h3>
-                <div id="super-agent-chapters" class="mt-2 space-y-2 text-sm text-gray-700"></div>
-              </div>
-              <div class="grid grid-cols-1 gap-6 md:grid-cols-2">
-                <div>
-                  <h3 class="text-sm font-semibold text-gray-900">Action Items</h3>
-                  <ul id="super-agent-actions" class="mt-2 space-y-2 text-sm text-gray-700"></ul>
-                </div>
-                <div>
-                  <h3 class="text-sm font-semibold text-gray-900">Decisions</h3>
-                  <ul id="super-agent-decisions" class="mt-2 space-y-2 text-sm text-gray-700"></ul>
-                </div>
-              </div>
-              <div>
-                <h3 class="text-sm font-semibold text-gray-900">Highlights</h3>
-                <ul id="super-agent-highlights" class="mt-2 space-y-2 text-sm text-gray-700"></ul>
-              </div>
-            </div>
-          </div>
-        </div>
-      <% } %>
 
       <% if (meeting.keyInsights && meeting.keyInsights.length > 0) { %>
         <div class="overflow-hidden bg-white shadow sm:rounded-lg">
@@ -328,6 +229,44 @@
     </div>
 
     <div class="lg:col-span-5 space-y-6">
+      <!-- Meeting Details (moved from Snapshot tab) -->
+      <div class="overflow-hidden bg-white shadow sm:rounded-lg">
+        <div class="px-4 py-5 sm:px-6 border-b border-gray-200">
+          <h2 class="text-base font-semibold text-gray-900 flex items-center">
+            <svg class="w-4 h-4 mr-2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+            </svg>
+            Meeting Details
+          </h2>
+        </div>
+        <div class="px-4 py-5 sm:px-6 space-y-3 text-sm text-gray-600">
+          <div class="flex items-center justify-between">
+            <span class="text-gray-500">Date</span>
+            <% if (meeting.startTime) { %>
+              <span class="local-datetime font-medium text-gray-900" data-iso="<%= new Date(meeting.startTime).toISOString() %>" data-format="datetime"></span>
+            <% } else { %>
+              <span class="font-medium text-gray-900">Unknown</span>
+            <% } %>
+          </div>
+          <div class="flex items-center justify-between">
+            <span class="text-gray-500">Status</span>
+            <span class="font-medium text-gray-900 capitalize"><%= meeting.status || 'completed' %></span>
+          </div>
+          <% if (meeting.calendarEmail) { %>
+            <div class="flex items-center justify-between">
+              <span class="text-gray-500">Calendar</span>
+              <span class="font-medium text-gray-900 truncate max-w-[160px]"><%= meeting.calendarEmail %></span>
+            </div>
+          <% } %>
+          <% if (meeting.platform) { %>
+            <div class="flex items-center justify-between">
+              <span class="text-gray-500">Platform</span>
+              <span class="font-medium text-gray-900 capitalize"><%= meeting.platform %></span>
+            </div>
+          <% } %>
+        </div>
+      </div>
+
       <% if (meeting.sentiment || meeting.outcome) { %>
         <div class="overflow-hidden bg-white shadow sm:rounded-lg">
           <div class="px-4 py-5 sm:px-6 border-b border-gray-200">
@@ -496,6 +435,8 @@
         </div>
       <% } %>
     </div>
+  </div>
+
   </div>
 
   <div id="share-meeting-section" class="space-y-6">

@@ -2,6 +2,7 @@ import db from "../../db.js";
 import { backgroundQueue } from "../../queue.js";
 import { findAccessibleArtifact } from "../../services/meetings/access.js";
 import { isSuperAgentEnabled } from "../../utils/super-agent.js";
+import Recall from "../../services/recall/index.js";
 import { Op } from "sequelize";
 
 // Generic/placeholder titles we should ignore when deriving a display name
@@ -307,33 +308,120 @@ export async function getTranscript(req, res) {
     }
 
     console.log(`[API] Transcript: Found artifact ${artifact.id}, recallBotId: ${artifact.recallBotId}`);
-    console.log(`[API] Transcript: rawPayload keys:`, Object.keys(artifact.rawPayload || {}));
-    console.log(`[API] Transcript: rawPayload.data keys:`, Object.keys(artifact.rawPayload?.data || {}));
-    console.log(`[API] Transcript: Has transcript in rawPayload:`, !!artifact.rawPayload?.data?.transcript);
-    if (artifact.rawPayload?.data?.transcript) {
-      console.log(`[API] Transcript: transcript type:`, typeof artifact.rawPayload.data.transcript);
-      console.log(`[API] Transcript: transcript keys:`, Object.keys(artifact.rawPayload.data.transcript));
-      console.log(`[API] Transcript: words count:`, artifact.rawPayload?.data?.transcript?.words?.length);
+    
+    // PRIORITY 1: Fetch transcript directly from Recall API if botId is available
+    let transcript = [];
+    if (artifact.recallBotId) {
+      try {
+        console.log(`[API] Transcript: Fetching directly from Recall API for bot ${artifact.recallBotId}`);
+        const recallTranscript = await Recall.getBotTranscript(artifact.recallBotId);
+        
+        // #region agent log
+        fetch('http://127.0.0.1:7250/ingest/bf0206c3-6e13-4499-92a3-7fb2b7527fcf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'meeting-details.js:getTranscript',message:'Recall API transcript response',data:{hasTranscript:!!recallTranscript,transcriptType:Array.isArray(recallTranscript)?'array':typeof recallTranscript,transcriptLength:Array.isArray(recallTranscript)?recallTranscript.length:0,firstItemSample:Array.isArray(recallTranscript)&&recallTranscript[0]?JSON.stringify(recallTranscript[0]).substring(0,500):null,hasParticipant:Array.isArray(recallTranscript)&&recallTranscript[0]?.participant,hasWords:Array.isArray(recallTranscript)&&recallTranscript[0]?.words},timestamp:Date.now(),sessionId:'debug-session',runId:'transcript-debug',hypothesisId:'H1'})}).catch(()=>{});
+        // #endregion
+        
+        if (recallTranscript) {
+          console.log(`[API] Transcript: Received transcript from Recall API, type: ${Array.isArray(recallTranscript) ? 'array' : typeof recallTranscript}`);
+          
+          // Handle different Recall API transcript formats
+          if (Array.isArray(recallTranscript)) {
+            // Check if it's segments with participant/words format
+            const firstItem = recallTranscript[0];
+            if (firstItem?.participant && firstItem?.words) {
+              // Recall.ai segment format: { participant: { id, name }, words: [{ word, start_timestamp, end_timestamp }] }
+              transcript = recallTranscript.flatMap((segment) => {
+                const speakerName = segment.participant?.name || `Speaker ${segment.participant?.id || ''}`;
+                if (Array.isArray(segment.words) && segment.words.length > 0) {
+                  // Group words into chunks for readability
+                  const text = segment.words.map(w => w.word || w.text || '').join(' ').trim();
+                  const startTime = segment.words[0]?.start_timestamp || segment.words[0]?.start_time || 0;
+                  return [{
+                    speaker: speakerName,
+                    text: text,
+                    startTimeMs: startTime,
+                    timestamp: startTime,
+                    isFinal: true,
+                  }];
+                }
+                return [];
+              });
+            } else {
+              // Direct array format
+              transcript = recallTranscript.map((segment) => ({
+                speaker: segment.speaker || segment.participant?.name || segment.speaker_id || "Speaker",
+                text: segment.text || segment.word || segment.transcript || "",
+                startTimeMs: segment.start_timestamp || segment.start_time || segment.timestamp || 0,
+                timestamp: segment.start_timestamp || segment.start_time || segment.timestamp || 0,
+                isFinal: true,
+              }));
+            }
+          } else if (recallTranscript.words && Array.isArray(recallTranscript.words)) {
+            // Object with words array
+            transcript = recallTranscript.words.map(word => ({
+              speaker: word.speaker || word.speaker_id || "Speaker",
+              text: word.word || word.text || "",
+              startTimeMs: word.start_timestamp || word.start_time || 0,
+              timestamp: word.start_timestamp || word.start_time || 0,
+              isFinal: true,
+            }));
+          } else if (recallTranscript.results && Array.isArray(recallTranscript.results)) {
+            // Object with results array
+            transcript = recallTranscript.results.map(result => ({
+              speaker: result.speaker || result.speaker_id || "Speaker",
+              text: result.text || result.transcript || "",
+              startTimeMs: result.start_timestamp || result.start_time || 0,
+              timestamp: result.start_timestamp || result.start_time || 0,
+              isFinal: true,
+            }));
+          } else if (recallTranscript.text) {
+            // Plain text format - split into chunks
+            transcript = [{
+              speaker: "Speaker",
+              text: recallTranscript.text,
+              startTimeMs: 0,
+              timestamp: 0,
+              isFinal: true,
+            }];
+          }
+          
+          if (transcript.length > 0) {
+            console.log(`[API] Transcript: Successfully parsed ${transcript.length} segments from Recall API`);
+            // #region agent log
+            fetch('http://127.0.0.1:7250/ingest/bf0206c3-6e13-4499-92a3-7fb2b7527fcf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'meeting-details.js:afterParsing',message:'Parsed transcript segments',data:{segmentCount:transcript.length,firstSegment:transcript[0]?{speaker:transcript[0].speaker,textLength:transcript[0].text?.length,textPreview:transcript[0].text?.substring(0,200)}:null,lastSegment:transcript[transcript.length-1]?{speaker:transcript[transcript.length-1].speaker,textLength:transcript[transcript.length-1].text?.length}:null},timestamp:Date.now(),sessionId:'debug-session',runId:'transcript-debug',hypothesisId:'H1'})}).catch(()=>{});
+            // #endregion
+          }
+        }
+      } catch (recallError) {
+        console.warn(`[API] Transcript: Failed to fetch from Recall API: ${recallError.message}`);
+        // Fall through to DB/rawPayload fallback
+      }
+    }
+    
+    // PRIORITY 2: If Recall API didn't return transcript, use DB chunks
+    if (transcript.length === 0) {
+      console.log(`[API] Transcript: Falling back to DB chunks`);
+      const transcriptChunks = await db.MeetingTranscriptChunk.findAll({
+        where: { meetingArtifactId: artifact.id },
+        order: [["sequence", "ASC"]],
+      });
+
+      console.log(`[API] Transcript: Found ${transcriptChunks.length} transcript chunks in DB`);
+
+      transcript = transcriptChunks.map(chunk => ({
+        speaker: chunk.speaker || "Speaker",
+        text: chunk.text,
+        startTimeMs: chunk.startTimeMs,
+        timestamp: chunk.startTimeMs,
+        isFinal: true,
+      }));
     }
 
-    // Get transcript chunks for this artifact
-    const transcriptChunks = await db.MeetingTranscriptChunk.findAll({
-      where: { meetingArtifactId: artifact.id },
-      order: [["sequence", "ASC"]],
-    });
-
-    console.log(`[API] Transcript: Found ${transcriptChunks.length} transcript chunks in DB`);
-
-    // Format transcript data
-    let transcript = transcriptChunks.map(chunk => ({
-      speaker: chunk.speaker || "Speaker",
-      text: chunk.text,
-      timestamp: chunk.startTimeMs,
-      isFinal: true,
-    }));
-
-    // If no transcript chunks in DB, try to get from rawPayload
+    // PRIORITY 3: If still no transcript, try to get from rawPayload
     if (transcript.length === 0 && artifact.rawPayload?.data?.transcript) {
+      console.log(`[API] Transcript: Falling back to rawPayload`);
+      console.log(`[API] Transcript: rawPayload keys:`, Object.keys(artifact.rawPayload || {}));
+      console.log(`[API] Transcript: rawPayload.data keys:`, Object.keys(artifact.rawPayload?.data || {}));
+      console.log(`[API] Transcript: Has transcript in rawPayload:`, !!artifact.rawPayload?.data?.transcript);
       const rawTranscript = artifact.rawPayload.data.transcript;
       console.log(`[API] Transcript: rawPayload.data.transcript type:`, typeof rawTranscript);
       
@@ -398,6 +486,9 @@ export async function getTranscript(req, res) {
     }
 
     console.log(`[API] Transcript: Returning ${transcript.length} transcript entries`);
+    // #region agent log
+    fetch('http://127.0.0.1:7250/ingest/bf0206c3-6e13-4499-92a3-7fb2b7527fcf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'meeting-details.js:finalReturn',message:'Final transcript data',data:{totalSegments:transcript.length,sampleSegments:transcript.slice(0,3).map(s=>({speaker:s.speaker,textLength:s.text?.length,textPreview:s.text?.substring(0,100)})),avgTextLength:transcript.length>0?Math.round(transcript.reduce((sum,s)=>sum+(s.text?.length||0),0)/transcript.length):0},timestamp:Date.now(),sessionId:'debug-session',runId:'transcript-debug',hypothesisId:'H1H4'})}).catch(()=>{});
+    // #endregion
     return res.json({ transcript });
   } catch (error) {
     console.error(`[API] Error fetching transcript for meeting ${meetingId}:`, error);

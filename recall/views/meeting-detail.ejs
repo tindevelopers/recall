@@ -226,7 +226,8 @@
                           <button 
                             type="button" 
                             class="w-full flex items-center justify-between px-4 py-3 hover:bg-gray-50"
-                            onclick="toggleTopicAccordion(<%= idx %>)"
+                            onclick="toggleTopicAccordionFromEvent(event)"
+                            data-topic-idx="<%= idx %>"
                             aria-expanded="<%= idx === 0 ? 'true' : 'false' %>"
                             aria-controls="topic-panel-<%= idx %>"
                           >
@@ -239,7 +240,8 @@
                             <div class="flex items-center gap-2">
                               <button 
                                 type="button" 
-                                onclick="copyTopic(<%= idx %>, event)"
+                                onclick="copyTopicFromEvent(event)"
+                                data-topic-idx="<%= idx %>"
                                 class="inline-flex items-center rounded-md px-2 py-1 text-xs font-medium text-gray-600 ring-1 ring-inset ring-gray-200 hover:bg-gray-100"
                                 title="Copy chapter"
                               >
@@ -268,7 +270,8 @@
                                         <button 
                                           type="button" 
                                           class="inline-flex items-center rounded-full bg-indigo-50 px-2 py-0.5 text-indigo-700 ring-1 ring-indigo-200 hover:bg-indigo-100"
-                                          onclick="jumpToTimestamp(<%= tsSeconds %>)"
+                                          onclick="jumpToTimestampFromEvent(event)"
+                                          data-ts-seconds="<%= tsSeconds %>"
                                         >
                                           <svg class="h-3 w-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
@@ -319,7 +322,8 @@
                                   <button 
                                     type="button" 
                                     class="inline-flex items-center rounded-full bg-indigo-50 px-2 py-0.5 text-indigo-700 ring-1 ring-indigo-200 hover:bg-indigo-100 cursor-pointer transition-colors"
-                                    onclick="jumpToTimestamp(<%= Math.floor(highlightTs) %>)"
+                                    onclick="jumpToTimestampFromEvent(event)"
+                                    data-ts-seconds="<%= Math.floor(highlightTs) %>"
                                   >
                                     <svg class="h-3 w-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
@@ -369,7 +373,8 @@
                                 <button 
                                   type="button" 
                                   class="inline-flex items-center rounded-full bg-indigo-50 px-2 py-0.5 text-indigo-700 ring-1 ring-indigo-200 hover:bg-indigo-100 cursor-pointer transition-colors"
-                                  onclick="jumpToTimestamp(<%= Math.floor(detailTs) %>)"
+                                  onclick="jumpToTimestampFromEvent(event)"
+                                  data-ts-seconds="<%= Math.floor(detailTs) %>"
                                 >
                                   <svg class="h-3 w-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
@@ -499,38 +504,41 @@
                     };
                   %>
                   <% if (meeting.transcript && meeting.transcript.length > 0) { %>
-                    <div class="max-h-96 overflow-y-auto">
-                      <div class="space-y-4">
-                        <% 
-                          let currentSpeaker = null;
-                          meeting.transcript.forEach(function(chunk) { 
-                            const showSpeaker = chunk.speaker !== currentSpeaker;
-                            currentSpeaker = chunk.speaker;
-                        %>
-                          <div class="<%= showSpeaker ? 'pt-3 border-t border-gray-100' : '' %>">
-                            <% if (showSpeaker) { %>
-                              <div class="flex items-center mb-1">
-                                <% const color = speakerClass(chunk.speaker); %>
-                                <span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium bg-<%= color %>-100 text-<%= color %>-800">
-                                  <svg class="mr-1 h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
-                                  </svg>
-                                  <%= chunk.speaker %>
-                                </span>
-                                <% if (chunk.startTimeMs) { %>
-                                  <span class="ml-2 text-xs text-gray-400">
-                                    <%= Math.floor(chunk.startTimeMs / 60000) %>:<%= String(Math.floor((chunk.startTimeMs % 60000) / 1000)).padStart(2, '0') %>
-                                  </span>
-                                <% } %>
-                              </div>
-                            <% } %>
-                            <p class="text-sm text-gray-700 pl-4 text-left">
-                              <%= chunk.text %>
-                            </p>
-                          </div>
-                        <% }); %>
+            <div class="max-h-[calc(100vh-300px)] min-h-[400px] overflow-y-auto w-full">
+              <div class="space-y-4 pb-4 px-4 sm:px-6 lg:px-8">
+                <% 
+                  let currentSpeaker = null;
+                  meeting.transcript.forEach(function(chunk) { 
+                    const showSpeaker = chunk.speaker !== currentSpeaker;
+                    currentSpeaker = chunk.speaker;
+                %>
+                  <div class="<%= showSpeaker ? 'pt-3 border-t border-gray-100' : '' %>">
+                    <% if (showSpeaker) { %>
+                      <div class="flex items-center mb-1">
+                        <% const color = speakerClass(chunk.speaker); %>
+                        <span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium bg-<%= color %>-100 text-<%= color %>-800">
+                          <svg class="mr-1 h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+                          </svg>
+                          <%= chunk.speaker %>
+                        </span>
+                        <% if (chunk.startTimeMs) { %>
+                          <span class="ml-2 text-xs text-gray-400">
+                            <%= Math.floor(chunk.startTimeMs / 60000) %>:<%= String(Math.floor((chunk.startTimeMs % 60000) / 1000)).padStart(2, '0') %>
+                          </span>
+                        <% } %>
                       </div>
-                    </div>
+                    <% } %>
+                    <p class="text-sm text-gray-700 text-left max-w-none">
+                      <%= chunk.text %>
+                    </p>
+                  </div>
+                <% }); %>
+                <div class="pt-4 border-t border-gray-100 text-center">
+                  <p class="text-xs text-gray-400"><%= meeting.transcript.length.toLocaleString() %> transcript segments loaded</p>
+                </div>
+              </div>
+            </div>
                   <% } else { %>
                     <div class="text-center py-8">
                       <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -594,7 +602,7 @@
                                   <% } %>
                                   <div class="w-32 bg-gray-100 rounded-full h-2 overflow-hidden">
                                     <% const pct = Math.max(0, Math.min(100, speaker.talkTimePercent || 0)); %>
-                                    <div class="h-2 bg-indigo-500" style="width:<%= pct %>%"></div>
+                                    <div class="h-2 bg-indigo-500" data-width-pct="<%= pct %>"></div>
                                   </div>
                                 </div>
                               </div>
@@ -1026,20 +1034,44 @@
 
 <%- include('partials/meeting-detail/actions-drawer', { meeting: meeting }) -%>
 
+<script type="application/json" id="meeting-client-bootstrap"><%- JSON.stringify({
+  meetingId: meeting.readableId || meeting.id,
+  artifactId: meeting.artifactId || "",
+  topicsData: meeting.topics || [],
+  meetingSummaryText: meeting.summary || "",
+  superAgentEnabled: !!meeting.superAgentEnabled,
+  hasPremiumAccess: !!meeting.hasPremiumAccess,
+  initialSuperAgentAnalysis: meeting.superAgentAnalysis || null,
+  lazyLoadTranscript: !!meeting.lazyLoadTranscript,
+  transcriptChunkCount: meeting.transcriptChunkCount || 0,
+  shareMeetingId: meeting.id,
+  isOwner: !!meeting.isOwner,
+  meetingTitle: meeting.title || "",
+}) %></script>
+
 <script>
+  const meetingBootstrap = JSON.parse(
+    document.getElementById('meeting-client-bootstrap')?.textContent || '{}'
+  );
   // Store meeting ID for use in JavaScript (could be UUID or readableId)
-  const meetingId = '<%= meeting.readableId || meeting.id %>';
-  const artifactId = '<%= meeting.artifactId || "" %>';
-  const topicsData = <%- JSON.stringify(meeting.topics || []) %>;
-  const meetingSummaryText = <%- JSON.stringify(meeting.summary || "") %>;
-  const superAgentEnabled = <%= meeting.superAgentEnabled ? "true" : "false" %>;
-  const initialSuperAgentAnalysis = <%- JSON.stringify(meeting.superAgentAnalysis || null) %>;
-  const lazyLoadTranscript = <%= meeting.lazyLoadTranscript ? "true" : "false" %>;
-  const transcriptChunkCount = <%= meeting.transcriptChunkCount || 0 %>;
+  const meetingId = String(meetingBootstrap.meetingId || '');
+  const artifactId = String(meetingBootstrap.artifactId || '');
+  const topicsData = Array.isArray(meetingBootstrap.topicsData) ? meetingBootstrap.topicsData : [];
+  const meetingSummaryText = String(meetingBootstrap.meetingSummaryText || '');
+  const superAgentEnabled = !!meetingBootstrap.superAgentEnabled;
+  const hasPremiumAccess = !!meetingBootstrap.hasPremiumAccess;
+  const initialSuperAgentAnalysis = meetingBootstrap.initialSuperAgentAnalysis || null;
+  const lazyLoadTranscript = !!meetingBootstrap.lazyLoadTranscript;
+  const transcriptChunkCount = Number(meetingBootstrap.transcriptChunkCount || 0);
+  const shareMeetingId = String(meetingBootstrap.shareMeetingId || '');
+  const isOwner = !!meetingBootstrap.isOwner;
+  const meetingTitle = String(meetingBootstrap.meetingTitle || '');
   
   // Lazy loading state
   let transcriptLoaded = false;
   let transcriptLoading = false;
+  let currentTier = 'standard';
+  let currentTab = 'summary';
 
   // Format all datetime elements to user's local timezone
   document.addEventListener('DOMContentLoaded', function() {
@@ -1068,6 +1100,14 @@
       el.textContent = formatted;
     });
 
+    // Apply server-computed widths without embedding EJS in CSS
+    document.querySelectorAll('[data-width-pct]').forEach(function(el) {
+      const pct = Number(el.getAttribute('data-width-pct'));
+      if (Number.isNaN(pct)) return;
+      el.style.width = `${pct}%`;
+    });
+
+    switchTier('standard', { focus: false });
     switchTab('summary', { focus: false });
 
     const tabButtons = Array.from(document.querySelectorAll('.tab-btn'));
@@ -1101,10 +1141,46 @@
   });
 
   // Tab switching functionality
+  function switchTier(tier, options = {}) {
+    if (tier !== 'standard' && tier !== 'premium') return;
+    currentTier = tier;
+
+    document.querySelectorAll('.tier-btn').forEach(btn => {
+      const isActive = btn.getAttribute('data-tier-target') === tier;
+      btn.classList.toggle('border-indigo-500', isActive);
+      btn.classList.toggle('text-indigo-600', isActive);
+      btn.classList.toggle('border-transparent', !isActive);
+      btn.classList.toggle('text-gray-500', !isActive);
+      btn.setAttribute('aria-selected', isActive ? 'true' : 'false');
+      btn.setAttribute('tabindex', isActive ? '0' : '-1');
+    });
+
+    document.querySelectorAll('[data-tier]').forEach(el => {
+      const elTier = el.getAttribute('data-tier');
+      if (!elTier) return;
+      el.classList.toggle('hidden', elTier !== tier);
+    });
+
+    const tierSelect = document.getElementById('tier-select');
+    if (tierSelect && tierSelect.value !== tier) {
+      tierSelect.value = tier;
+    }
+  }
+
   function switchTab(tabName, options = {}) {
+    if (tabName === 'tier-standard' || tabName === 'tier-premium') {
+      switchTier(tabName.replace('tier-', ''), { focus: false });
+      const tabSelect = document.getElementById('tab-select');
+      if (tabSelect) {
+        tabSelect.value = currentTab;
+      }
+      return;
+    }
     const targetContent = document.getElementById('content-' + tabName);
     const activeTab = document.getElementById('tab-' + tabName);
     if (!targetContent || !activeTab) return;
+
+    currentTab = tabName;
 
     document.querySelectorAll('.tab-content').forEach(content => {
       content.classList.add('hidden');
@@ -1193,6 +1269,10 @@
     const contentEl = document.getElementById('transcript-content');
     if (!contentEl) return;
     
+    // #region agent log
+    fetch('http://127.0.0.1:7250/ingest/bf0206c3-6e13-4499-92a3-7fb2b7527fcf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'meeting-detail.ejs:renderTranscript',message:'Frontend received transcript',data:{segmentCount:transcript?.length||0,sampleSegments:transcript?.slice(0,3).map(s=>({speaker:s.speaker,textLength:s.text?.length,textPreview:s.text?.substring(0,100)})),avgTextLength:transcript?.length>0?Math.round(transcript.reduce((sum,s)=>sum+(s.text?.length||0),0)/transcript.length):0},timestamp:Date.now(),sessionId:'debug-session',runId:'transcript-debug',hypothesisId:'H2H4'})}).catch(()=>{});
+    // #endregion
+    
     if (!transcript || transcript.length === 0) {
       contentEl.innerHTML = `
         <div class="text-center py-8">
@@ -1230,7 +1310,7 @@
       return `${mins}:${String(secs).padStart(2, '0')}`;
     }
     
-    let html = '<div class="max-h-96 overflow-y-auto"><div class="space-y-4">';
+    let html = '<div class="max-h-[calc(100vh-300px)] min-h-[400px] overflow-y-auto w-full"><div class="w-full space-y-4 pb-4 px-4 sm:px-6 lg:px-8">';
     let currentSpeaker = null;
     
     transcript.forEach((chunk) => {
@@ -1239,7 +1319,7 @@
       const color = getSpeakerColor(chunk.speaker);
       const time = formatTime(chunk.timestamp || chunk.startTimeMs);
       
-      html += `<div class="${showSpeaker ? 'pt-3 border-t border-gray-100' : ''}">`;
+      html += `<div class="w-full ${showSpeaker ? 'pt-3 border-t border-gray-100' : ''}">`;
       
       if (showSpeaker) {
         html += `
@@ -1255,18 +1335,18 @@
         `;
       }
       
-      html += `<p class="text-sm text-gray-700 pl-4 text-left">${escapeHtml(chunk.text || '')}</p>`;
+      html += `<p class="w-full text-sm text-gray-700 text-left">${escapeHtml(chunk.text || '')}</p>`;
       html += '</div>';
     });
     
-    html += '</div></div>';
-    
-    // Add transcript count info
+    // Add transcript count info INSIDE the scrollable container
     html += `
-      <div class="mt-4 pt-4 border-t border-gray-100 text-center">
+      <div class="pt-4 border-t border-gray-100 text-center">
         <p class="text-xs text-gray-400">${transcript.length.toLocaleString()} transcript segments loaded</p>
       </div>
     `;
+    
+    html += '</div></div>';
     
     contentEl.innerHTML = html;
   }
@@ -1391,6 +1471,12 @@
     }
   }
 
+  function toggleTopicAccordionFromEvent(event) {
+    const idx = Number(event?.currentTarget?.getAttribute?.('data-topic-idx'));
+    if (!Number.isFinite(idx)) return;
+    toggleTopicAccordion(idx);
+  }
+
   function copyTextToClipboard(text) {
     if (!text) return;
     if (navigator.clipboard && navigator.clipboard.writeText) {
@@ -1428,6 +1514,12 @@
     const bullets = topicBulletsClient(topic);
     const body = bullets.map(item => `- ${typeof item === 'string' ? item : (item.text || item.summary || item.description || item.content || item.note || JSON.stringify(item))}`).join('\n');
     copyTextToClipboard(`${title}\n${body}`);
+  }
+
+  function copyTopicFromEvent(event) {
+    const idx = Number(event?.currentTarget?.getAttribute?.('data-topic-idx'));
+    if (!Number.isFinite(idx)) return;
+    copyTopic(idx, event);
   }
 
   function copyAllTopics() {
@@ -1469,6 +1561,12 @@
         showNotification('Could not seek to timestamp', 'error');
       }
     }
+  }
+
+  function jumpToTimestampFromEvent(event) {
+    const seconds = Number(event?.currentTarget?.getAttribute?.('data-ts-seconds'));
+    if (!Number.isFinite(seconds)) return;
+    jumpToTimestamp(seconds);
   }
 
   // Notification system
@@ -1534,16 +1632,39 @@
     const poll = async () => {
       try {
         const response = await fetch(`/api/meetings/${meetingId}/summary`);
+        if (!response.ok) {
+          console.error(`[pollForSummary] API returned ${response.status}: ${response.statusText}`);
+          attempts++;
+          if (attempts >= maxAttempts) {
+            return false;
+          }
+          await new Promise(resolve => setTimeout(resolve, intervalMs));
+          return poll();
+        }
+        
         const data = await response.json();
         
-        if (data.summary && data.summary.content) {
-          // Summary is ready!
-          return true;
+        // Check if summary record exists (even if content is empty, the record existing means enrichment completed)
+        // Also check if summary has actual content to avoid false positives from empty summaries
+        if (data.summary !== null && data.summary !== undefined) {
+          // Summary record exists - enrichment job completed
+          // Check if it has content (non-empty string)
+          const hasContent = data.summary.content && typeof data.summary.content === 'string' && data.summary.content.trim().length > 0;
+          if (hasContent) {
+            // Summary is ready with content!
+            return true;
+          } else {
+            // Summary record exists but is empty - might be a valid state, but log it
+            console.log('[pollForSummary] Summary record exists but content is empty');
+            // Still return true to stop polling - the job completed even if summary is empty
+            return true;
+          }
         }
         
         attempts++;
         if (attempts >= maxAttempts) {
-          // Timeout after 2 minutes
+          // Timeout after max attempts
+          console.warn(`[pollForSummary] Timeout after ${maxAttempts} attempts`);
           return false;
         }
         
@@ -1551,7 +1672,7 @@
         await new Promise(resolve => setTimeout(resolve, intervalMs));
         return poll();
       } catch (error) {
-        console.error('Error polling for summary:', error);
+        console.error('[pollForSummary] Error polling for summary:', error);
         attempts++;
         if (attempts >= maxAttempts) {
           return false;
@@ -1583,6 +1704,7 @@
     showNotification('Please wait, generating AI summary... This may take a moment.', 'info');
     
     try {
+      console.log(`[triggerEnrichment] Triggering enrichment for artifact ${artifactId}`);
       const response = await fetch('/api/meetings/enrich', {
         method: 'POST',
         headers: {
@@ -1591,11 +1713,20 @@
         body: JSON.stringify({ artifactId }),
       });
       
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`[triggerEnrichment] API error ${response.status}:`, errorText);
+        throw new Error(`Server error: ${response.status} ${response.statusText}`);
+      }
+      
       const result = await response.json();
+      console.log('[triggerEnrichment] Enrichment API response:', result);
       
       if (!result.success) {
         throw new Error(result.error || 'Failed to trigger enrichment');
       }
+      
+      console.log(`[triggerEnrichment] Enrichment job queued successfully, starting to poll for meeting ${meetingId}`);
       
       // Start polling for summary completion
       btnText.innerHTML = '<svg class="animate-spin -ml-1 mr-2 h-4 w-4 inline" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> Generating...';
@@ -1604,6 +1735,7 @@
       
       if (summaryReady) {
         // Success! Show notification and refresh page
+        console.log('[triggerEnrichment] Summary ready, refreshing page');
         showNotification('AI summary generated successfully! Refreshing page...', 'success');
         
         // Refresh page after a short delay to show the notification
@@ -1612,17 +1744,23 @@
         }, 1500);
       } else {
         // Timeout - show message that it's still processing
+        console.warn('[triggerEnrichment] Summary not ready after initial polling, continuing in background');
         showNotification('Summary generation is taking longer than expected. The page will refresh automatically when complete.', 'info');
         btnText.textContent = 'Still processing...';
         
         // Continue polling in background and refresh when ready
         setTimeout(async () => {
+          console.log('[triggerEnrichment] Starting extended polling');
           const ready = await pollForSummary(meetingId, 120, 3000); // Poll for up to 6 more minutes
           if (ready) {
+            console.log('[triggerEnrichment] Summary ready after extended polling');
             showNotification('AI summary generated successfully!', 'success');
             setTimeout(() => {
               window.location.reload();
             }, 1500);
+          } else {
+            console.error('[triggerEnrichment] Summary still not ready after extended polling');
+            showNotification('Summary generation is still in progress. Please check back later or refresh the page.', 'info');
           }
         }, 5000);
       }
@@ -1643,6 +1781,7 @@
   let superAgentPollTimer = null;
 
   function openSuperAgentPanel() {
+    switchTier('premium', { focus: false });
     switchTab('summary', { focus: false });
     const section = document.getElementById('super-agent-section');
     if (section) {
@@ -2067,8 +2206,7 @@
   }
 
   // Sharing functionality
-  const shareMeetingId = '<%= meeting.id %>';
-  const isOwner = <%= meeting.isOwner ? 'true' : 'false' %>;
+  // shareMeetingId and isOwner come from meetingBootstrap
   
   // Load shareable attendees and current shares on page load
   if (isOwner) {
@@ -2439,7 +2577,7 @@
       const checkbox = document.getElementById('create-new-page-checkbox');
       if (checkbox) checkbox.checked = createNewPage;
       if (titleInput && !titleInput.value) {
-        titleInput.value = '<%= meeting.title.replace(/'/g, "\\'") %>';
+        titleInput.value = meetingTitle;
         customSubpageTitle = titleInput.value;
       }
     } else {
@@ -2454,7 +2592,7 @@
     createNewPage = document.getElementById('create-new-page-checkbox')?.checked || false;
     const titleInput = document.getElementById('create-new-page-title');
     if (createNewPage && titleInput && !titleInput.value) {
-      titleInput.value = '<%= meeting.title.replace(/'/g, "\\'") %>';
+      titleInput.value = meetingTitle;
       customSubpageTitle = titleInput.value;
     }
   }

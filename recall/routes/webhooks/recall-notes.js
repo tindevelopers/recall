@@ -268,6 +268,12 @@ export default async (req, res) => {
         video_url: videoUrl,
         audio_url: audioUrl,
         recording_url: videoUrl, // Alias for compatibility
+        // Store bot metadata including calendar_meetings for title extraction
+        bot_metadata: {
+          meeting_metadata: botData.meeting_metadata || {},
+          calendar_meetings: botData.calendar_meetings || [],
+        },
+        calendar_meetings: botData.calendar_meetings || [],
       },
     } : rawPayload;
 

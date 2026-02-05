@@ -315,12 +315,23 @@ function getParticipantsForMeeting(artifact, calendarEvent) {
  * Derive a human-readable meeting title from various sources.
  */
 function extractMeetingTitle(artifact, calendarEvent) {
-  // 1) Calendar event title
+  // 1) Calendar event title (virtual field from recallData.raw.summary/subject)
   if (calendarEvent?.title && !isGenericMeetingTitle(calendarEvent.title)) {
     return calendarEvent.title;
   }
 
-  // 2) Artifact payload title
+  // 2) Calendar event recallData title fields (check multiple possible locations)
+  const calEventTitle = 
+    calendarEvent?.recallData?.meeting_title || 
+    calendarEvent?.recallData?.title ||
+    calendarEvent?.recallData?.raw?.summary ||
+    calendarEvent?.recallData?.raw?.subject ||
+    calendarEvent?.recallData?.raw?.title;
+  if (calEventTitle && !isGenericMeetingTitle(calEventTitle)) {
+    return calEventTitle;
+  }
+
+  // 3) Artifact payload title
   if (
     artifact?.rawPayload?.data?.title &&
     !isGenericMeetingTitle(artifact.rawPayload.data.title)
@@ -328,13 +339,37 @@ function extractMeetingTitle(artifact, calendarEvent) {
     return artifact.rawPayload.data.title;
   }
 
-  // 3) Bot meeting_metadata title (if present)
+  // 4) Bot calendar_meetings title (from Recall API bot data)
+  // This is often the most reliable source for meeting titles
+  const botCalendarMeetings = artifact?.rawPayload?.data?.bot_metadata?.calendar_meetings || 
+                               artifact?.rawPayload?.data?.calendar_meetings ||
+                               artifact?.rawPayload?.bot?.calendar_meetings;
+  if (Array.isArray(botCalendarMeetings) && botCalendarMeetings.length > 0) {
+    for (const cm of botCalendarMeetings) {
+      if (cm?.title && !isGenericMeetingTitle(cm.title)) {
+        return cm.title;
+      }
+    }
+  }
+
+  // 5) Bot meeting_metadata title (if present)
   const botMetaTitle = artifact?.rawPayload?.data?.bot_metadata?.meeting_metadata?.title;
   if (botMetaTitle && !isGenericMeetingTitle(botMetaTitle)) {
     return botMetaTitle;
   }
 
-  // 4) Derive from meeting URL
+  // 6) Check artifact rawPayload for other title fields
+  const artifactTitle = 
+    artifact?.rawPayload?.data?.meeting_title ||
+    artifact?.rawPayload?.data?.event_title ||
+    artifact?.rawPayload?.data?.calendar_event?.title ||
+    artifact?.rawPayload?.data?.calendar_event?.summary ||
+    artifact?.rawPayload?.data?.calendar_event?.subject;
+  if (artifactTitle && !isGenericMeetingTitle(artifactTitle)) {
+    return artifactTitle;
+  }
+
+  // 7) Derive from meeting URL
   const meetingUrl =
     artifact?.rawPayload?.data?.meeting_url || calendarEvent?.meetingUrl;
   if (meetingUrl) {
@@ -342,7 +377,7 @@ function extractMeetingTitle(artifact, calendarEvent) {
     if (urlTitle) return urlTitle;
   }
 
-  // 5) Build from participants (prefer artifact participants, otherwise calendar attendees)
+  // 8) Build from participants (prefer artifact participants, otherwise calendar attendees)
   const participants = getParticipantsForMeeting(artifact, calendarEvent);
   if (participants.length > 0) {
     const names = participants
@@ -356,7 +391,7 @@ function extractMeetingTitle(artifact, calendarEvent) {
     }
   }
 
-  // 6) Date-based fallback
+  // 9) Date-based fallback
   const startTime =
     calendarEvent?.startTime ||
     artifact?.rawPayload?.data?.start_time ||
@@ -868,11 +903,37 @@ async function syncBotArtifacts(calendars, userId) {
     
     // Create the artifact
     try {
+      // Extract title from multiple sources, prioritizing bot calendar_meetings title
+      const botCalendarMeetingTitle = bot.calendar_meetings?.[0]?.title;
       const computedTitle =
+        botCalendarMeetingTitle ||
         calendarEvent?.title ||
         bot.meeting_metadata?.title ||
         extractTitleFromUrl(bot.meeting_url) ||
         "Meeting";
+
+      // Extract attendees for caching in the artifact
+      let cachedAttendees = [];
+      // First try bot calendar_meetings attendees
+      if (bot.calendar_meetings?.[0]?.attendees?.length > 0) {
+        cachedAttendees = bot.calendar_meetings[0].attendees.map(a => ({
+          email: a.email,
+          name: a.name || a.email?.split('@')[0],
+          organizer: a.is_organizer || false,
+        }));
+      } 
+      // Fallback to calendar event attendees
+      else if (calendarEvent) {
+        cachedAttendees = getAttendeesFromEvent(calendarEvent);
+      }
+      // Fallback to bot participants
+      else if (bot.meeting_participants?.length > 0) {
+        cachedAttendees = bot.meeting_participants.map(p => ({
+          email: p.email || null,
+          name: p.name || p.speaker || p.email?.split('@')[0] || 'Guest',
+          organizer: false,
+        }));
+      }
 
       // Extract recording data from full bot data
       const recording = fullBotData?.recordings?.[0];
@@ -910,6 +971,8 @@ async function syncBotArtifacts(calendars, userId) {
         status: 'done',
         ...meetingMetadata,
         readableId: readableId,
+        title: computedTitle,  // Store computed title directly
+        attendeesJson: cachedAttendees.length > 0 ? cachedAttendees : null,  // Store cached attendees
         rawPayload: {
           event: 'bot.done',
           data: {
@@ -925,6 +988,12 @@ async function syncBotArtifacts(calendars, userId) {
             audio_url: audioUrl,
             recording_url: videoUrl,
             transcript: transcript,
+            // Store bot metadata including calendar_meetings for title extraction
+            bot_metadata: {
+              meeting_metadata: bot.meeting_metadata || {},
+              calendar_meetings: bot.calendar_meetings || [],
+            },
+            calendar_meetings: bot.calendar_meetings || [],
             status: botStatus,
             participants: bot.meeting_participants || [],
             // Store full recording data for duration calculation
@@ -2345,6 +2414,20 @@ export default async (req, res) => {
     
     // Use upcoming event title if available and better, otherwise use extracted title
     let finalTitle = extractMeetingTitle(artifact, calendarEvent);
+    
+    // Debug: Log title extraction for troubleshooting
+    if (finalTitle && finalTitle.startsWith('Meeting on')) {
+      console.log(`[TITLE-DEBUG] Artifact ${artifact.id}: Falling back to date-based title. Available sources:`, {
+        calendarEventTitle: calendarEvent?.title,
+        calendarEventRawSummary: calendarEvent?.recallData?.raw?.summary,
+        calendarEventRawSubject: calendarEvent?.recallData?.raw?.subject,
+        artifactPayloadTitle: artifact?.rawPayload?.data?.title,
+        botMetaTitle: artifact?.rawPayload?.data?.bot_metadata?.meeting_metadata?.title,
+        artifactMeetingTitle: artifact?.rawPayload?.data?.meeting_title,
+        matchingUpcomingEventTitle: matchingUpcomingEvent?.title,
+      });
+    }
+    
     if (matchingUpcomingEvent?.title && !isGenericMeetingTitle(matchingUpcomingEvent.title)) {
       finalTitle = matchingUpcomingEvent.title;
     }

@@ -103,6 +103,17 @@ export default (sequelize) => {
         allowNull: true,
         comment: "Size in bytes",
       },
+      // Meeting metadata for quick display
+      title: {
+        type: DataTypes.STRING,
+        allowNull: true,
+        comment: "Meeting title for display (populated from calendar event or computed)",
+      },
+      attendeesJson: {
+        type: DataTypes.JSON,
+        allowNull: true,
+        comment: "Cached attendees list [{name, email, organizer}] for quick display",
+      },
     },
     {
       sequelize,

@@ -7,8 +7,9 @@
         class="block w-full rounded-md border-gray-300 py-2 pl-3 pr-10 text-sm focus:border-indigo-500 focus:outline-none focus:ring-indigo-500"
         onchange="switchTab(this.value)"
       >
+        <option value="tier-standard">Standard</option>
+        <option value="tier-premium">Premium</option>
         <option value="summary" selected>Summary</option>
-        <option value="snapshot">Meeting Snapshot</option>
         <option value="topics">Topics</option>
         <option value="highlights">Highlights</option>
         <option value="detailed">Detailed Notes</option>
@@ -20,7 +21,32 @@
         <option value="quickactions">Quick Actions</option>
       </select>
     </div>
-    <div class="hidden sm:block w-full overflow-x-auto scrollbar-hide">
+    <div class="hidden sm:block w-full">
+      <div class="flex flex-wrap items-center gap-3 px-4 py-3 border-b border-gray-100">
+        <button
+          type="button"
+          onclick="switchTier('standard')"
+          id="tier-standard"
+          data-tier-target="standard"
+          class="tier-btn inline-flex items-center rounded-full border border-indigo-500 bg-white px-3 py-1 text-xs font-semibold text-indigo-600"
+          aria-selected="true"
+        >
+          Standard
+        </button>
+        <button
+          type="button"
+          onclick="switchTier('premium')"
+          id="tier-premium"
+          data-tier-target="premium"
+          class="tier-btn inline-flex items-center rounded-full border border-transparent bg-white px-3 py-1 text-xs font-semibold text-gray-500"
+          aria-selected="false"
+          tabindex="-1"
+        >
+          Premium
+        </button>
+        <span class="text-xs text-gray-500">Standard uses Recall/OpenAI · Premium uses AssemblyAI</span>
+      </div>
+      <div class="w-full overflow-x-auto scrollbar-hide">
       <nav class="-mb-px flex w-full flex-wrap sm:flex-nowrap" aria-label="Tabs" role="tablist">
         <button
           type="button"
@@ -36,21 +62,6 @@
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path>
           </svg>
           Summary
-        </button>
-        <button
-          type="button"
-          onclick="switchTab('snapshot')"
-          id="tab-snapshot"
-          role="tab"
-          aria-controls="content-snapshot"
-          aria-selected="false"
-          tabindex="-1"
-          class="tab-btn group relative flex-1 min-w-0 border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 whitespace-nowrap border-b-2 py-3 px-2 sm:px-3 text-center text-xs sm:text-sm font-medium transition-colors"
-        >
-          <svg class="mx-auto h-4 w-4 sm:h-5 sm:w-5 mb-0.5 group-hover:text-indigo-500 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
-          </svg>
-          Snapshot
         </button>
         <button
           type="button"
@@ -113,7 +124,10 @@
           </svg>
           Actions
           <% if (meeting.actionItems && meeting.actionItems.length > 0) { %>
-            <span class="absolute -top-1 -right-1 inline-flex items-center justify-center h-5 w-5 rounded-full bg-orange-500 text-xs font-bold text-white"><%= meeting.actionItems.length %></span>
+            <span data-tier="standard" class="absolute -top-1 -right-1 inline-flex items-center justify-center h-5 w-5 rounded-full bg-orange-500 text-xs font-bold text-white"><%= meeting.actionItems.length %></span>
+          <% } %>
+          <% if (meeting.superAgentAnalysis?.actionItems && meeting.superAgentAnalysis.actionItems.length > 0) { %>
+            <span data-tier="premium" class="absolute -top-1 -right-1 inline-flex items-center justify-center h-5 w-5 rounded-full bg-amber-500 text-xs font-bold text-white hidden"><%= meeting.superAgentAnalysis.actionItems.length %></span>
           <% } %>
         </button>
         <button
@@ -132,7 +146,7 @@
           <span class="hidden sm:inline">Follow-ups</span>
           <span class="sm:hidden">Follow</span>
           <% if (meeting.followUps && meeting.followUps.length > 0) { %>
-            <span class="absolute -top-1 -right-1 inline-flex items-center justify-center h-5 w-5 rounded-full bg-blue-500 text-xs font-bold text-white"><%= meeting.followUps.length %></span>
+            <span data-tier="standard" class="absolute -top-1 -right-1 inline-flex items-center justify-center h-5 w-5 rounded-full bg-blue-500 text-xs font-bold text-white"><%= meeting.followUps.length %></span>
           <% } %>
         </button>
         <button
@@ -196,6 +210,7 @@
           Actions
         </button>
       </nav>
+      </div>
     </div>
   </div>
 
@@ -204,13 +219,10 @@
       <%- include('tab-summary', { meeting, publishDeliveries }) -%>
     </div>
 
-    <!-- Meeting Snapshot Tab -->
-    <div id="content-snapshot" class="tab-content hidden" role="tabpanel" aria-labelledby="tab-snapshot">
-      <%- include('tab-snapshot', { meeting }) -%>
-    </div>
 
     <!-- Topics Tab -->
     <div id="content-topics" class="tab-content hidden" role="tabpanel" aria-labelledby="tab-topics">
+      <div data-tier="standard">
       <% if (meeting.topics && meeting.topics.length > 0) { %>
         <% 
           function topicTitle(topic, idx) {
@@ -257,7 +269,7 @@
         <div class="flex items-center justify-between mb-4">
           <div>
             <h3 class="text-base font-semibold text-gray-900">Topics</h3>
-            <p class="text-sm text-gray-500">Expand chapters, jump to timestamps, or copy.</p>
+            <p class="text-sm text-gray-500">Expand topics, jump to timestamps, or copy.</p>
           </div>
           <div class="flex items-center gap-2">
             <button 
@@ -297,7 +309,7 @@
                     type="button" 
                     onclick="copyTopic(<%= idx %>, event)"
                     class="inline-flex items-center rounded-md px-2 py-1 text-xs font-medium text-gray-600 ring-1 ring-inset ring-gray-200 hover:bg-gray-100"
-                    title="Copy chapter"
+                    title="Copy topic"
                   >
                     <svg class="h-3.5 w-3.5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
@@ -347,13 +359,84 @@
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 00-2 2h-5l-4 4v-4z"></path>
           </svg>
           <h3 class="mt-2 text-sm font-semibold text-gray-900">No topics yet</h3>
-          <p class="mt-1 text-sm text-gray-500">AI chapters will appear here once available.</p>
+          <p class="mt-1 text-sm text-gray-500">Topics will appear here once the meeting summary is generated.</p>
         </div>
       <% } %>
+      </div>
+
+      <div data-tier="premium" class="hidden">
+        <% if (!meeting.hasPremiumAccess) { %>
+          <%- include('premium-cta', { meeting }) -%>
+        <% } else if (!meeting.superAgentAnalysis || meeting.superAgentAnalysis.status !== 'completed') { %>
+          <div class="text-center py-8">
+            <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6l4 2m6-2a10 10 0 11-20 0 10 10 0 0120 0z"></path>
+            </svg>
+            <h3 class="mt-2 text-sm font-semibold text-gray-900">Premium chapters not ready</h3>
+            <p class="mt-1 text-sm text-gray-500">Run Super Agent to generate AssemblyAI chapters.</p>
+            <% if (meeting.artifactId) { %>
+              <button
+                type="button"
+                onclick="openSuperAgentPanel()"
+                class="mt-4 inline-flex items-center rounded-md bg-amber-500 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-amber-400"
+              >
+                Analyse with Super Agent
+              </button>
+            <% } %>
+          </div>
+        <% } else { %>
+          <% const chapters = meeting.superAgentAnalysis?.chapters || []; %>
+          <% if (chapters.length > 0) { %>
+            <div class="flex items-center justify-between mb-4">
+              <div>
+                <h3 class="text-base font-semibold text-gray-900">Chapters</h3>
+                <p class="text-sm text-gray-500">AssemblyAI chapters with timestamps.</p>
+              </div>
+            </div>
+            <div class="divide-y divide-gray-200 border border-gray-200 rounded-lg">
+              <% chapters.forEach((chapter, idx) => { 
+                const start = typeof chapter.start === 'number' ? Math.floor(chapter.start / 1000) : null;
+                const end = typeof chapter.end === 'number' ? Math.floor(chapter.end / 1000) : null;
+                const title = chapter.headline || chapter.gist || `Chapter ${idx + 1}`;
+              %>
+                <div class="px-4 py-3">
+                  <div class="flex items-center justify-between">
+                    <p class="text-sm font-semibold text-gray-900"><%= title %></p>
+                    <% if (start !== null) { %>
+                      <button 
+                        type="button" 
+                        class="inline-flex items-center rounded-full bg-indigo-50 px-2 py-0.5 text-xs text-indigo-700 ring-1 ring-indigo-200 hover:bg-indigo-100"
+                        onclick="jumpToTimestamp(<%= start %>)"
+                      >
+                        <svg class="h-3 w-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                        <%= Math.floor(start / 60) %>:<%= String(Math.floor(start % 60)).padStart(2, '0') %><%= end !== null ? `-${Math.floor(end / 60)}:${String(Math.floor(end % 60)).padStart(2, '0')}` : '' %>
+                      </button>
+                    <% } %>
+                  </div>
+                  <% if (chapter.summary) { %>
+                    <p class="mt-2 text-sm text-gray-700"><%= chapter.summary %></p>
+                  <% } %>
+                </div>
+              <% }); %>
+            </div>
+          <% } else { %>
+            <div class="text-center py-8">
+              <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 00-2 2h-5l-4 4v-4z"></path>
+              </svg>
+              <h3 class="mt-2 text-sm font-semibold text-gray-900">No chapters available</h3>
+              <p class="mt-1 text-sm text-gray-500">AssemblyAI did not return chapters for this meeting.</p>
+            </div>
+          <% } %>
+        <% } %>
+      </div>
     </div>
 
     <!-- Highlights Tab -->
     <div id="content-highlights" class="tab-content hidden" role="tabpanel" aria-labelledby="tab-highlights">
+      <div data-tier="standard">
       <% if (meeting.highlights && meeting.highlights.length > 0) { %>
         <ul class="space-y-3">
           <% meeting.highlights.forEach(function(item, idx) { %>
@@ -405,10 +488,88 @@
           <p class="mt-1 text-sm text-gray-500">Key decisions and outcomes will appear here after processing.</p>
         </div>
       <% } %>
+      </div>
+
+      <div data-tier="premium" class="hidden">
+        <% if (!meeting.hasPremiumAccess) { %>
+          <%- include('premium-cta', { meeting }) -%>
+        <% } else if (!meeting.superAgentAnalysis || meeting.superAgentAnalysis.status !== 'completed') { %>
+          <div class="text-center py-8">
+            <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+            </svg>
+            <h3 class="mt-2 text-sm font-semibold text-gray-900">Premium highlights not ready</h3>
+            <p class="mt-1 text-sm text-gray-500">Run Super Agent to generate AssemblyAI highlights.</p>
+            <% if (meeting.artifactId) { %>
+              <button
+                type="button"
+                onclick="openSuperAgentPanel()"
+                class="mt-4 inline-flex items-center rounded-md bg-amber-500 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-amber-400"
+              >
+                Analyse with Super Agent
+              </button>
+            <% } %>
+          </div>
+        <% } else { %>
+          <% const premiumHighlights = meeting.superAgentAnalysis?.highlights || []; %>
+          <% if (premiumHighlights.length > 0) { %>
+            <ul class="space-y-3">
+              <% premiumHighlights.forEach(function(item, idx) { %>
+                <li class="p-3 rounded-lg border border-gray-100 bg-gray-50">
+                  <div class="flex items-start justify-between">
+                    <div>
+                      <p class="text-sm font-semibold text-gray-900"><%= item.title || 'Highlight ' + (idx + 1) %></p>
+                      <p class="mt-1 text-sm text-gray-700"><%= item.summary || item.text || '' %></p>
+                      <div class="mt-2 flex flex-wrap gap-2 text-xs text-gray-500">
+                        <% if (item.speaker) { %>
+                          <span class="inline-flex items-center rounded-full bg-white px-2 py-0.5 ring-1 ring-gray-200">
+                            <svg class="h-3 w-3 mr-1 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+                            </svg>
+                            <%= item.speaker %>
+                          </span>
+                        <% } %>
+                        <% const highlightTs = Number(item.timestamp_seconds); if (!Number.isNaN(highlightTs)) { %>
+                          <button 
+                            type="button" 
+                            class="inline-flex items-center rounded-full bg-indigo-50 px-2 py-0.5 text-indigo-700 ring-1 ring-indigo-200 hover:bg-indigo-100 cursor-pointer transition-colors"
+                            onclick="jumpToTimestamp(<%= Math.floor(highlightTs) %>)"
+                          >
+                            <svg class="h-3 w-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                            </svg>
+                            <%= Math.floor(highlightTs / 60) %>:<%= String(Math.floor(highlightTs % 60)).padStart(2, '0') %>
+                          </button>
+                        <% } %>
+                        <% if (item.category) { %>
+                          <span class="inline-flex items-center rounded-full bg-purple-50 px-2 py-0.5 text-purple-700 ring-1 ring-purple-200 capitalize"><%= item.category %></span>
+                        <% } %>
+                        <% if (item.impact) { %>
+                          <span class="inline-flex items-center rounded-full bg-amber-50 px-2 py-0.5 text-amber-700 ring-1 ring-amber-200 capitalize">Impact: <%= item.impact %></span>
+                        <% } %>
+                      </div>
+                    </div>
+                    <span class="text-xs text-gray-400 ml-2">#<%= idx + 1 %></span>
+                  </div>
+                </li>
+              <% }); %>
+            </ul>
+          <% } else { %>
+            <div class="text-center py-8">
+              <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+              </svg>
+              <h3 class="mt-2 text-sm font-semibold text-gray-900">No highlights yet</h3>
+              <p class="mt-1 text-sm text-gray-500">AssemblyAI highlights will appear here after processing.</p>
+            </div>
+          <% } %>
+        <% } %>
+      </div>
     </div>
 
     <!-- Detailed Notes Tab -->
     <div id="content-detailed" class="tab-content hidden" role="tabpanel" aria-labelledby="tab-detailed">
+      <div data-tier="standard">
       <% if (meeting.detailedNotes && meeting.detailedNotes.length > 0) { %>
         <div class="space-y-3">
           <% meeting.detailedNotes.forEach(function(item, idx) { %>
@@ -458,10 +619,26 @@
           <p class="mt-1 text-sm text-gray-500">Paraphrased key phrases will appear here for richer context.</p>
         </div>
       <% } %>
+      </div>
+
+      <div data-tier="premium" class="hidden">
+        <% if (!meeting.hasPremiumAccess) { %>
+          <%- include('premium-cta', { meeting }) -%>
+        <% } else { %>
+          <div class="text-center py-8">
+            <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 00-2 2h-5l-4 4v-4z"></path>
+            </svg>
+            <h3 class="mt-2 text-sm font-semibold text-gray-900">Detailed notes not available</h3>
+            <p class="mt-1 text-sm text-gray-500">AssemblyAI Super Agent does not return detailed notes yet.</p>
+          </div>
+        <% } %>
+      </div>
     </div>
 
     <!-- Actions Tab -->
     <div id="content-actions" class="tab-content hidden" role="tabpanel" aria-labelledby="tab-actions">
+      <div data-tier="standard">
       <% if (meeting.actionItems && meeting.actionItems.length > 0) { %>
         <ul class="space-y-3">
           <% meeting.actionItems.forEach(function(item, index) { %>
@@ -510,10 +687,91 @@
           <p class="mt-1 text-sm text-gray-500">Action items extracted from the meeting will appear here.</p>
         </div>
       <% } %>
+      </div>
+
+      <div data-tier="premium" class="hidden">
+        <% if (!meeting.hasPremiumAccess) { %>
+          <%- include('premium-cta', { meeting }) -%>
+        <% } else if (!meeting.superAgentAnalysis || meeting.superAgentAnalysis.status !== 'completed') { %>
+          <div class="text-center py-8">
+            <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"></path>
+            </svg>
+            <h3 class="mt-2 text-sm font-semibold text-gray-900">Premium action items not ready</h3>
+            <p class="mt-1 text-sm text-gray-500">Run Super Agent to generate timestamped actions.</p>
+            <% if (meeting.artifactId) { %>
+              <button
+                type="button"
+                onclick="openSuperAgentPanel()"
+                class="mt-4 inline-flex items-center rounded-md bg-amber-500 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-amber-400"
+              >
+                Analyse with Super Agent
+              </button>
+            <% } %>
+          </div>
+        <% } else { %>
+          <% const premiumActions = meeting.superAgentAnalysis?.actionItems || []; %>
+          <% if (premiumActions.length > 0) { %>
+            <ul class="space-y-3">
+              <% premiumActions.forEach(function(item, index) { %>
+                <% const actionText = item.task || item.action || item.text || item.description || JSON.stringify(item); %>
+                <% const actionTs = Number(item.timestamp_seconds); %>
+                <li class="flex items-start bg-amber-50 rounded-lg p-3">
+                  <span class="flex-shrink-0 h-6 w-6 flex items-center justify-center rounded-full bg-amber-100 text-amber-700 text-xs font-medium">
+                    <%= index + 1 %>
+                  </span>
+                  <div class="ml-3 flex-1">
+                    <p class="text-sm text-gray-900"><%= actionText %></p>
+                    <div class="mt-2 flex flex-wrap gap-2">
+                      <% if (!Number.isNaN(actionTs)) { %>
+                        <button 
+                          type="button" 
+                          class="inline-flex items-center rounded-full bg-indigo-50 px-2 py-0.5 text-xs text-indigo-700 ring-1 ring-indigo-200 hover:bg-indigo-100"
+                          onclick="jumpToTimestamp(<%= Math.floor(actionTs) %>)"
+                        >
+                          <svg class="h-3 w-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                          </svg>
+                          <%= Math.floor(actionTs / 60) %>:<%= String(Math.floor(actionTs % 60)).padStart(2, '0') %>
+                        </button>
+                      <% } %>
+                      <% if (item.assignee) { %>
+                        <span class="inline-flex items-center rounded-full bg-white px-2 py-0.5 text-xs font-medium text-gray-600 ring-1 ring-inset ring-gray-200">
+                          <svg class="mr-1 h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+                          </svg>
+                          <%= item.assignee %>
+                        </span>
+                      <% } %>
+                      <% if (item.due_date) { %>
+                        <span class="inline-flex items-center rounded-full bg-red-50 px-2 py-0.5 text-xs font-medium text-red-600 ring-1 ring-inset ring-red-200">
+                          <svg class="mr-1 h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                          </svg>
+                          <%= item.due_date %>
+                        </span>
+                      <% } %>
+                    </div>
+                  </div>
+                </li>
+              <% }); %>
+            </ul>
+          <% } else { %>
+            <div class="text-center py-8">
+              <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"></path>
+              </svg>
+              <h3 class="mt-2 text-sm font-semibold text-gray-900">No action items</h3>
+              <p class="mt-1 text-sm text-gray-500">AssemblyAI action items will appear here after processing.</p>
+            </div>
+          <% } %>
+        <% } %>
+      </div>
     </div>
 
     <!-- Follow-ups Tab -->
     <div id="content-followups" class="tab-content hidden" role="tabpanel" aria-labelledby="tab-followups">
+      <div data-tier="standard">
       <% if (meeting.followUps && meeting.followUps.length > 0) { %>
         <ul class="space-y-2">
           <% meeting.followUps.forEach(function(item) { %>
@@ -540,10 +798,25 @@
           <p class="mt-1 text-sm text-gray-500">Suggested follow-ups from the meeting will appear here.</p>
         </div>
       <% } %>
+      </div>
+
+      <div data-tier="premium" class="hidden">
+        <% if (!meeting.hasPremiumAccess) { %>
+          <%- include('premium-cta', { meeting }) -%>
+        <% } else { %>
+          <div class="text-center py-8">
+            <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 9l3 3m0 0l-3 3m3-3H8m13 0a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+            </svg>
+            <h3 class="mt-2 text-sm font-semibold text-gray-900">Follow-ups not available</h3>
+            <p class="mt-1 text-sm text-gray-500">AssemblyAI Super Agent does not return follow-ups yet.</p>
+          </div>
+        <% } %>
+      </div>
     </div>
 
     <!-- Transcript Tab - Lazy Loaded -->
-    <div id="content-transcript" class="tab-content hidden" role="tabpanel" aria-labelledby="tab-transcript" data-lazy-load="true" data-loaded="false">
+    <div id="content-transcript" class="tab-content hidden w-full" role="tabpanel" aria-labelledby="tab-transcript" data-lazy-load="true" data-loaded="false">
       <!-- Loading State -->
       <div id="transcript-loading" class="<%= meeting.lazyLoadTranscript ? '' : 'hidden' %>">
         <div class="flex items-center justify-center py-8">
@@ -563,14 +836,14 @@
           </div>
         </div>
         <!-- Skeleton placeholders -->
-        <div class="space-y-4 animate-pulse">
+        <div class="space-y-4 animate-pulse px-4 sm:px-6 lg:px-8">
           <% for (let i = 0; i < 5; i++) { %>
             <div class="pt-3 border-t border-gray-100">
               <div class="flex items-center mb-1">
                 <div class="h-5 w-24 bg-gray-200 rounded-full"></div>
                 <div class="ml-2 h-4 w-12 bg-gray-100 rounded"></div>
               </div>
-              <div class="pl-4 space-y-2">
+              <div class="space-y-2">
                 <div class="h-4 bg-gray-200 rounded w-full"></div>
                 <div class="h-4 bg-gray-200 rounded w-5/6"></div>
                 <div class="h-4 bg-gray-200 rounded w-4/6"></div>
@@ -581,7 +854,7 @@
       </div>
       
       <!-- Transcript Content (populated by JavaScript or server) -->
-      <div id="transcript-content" class="<%= meeting.lazyLoadTranscript ? 'hidden' : '' %>">
+      <div id="transcript-content" class="w-full <%= meeting.lazyLoadTranscript ? 'hidden' : '' %>">
         <% if (!meeting.lazyLoadTranscript) { %>
           <% if (meeting.transcript && meeting.transcript.length > 0) { %>
             <% 
@@ -594,15 +867,15 @@
                 return speakerPalette[idx];
               };
             %>
-            <div class="max-h-96 overflow-y-auto">
-              <div class="space-y-4">
+            <div class="max-h-[calc(100vh-300px)] min-h-[400px] overflow-y-auto w-full">
+              <div class="w-full space-y-4 pb-4 px-4 sm:px-6 lg:px-8">
                 <% 
                   let currentSpeaker = null;
                   meeting.transcript.forEach(function(chunk) { 
                     const showSpeaker = chunk.speaker !== currentSpeaker;
                     currentSpeaker = chunk.speaker;
                 %>
-                  <div class="<%= showSpeaker ? 'pt-3 border-t border-gray-100' : '' %>">
+                  <div class="w-full <%= showSpeaker ? 'pt-3 border-t border-gray-100' : '' %>">
                     <% if (showSpeaker) { %>
                       <div class="flex items-center mb-1">
                         <% const color = speakerClass(chunk.speaker); %>
@@ -619,11 +892,14 @@
                         <% } %>
                       </div>
                     <% } %>
-                    <p class="text-sm text-gray-700 pl-4 text-left">
+                    <p class="w-full text-sm text-gray-700 text-left">
                       <%= chunk.text %>
                     </p>
                   </div>
                 <% }); %>
+                <div class="pt-4 border-t border-gray-100 text-center">
+                  <p class="text-xs text-gray-400"><%= meeting.transcript.length.toLocaleString() %> transcript segments loaded</p>
+                </div>
               </div>
             </div>
           <% } else { %>

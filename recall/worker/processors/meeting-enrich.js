@@ -78,21 +78,26 @@ async function ensureChunkEmbeddings(chunks) {
 export default async (job) => {
   const { meetingArtifactId, publishAfterEnrich, notionOverride } = job.data;
   
-  const artifact = await db.MeetingArtifact.findByPk(meetingArtifactId, {
-    include: [
-      {
-        model: db.CalendarEvent,
-        include: [{ model: db.Calendar }],
-      },
-    ],
-  });
+  console.log(`[ENRICH] Starting enrichment job for artifact ${meetingArtifactId}`);
+  
+  try {
+    const artifact = await db.MeetingArtifact.findByPk(meetingArtifactId, {
+      include: [
+        {
+          model: db.CalendarEvent,
+          include: [{ model: db.Calendar }],
+        },
+      ],
+    });
 
-  if (!artifact) {
-    console.warn(
-      `WARN: meeting.enrich could not find artifact ${meetingArtifactId}`
-    );
-    return;
-  }
+    if (!artifact) {
+      console.error(
+        `[ENRICH] ERROR: Could not find artifact ${meetingArtifactId}`
+      );
+      throw new Error(`Artifact ${meetingArtifactId} not found`);
+    }
+    
+    console.log(`[ENRICH] Found artifact ${artifact.id}, checking transcript chunks...`);
 
   const calendarEvent = artifact.CalendarEvent;
   const calendar = calendarEvent?.Calendar;
@@ -115,17 +120,27 @@ export default async (job) => {
     order: [["sequence", "ASC"]],
   });
 
+  console.log(`[ENRICH] Found ${chunks.length} transcript chunks for artifact ${artifact.id}`);
+
   // Format transcript with speaker attribution for better AI understanding
+  const validChunks = chunks.filter((c) => isValidText(c.text));
   const transcriptText =
-    chunks.filter((c) => isValidText(c.text)).length > 0
-      ? chunks
-          .filter((c) => isValidText(c.text))
+    validChunks.length > 0
+      ? validChunks
           .map((c) => {
             const speaker = c.speaker || "Unknown Speaker";
             return `${speaker}: ${c.text.trim()}`;
           })
           .join("\n\n")
-      : JSON.stringify(artifact.rawPayload);
+      : null;
+
+  if (!transcriptText || transcriptText.trim().length === 0) {
+    console.error(`[ENRICH] ERROR: No valid transcript text found for artifact ${artifact.id}`);
+    console.error(`[ENRICH] Chunks: ${chunks.length}, Valid chunks: ${validChunks.length}`);
+    throw new Error(`No transcript available for artifact ${artifact.id}. Cannot generate summary without transcript.`);
+  }
+  
+  console.log(`[ENRICH] Transcript text length: ${transcriptText.length} characters`);
 
   const talkStats = computeTalkStats(chunks);
 
@@ -142,19 +157,28 @@ export default async (job) => {
 
   // Use AI Summarizer abstraction layer with configured provider/model
   console.log(`[ENRICH] Fetching summary using provider: ${aiProvider}, model: ${aiModel || "default"}`);
+  console.log(`[ENRICH] Enrichment settings:`, JSON.stringify(enrichmentSettings));
+  console.log(`[ENRICH] Metadata:`, JSON.stringify({ title: metadata.title, participantsCount: metadata.participants?.length || 0, durationSeconds: metadata.durationSeconds }));
   
-  const notepadResult = await AISummarizer.summarize({
-    provider: aiProvider,
-    model: aiModel,
-    transcriptText,
-    metadata,
-    settings: enrichmentSettings,
-    recallBotId: artifact.recallBotId,
-    recallEventId: artifact.recallEventId,
-    webhookPayload: artifact.rawPayload,
-  });
-
-  console.log(`[ENRICH] AI Summarizer returned data from source: ${notepadResult.source}`);
+  let notepadResult;
+  try {
+    notepadResult = await AISummarizer.summarize({
+      provider: aiProvider,
+      model: aiModel,
+      transcriptText,
+      metadata,
+      settings: enrichmentSettings,
+      recallBotId: artifact.recallBotId,
+      recallEventId: artifact.recallEventId,
+      webhookPayload: artifact.rawPayload,
+    });
+    console.log(`[ENRICH] AI Summarizer returned data from source: ${notepadResult.source}`);
+    console.log(`[ENRICH] Summary length: ${notepadResult.summary?.length || 0} chars, Action items: ${notepadResult.actionItems?.length || 0}`);
+  } catch (summarizeError) {
+    console.error(`[ENRICH] ERROR: Failed to generate summary:`, summarizeError);
+    console.error(`[ENRICH] Error stack:`, summarizeError.stack);
+    throw summarizeError;
+  }
 
   // Normalize stats: prefer AI output, but fill gaps with computed talkStats
   const aiStats = notepadResult.stats || {};
@@ -239,10 +263,11 @@ export default async (job) => {
 
   // mark artifact status
   await artifact.update({ status: "enriched" });
+  console.log(`[ENRICH] Successfully completed enrichment for artifact ${artifact.id}`);
 
   // If publishAfterEnrich is set (from manual publish with override), always publish
   if (publishAfterEnrich && notionOverride) {
-    console.log(`INFO: Publishing to Notion with override after enrichment`);
+    console.log(`[ENRICH] Publishing to Notion with override after enrichment`);
     job.queue.add("publishing.dispatch", {
       meetingSummaryId: meetingSummary.id || meetingSummary?.dataValues?.id,
       notionOverride,
@@ -250,11 +275,18 @@ export default async (job) => {
   }
   // Otherwise, enqueue publishing only if auto-publish is enabled
   else if (enrichmentSettings.autoPublishToNotion) {
+    console.log(`[ENRICH] Auto-publish enabled, dispatching publishing job`);
     job.queue.add("publishing.dispatch", {
       meetingSummaryId: meetingSummary.id || meetingSummary?.dataValues?.id,
     });
   } else {
-    console.log(`INFO: Auto-publish disabled for calendar, skipping publishing dispatch`);
+    console.log(`[ENRICH] Auto-publish disabled for calendar, skipping publishing dispatch`);
+  }
+  } catch (error) {
+    console.error(`[ENRICH] FATAL ERROR in enrichment job for artifact ${meetingArtifactId}:`, error);
+    console.error(`[ENRICH] Error message:`, error.message);
+    console.error(`[ENRICH] Error stack:`, error.stack);
+    throw error; // Re-throw to mark job as failed
   }
 };
 

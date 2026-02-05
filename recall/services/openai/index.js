@@ -5,7 +5,7 @@ const CHAT_MODEL = process.env.OPENAI_MODEL_SUMMARY || "gpt-4-turbo";
 const EMBEDDING_MODEL =
   process.env.OPENAI_MODEL_EMBEDDINGS || "text-embedding-3-small";
 const DEFAULT_TEMPERATURE = parseFloat(process.env.OPENAI_TEMPERATURE || "0.3");
-const DEFAULT_MAX_TOKENS = parseInt(process.env.OPENAI_MAX_TOKENS || "4000", 10);
+const DEFAULT_MAX_TOKENS = parseInt(process.env.OPENAI_MAX_TOKENS || "4096", 10);
 
 if (!OPENAI_API_KEY) {
   console.warn(

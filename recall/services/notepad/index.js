@@ -245,7 +245,7 @@ Please analyze this meeting transcript and provide a comprehensive summary with 
     const response = await chatCompletion(messages, {
       responseFormat: "json_object",
       temperature: 0.3, // Lower temperature for more focused, factual summaries
-      maxTokens: 5500, // Allow additional space for detailed sections
+      maxTokens: 4096, // Maximum supported by OpenAI models (gpt-4, gpt-3.5-turbo)
     });
 
     function safeParseJson(text) {

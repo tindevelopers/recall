@@ -1,0 +1,33 @@
+<div class="overflow-hidden bg-white shadow sm:rounded-lg">
+  <div class="px-4 py-5 sm:px-6 border-b border-gray-200">
+    <h2 class="text-base font-semibold text-gray-900">Premium Analysis</h2>
+    <p class="text-xs text-gray-500">Unlock AssemblyAI chapters, timestamped actions, and decisions.</p>
+  </div>
+  <div class="px-4 py-5 sm:px-6">
+    <div class="flex items-start gap-3">
+      <div class="h-10 w-10 rounded-full bg-amber-100 text-amber-700 flex items-center justify-center font-semibold">
+        <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6l4 2m6-2a10 10 0 11-20 0 10 10 0 0120 0z"></path>
+        </svg>
+      </div>
+      <div class="flex-1">
+        <p class="text-sm text-gray-700">Upgrade to Premium to run Super Agent and see AssemblyAI insights.</p>
+        <div class="mt-4 flex flex-wrap gap-3">
+          <a
+            href="/settings"
+            class="inline-flex items-center rounded-md bg-amber-500 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-amber-400"
+          >
+            Enable in Settings
+          </a>
+          <button
+            type="button"
+            onclick="switchTier('standard')"
+            class="inline-flex items-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-700 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50"
+          >
+            Stay on Standard
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

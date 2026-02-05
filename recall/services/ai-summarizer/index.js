@@ -131,7 +131,7 @@ Please analyze this meeting transcript and provide a comprehensive summary with 
       responseFormat: "json_object",
       model: model,
       temperature: 0.3,
-      maxTokens: 5500,
+      maxTokens: 4096, // Maximum supported by OpenAI models (gpt-4, gpt-3.5-turbo)
     });
 
     function safeParseJson(text) {

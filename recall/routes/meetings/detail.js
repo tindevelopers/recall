@@ -58,8 +58,13 @@ function extractMeetingTitle(artifact, calendarEvent) {
     return calendarEvent.title;
   }
 
-  // 2) Calendar event recallData title fields
-  const calEventTitle = calendarEvent?.recallData?.meeting_title || calendarEvent?.recallData?.title;
+  // 2) Calendar event recallData title fields (check multiple possible locations)
+  const calEventTitle = 
+    calendarEvent?.recallData?.meeting_title || 
+    calendarEvent?.recallData?.title ||
+    calendarEvent?.recallData?.raw?.summary ||
+    calendarEvent?.recallData?.raw?.subject ||
+    calendarEvent?.recallData?.raw?.title;
   if (calEventTitle && !isGenericMeetingTitle(calEventTitle)) {
     return calEventTitle;
   }
@@ -69,20 +74,44 @@ function extractMeetingTitle(artifact, calendarEvent) {
     return artifact.rawPayload.data.title;
   }
 
-  // 4) Bot meeting_metadata title (if present)
+  // 4) Bot calendar_meetings title (from Recall API bot data)
+  // This is often the most reliable source for meeting titles
+  const botCalendarMeetings = artifact?.rawPayload?.data?.bot_metadata?.calendar_meetings || 
+                               artifact?.rawPayload?.data?.calendar_meetings ||
+                               artifact?.rawPayload?.bot?.calendar_meetings;
+  if (Array.isArray(botCalendarMeetings) && botCalendarMeetings.length > 0) {
+    for (const cm of botCalendarMeetings) {
+      if (cm?.title && !isGenericMeetingTitle(cm.title)) {
+        return cm.title;
+      }
+    }
+  }
+
+  // 5) Bot meeting_metadata title (if present)
   const botMetaTitle = artifact?.rawPayload?.data?.bot_metadata?.meeting_metadata?.title;
   if (botMetaTitle && !isGenericMeetingTitle(botMetaTitle)) {
     return botMetaTitle;
   }
 
-  // 5) Derive from meeting URL
+  // 6) Check artifact rawPayload for other title fields
+  const artifactTitle = 
+    artifact?.rawPayload?.data?.meeting_title ||
+    artifact?.rawPayload?.data?.event_title ||
+    artifact?.rawPayload?.data?.calendar_event?.title ||
+    artifact?.rawPayload?.data?.calendar_event?.summary ||
+    artifact?.rawPayload?.data?.calendar_event?.subject;
+  if (artifactTitle && !isGenericMeetingTitle(artifactTitle)) {
+    return artifactTitle;
+  }
+
+  // 7) Derive from meeting URL
   const meetingUrl = artifact?.rawPayload?.data?.meeting_url || calendarEvent?.meetingUrl;
   if (meetingUrl) {
     const urlTitle = extractTitleFromUrl(meetingUrl);
     if (urlTitle) return urlTitle;
   }
 
-  // 6) Build from participants
+  // 8) Build from participants
   const participants = getParticipantsFromArtifact(artifact);
   if (participants.length > 0) {
     const names = participants
@@ -94,7 +123,7 @@ function extractMeetingTitle(artifact, calendarEvent) {
     }
   }
 
-  // 7) Date-based fallback
+  // 9) Date-based fallback
   const startTime = calendarEvent?.startTime || artifact?.rawPayload?.data?.start_time || artifact?.createdAt;
   if (startTime) {
     const date = new Date(startTime);
@@ -246,10 +275,24 @@ export default async (req, res) => {
 
   // Build meeting data - MINIMAL for fast initial render
   // Heavy data (transcript, stats) will be lazy-loaded
+  const extractedTitle = extractMeetingTitle(artifact, calendarEvent);
+  
+  // Debug: Log title extraction for troubleshooting
+  if (extractedTitle && extractedTitle.startsWith('Meeting on')) {
+    console.log(`[TITLE-DEBUG] Artifact ${artifact?.id}: Falling back to date-based title. Available sources:`, {
+      calendarEventTitle: calendarEvent?.title,
+      calendarEventRawSummary: calendarEvent?.recallData?.raw?.summary,
+      calendarEventRawSubject: calendarEvent?.recallData?.raw?.subject,
+      artifactPayloadTitle: artifact?.rawPayload?.data?.title,
+      botMetaTitle: artifact?.rawPayload?.data?.bot_metadata?.meeting_metadata?.title,
+      artifactMeetingTitle: artifact?.rawPayload?.data?.meeting_title,
+    });
+  }
+  
   const meeting = {
     id: artifact?.id || summary?.id,
     readableId: artifact?.readableId || null,
-    title: extractMeetingTitle(artifact, calendarEvent),
+    title: extractedTitle,
     startTime: calendarEvent?.startTime || artifact?.rawPayload?.data?.start_time || artifact?.createdAt || summary?.createdAt,
     endTime: calendarEvent?.endTime || artifact?.rawPayload?.data?.end_time || null,
     status: artifact?.status || summary?.status || "completed",
@@ -319,6 +362,7 @@ export default async (req, res) => {
         }
       : null,
     superAgentEnabled: isSuperAgentEnabled(calendarForSuperAgent),
+    hasPremiumAccess: isSuperAgentEnabled(calendarForSuperAgent),
     
     // LAZY LOADING: Transcript will be fetched via API
     transcript: [], // Empty - will be lazy-loaded

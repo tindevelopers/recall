@@ -42,11 +42,12 @@
           <% } else { %>
             <p class="text-xs text-gray-500">Summary will appear once the recording is processed.</p>
           <% } %>
-          <% if (meeting.artifactId) { %>
+          <% if (meeting.artifactId && meeting.hasPremiumAccess) { %>
             <button
               type="button"
               onclick="closeActionsDrawer(); openSuperAgentPanel();"
-              class="w-full inline-flex items-center justify-center rounded-md bg-amber-500 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-amber-400"
+              data-tier="premium"
+              class="hidden w-full inline-flex items-center justify-center rounded-md bg-amber-500 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-amber-400"
             >
               Analyse with Super Agent
             </button>
