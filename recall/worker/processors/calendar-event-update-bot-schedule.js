@@ -81,11 +81,13 @@ export default async (job) => {
     fetch('http://127.0.0.1:7250/ingest/bf0206c3-6e13-4499-92a3-7fb2b7527fcf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'worker/processors/calendar-event-update-bot-schedule.js:bot_config_built',message:'Bot config built before scheduling',data:{eventId:event.id,recallEventId:event.recallId,hasBotConfig:!!botConfig,hasRecordingConfig:!!botConfig.recording_config,hasStatusCallback:!!botConfig.status_callback_url,publicUrl:publicUrl||'not-set',botConfigFull:JSON.stringify(botConfig).substring(0,1000)},timestamp:Date.now(),sessionId:'debug-session',runId:'settings-change',hypothesisId:'C'})}).catch(()=>{});
     // #endregion
     
-    // Calculate join_at time (must be at least 10 minutes before meeting start for scheduled bots)
+    // Calculate join_at time - this is when the bot actually joins the meeting
+    // Note: The 10-minute "scheduled bot" requirement is about when you CALL the API,
+    // not when the bot joins. join_at can be set to any time before the meeting starts.
     // Recall API expects join_at as ISO8601 datetime string
-    const joinBeforeStartMinutes = calendar?.joinBeforeStartMinutes || 1;
+    const joinBeforeStartMinutes = calendar?.joinBeforeStartMinutes ?? 1;
     const joinAtTime = new Date(event.startTime);
-    joinAtTime.setMinutes(joinAtTime.getMinutes() - Math.max(joinBeforeStartMinutes, 10));
+    joinAtTime.setMinutes(joinAtTime.getMinutes() - joinBeforeStartMinutes);
     
     // Add join_at to bot config if we have a valid start time
     if (event.startTime && event.startTime > new Date()) {
