@@ -936,14 +936,14 @@
       <% if (stats && ((stats.speakers && stats.speakers.length) || stats.durationSeconds)) { %>
         <div class="space-y-4">
           <% if (stats.durationSeconds) { %>
-            <div class="rounded-lg border border-gray-100 bg-gray-50 p-4 flex items-center justify-between">
+            <div class="rounded-lg border border-gray-100 bg-gray-50 p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
               <div class="flex items-center gap-3">
-                <div class="h-10 w-10 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center font-semibold">
+                <div class="h-10 w-10 flex-shrink-0 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center font-semibold">
                   <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                   </svg>
                 </div>
-                <div>
+                <div class="min-w-0">
                   <p class="text-sm font-semibold text-gray-900">Estimated duration</p>
                   <p class="text-sm text-gray-600">
                     <% const totalMins = Math.round(stats.durationSeconds / 60); const hours = Math.floor(totalMins / 60); const mins = totalMins % 60; %>
@@ -952,7 +952,7 @@
                 </div>
               </div>
               <% if (stats.note) { %>
-                <span class="text-xs text-gray-400"><%= stats.note %></span>
+                <span class="text-xs text-gray-400 sm:text-right"><%= stats.note %></span>
               <% } %>
             </div>
           <% } %>
@@ -962,9 +962,9 @@
               <h4 class="text-sm font-semibold text-gray-900 mb-3">Talk time by speaker</h4>
               <div class="space-y-2">
                 <% stats.speakers.forEach(function(speaker) { %>
-                  <div class="flex items-center justify-between rounded-lg border border-gray-100 p-3">
-                    <div>
-                      <p class="text-sm font-medium text-gray-900"><%= speaker.name || 'Speaker' %></p>
+                  <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 rounded-lg border border-gray-100 p-3">
+                    <div class="min-w-0 flex-1">
+                      <p class="text-sm font-medium text-gray-900 truncate"><%= speaker.name || 'Speaker' %></p>
                       <p class="text-xs text-gray-500">
                         <% const secs = Math.round(speaker.talkTimeSeconds || 0); const mins = Math.floor(secs / 60); const rem = secs % 60; %>
                         <%= mins > 0 ? `${mins}m ${rem}s` : `${secs}s` %>
@@ -976,11 +976,11 @@
                         <% } %>
                       </p>
                     </div>
-                    <div class="flex items-center gap-3">
+                    <div class="flex items-center gap-3 flex-shrink-0">
                       <% if (speaker.talkTimePercent !== null && speaker.talkTimePercent !== undefined) { %>
-                        <span class="text-sm font-semibold text-indigo-700"><%= speaker.talkTimePercent.toFixed(1) %>%</span>
+                        <span class="text-sm font-semibold text-indigo-700 w-12 text-right"><%= speaker.talkTimePercent.toFixed(1) %>%</span>
                       <% } %>
-                      <div class="w-32 bg-gray-100 rounded-full h-2 overflow-hidden">
+                      <div class="w-24 sm:w-32 bg-gray-100 rounded-full h-2 overflow-hidden">
                         <% const pct = Math.max(0, Math.min(100, speaker.talkTimePercent || 0)); %>
                         <div class="h-2 bg-indigo-500" style="width:<%= pct %>%"></div>
                       </div>
