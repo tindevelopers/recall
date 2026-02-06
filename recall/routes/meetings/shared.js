@@ -2,6 +2,51 @@ import db from "../../db.js";
 import { Op } from "sequelize";
 
 /**
+ * Strip HTML tags from text and clean up meaningless content
+ */
+function stripHtml(html) {
+  if (!html || typeof html !== 'string') return html;
+  // Remove HTML tags but preserve text content
+  let text = html.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').trim();
+  // Remove strings that are just repeated characters (like "____" or "----")
+  if (/^[_\-=~.]{3,}$/.test(text)) {
+    return null;
+  }
+  // Remove strings that are mostly whitespace or special chars
+  const alphanumericContent = text.replace(/[^a-zA-Z0-9]/g, '');
+  if (alphanumericContent.length < 3) {
+    return null;
+  }
+  return text;
+}
+
+/**
+ * Extract description from a calendar event
+ */
+function getDescriptionFromEvent(event) {
+  if (!event) return null;
+  const raw = event?.recallData?.raw || {};
+  
+  let description = null;
+  if (event.platform === "google_calendar") {
+    description = raw["description"] || null;
+  } else if (event.platform === "microsoft_outlook") {
+    description = raw["body"]?.content || raw["bodyPreview"] || null;
+  }
+  
+  // Strip HTML tags if present
+  if (description) {
+    description = stripHtml(description);
+    // Return null if description is empty after stripping
+    if (!description || description.length === 0) {
+      return null;
+    }
+  }
+  
+  return description;
+}
+
+/**
  * Public route for viewing a shared meeting via token
  * GET /meetings/shared/:token
  */
@@ -86,12 +131,30 @@ export default async (req, res) => {
       artifact?.rawPayload?.data?.media_shortcuts?.audio?.data?.download_url ||
       null;
 
+    // Extract description and create display title
+    const extractedTitle = artifact.title || calendarEvent?.title || "Meeting";
+    const description = getDescriptionFromEvent(calendarEvent);
+    
+    // Create display title: prefer description, otherwise use extracted title
+    let displayTitle = description || extractedTitle || 'Meeting';
+    if (!description && extractedTitle && extractedTitle.startsWith('Meeting on ')) {
+      // Remove "Meeting on {date}" pattern
+      displayTitle = extractedTitle.replace(/^Meeting on \d{1,2}\/\d{1,2}\/\d{4}$/, 'Meeting');
+    }
+    
+    // Truncate description if it's too long for a title (keep first 100 chars)
+    if (displayTitle && displayTitle.length > 100) {
+      displayTitle = displayTitle.substring(0, 100).trim() + '...';
+    }
+
     // Build meeting object for the view
     const meeting = {
       id: artifact.id,
       readableId: artifact.readableId || artifact.id,
       artifactId: artifact.id,
-      title: artifact.title || calendarEvent?.title || "Meeting",
+      title: extractedTitle,
+      displayTitle: displayTitle,
+      description: description,
       startTime: calendarEvent?.startTime || artifact.createdAt,
       endTime: calendarEvent?.endTime,
       calendarEmail: calendarEvent?.Calendar?.email,

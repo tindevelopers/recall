@@ -46,17 +46,18 @@
         </button>
         <span class="text-xs text-gray-500">Standard uses Recall/OpenAI · Premium uses AssemblyAI</span>
       </div>
-      <div class="w-full overflow-x-auto scrollbar-hide">
-      <nav class="-mb-px flex w-full flex-wrap sm:flex-nowrap" aria-label="Tabs" role="tablist">
+      <!-- Standard Tabs Navigation -->
+      <div data-tier="standard" class="w-full overflow-x-auto scrollbar-hide">
+      <nav class="-mb-px flex w-full flex-wrap sm:flex-nowrap" aria-label="Standard Tabs" role="tablist">
         <button
           type="button"
-          onclick="switchTab('summary')"
-          id="tab-summary"
+          onclick="switchTab('summary', 'standard')"
+          id="tab-standard-summary"
           role="tab"
           aria-controls="content-summary"
           aria-selected="true"
           tabindex="0"
-          class="tab-btn group relative flex-1 min-w-0 border-indigo-500 text-indigo-600 whitespace-nowrap border-b-2 py-3 px-2 sm:px-3 text-center text-xs sm:text-sm font-medium transition-colors"
+          class="tab-btn-standard group relative flex-1 min-w-0 border-indigo-500 text-indigo-600 whitespace-nowrap border-b-2 py-3 px-2 sm:px-3 text-center text-xs sm:text-sm font-medium transition-colors"
         >
           <svg class="mx-auto h-4 w-4 sm:h-5 sm:w-5 mb-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path>
@@ -65,13 +66,13 @@
         </button>
         <button
           type="button"
-          onclick="switchTab('topics')"
-          id="tab-topics"
+          onclick="switchTab('topics', 'standard')"
+          id="tab-standard-topics"
           role="tab"
           aria-controls="content-topics"
           aria-selected="false"
           tabindex="-1"
-          class="tab-btn group relative flex-1 min-w-0 border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 whitespace-nowrap border-b-2 py-3 px-2 sm:px-3 text-center text-xs sm:text-sm font-medium transition-colors"
+          class="tab-btn-standard group relative flex-1 min-w-0 border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 whitespace-nowrap border-b-2 py-3 px-2 sm:px-3 text-center text-xs sm:text-sm font-medium transition-colors"
         >
           <svg class="mx-auto h-4 w-4 sm:h-5 sm:w-5 mb-0.5 group-hover:text-indigo-500 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h10"></path>
@@ -80,13 +81,13 @@
         </button>
         <button
           type="button"
-          onclick="switchTab('highlights')"
-          id="tab-highlights"
+          onclick="switchTab('highlights', 'standard')"
+          id="tab-standard-highlights"
           role="tab"
           aria-controls="content-highlights"
           aria-selected="false"
           tabindex="-1"
-          class="tab-btn group relative flex-1 min-w-0 border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 whitespace-nowrap border-b-2 py-3 px-2 sm:px-3 text-center text-xs sm:text-sm font-medium transition-colors"
+          class="tab-btn-standard group relative flex-1 min-w-0 border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 whitespace-nowrap border-b-2 py-3 px-2 sm:px-3 text-center text-xs sm:text-sm font-medium transition-colors"
         >
           <svg class="mx-auto h-5 w-5 mb-0.5 group-hover:text-indigo-500 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
@@ -95,13 +96,13 @@
         </button>
         <button
           type="button"
-          onclick="switchTab('detailed')"
-          id="tab-detailed"
+          onclick="switchTab('detailed', 'standard')"
+          id="tab-standard-detailed"
           role="tab"
           aria-controls="content-detailed"
           aria-selected="false"
           tabindex="-1"
-          class="tab-btn group relative flex-1 min-w-0 border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 whitespace-nowrap border-b-2 py-3 px-2 sm:px-3 text-center text-xs sm:text-sm font-medium transition-colors"
+          class="tab-btn-standard group relative flex-1 min-w-0 border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 whitespace-nowrap border-b-2 py-3 px-2 sm:px-3 text-center text-xs sm:text-sm font-medium transition-colors"
         >
           <svg class="mx-auto h-5 w-5 mb-0.5 group-hover:text-indigo-500 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-4 4v-4z"></path>
@@ -111,34 +112,31 @@
         </button>
         <button
           type="button"
-          onclick="switchTab('actions')"
-          id="tab-actions"
+          onclick="switchTab('actions', 'standard')"
+          id="tab-standard-actions"
           role="tab"
           aria-controls="content-actions"
           aria-selected="false"
           tabindex="-1"
-          class="tab-btn group relative flex-1 min-w-0 border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 whitespace-nowrap border-b-2 py-3 px-2 sm:px-3 text-center text-xs sm:text-sm font-medium transition-colors"
+          class="tab-btn-standard group relative flex-1 min-w-0 border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 whitespace-nowrap border-b-2 py-3 px-2 sm:px-3 text-center text-xs sm:text-sm font-medium transition-colors"
         >
           <svg class="mx-auto h-5 w-5 mb-0.5 group-hover:text-indigo-500 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"></path>
           </svg>
           Actions
           <% if (meeting.actionItems && meeting.actionItems.length > 0) { %>
-            <span data-tier="standard" class="absolute -top-1 -right-1 inline-flex items-center justify-center h-5 w-5 rounded-full bg-orange-500 text-xs font-bold text-white"><%= meeting.actionItems.length %></span>
-          <% } %>
-          <% if (meeting.superAgentAnalysis?.actionItems && meeting.superAgentAnalysis.actionItems.length > 0) { %>
-            <span data-tier="premium" class="absolute -top-1 -right-1 inline-flex items-center justify-center h-5 w-5 rounded-full bg-amber-500 text-xs font-bold text-white hidden"><%= meeting.superAgentAnalysis.actionItems.length %></span>
+            <span class="absolute -top-1 -right-1 inline-flex items-center justify-center h-5 w-5 rounded-full bg-orange-500 text-xs font-bold text-white"><%= meeting.actionItems.length %></span>
           <% } %>
         </button>
         <button
           type="button"
-          onclick="switchTab('followups')"
-          id="tab-followups"
+          onclick="switchTab('followups', 'standard')"
+          id="tab-standard-followups"
           role="tab"
           aria-controls="content-followups"
           aria-selected="false"
           tabindex="-1"
-          class="tab-btn group relative flex-1 min-w-0 border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 whitespace-nowrap border-b-2 py-3 px-2 sm:px-3 text-center text-xs sm:text-sm font-medium transition-colors"
+          class="tab-btn-standard group relative flex-1 min-w-0 border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 whitespace-nowrap border-b-2 py-3 px-2 sm:px-3 text-center text-xs sm:text-sm font-medium transition-colors"
         >
           <svg class="mx-auto h-5 w-5 mb-0.5 group-hover:text-indigo-500 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 9l3 3m0 0l-3 3m3-3H8m13 0a9 9 0 11-18 0 9 9 0 0118 0z"></path>
@@ -146,18 +144,18 @@
           <span class="hidden sm:inline">Follow-ups</span>
           <span class="sm:hidden">Follow</span>
           <% if (meeting.followUps && meeting.followUps.length > 0) { %>
-            <span data-tier="standard" class="absolute -top-1 -right-1 inline-flex items-center justify-center h-5 w-5 rounded-full bg-blue-500 text-xs font-bold text-white"><%= meeting.followUps.length %></span>
+            <span class="absolute -top-1 -right-1 inline-flex items-center justify-center h-5 w-5 rounded-full bg-blue-500 text-xs font-bold text-white"><%= meeting.followUps.length %></span>
           <% } %>
         </button>
         <button
           type="button"
-          onclick="switchTab('transcript')"
-          id="tab-transcript"
+          onclick="switchTab('transcript', 'standard')"
+          id="tab-standard-transcript"
           role="tab"
           aria-controls="content-transcript"
           aria-selected="false"
           tabindex="-1"
-          class="tab-btn group relative flex-1 min-w-0 border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 whitespace-nowrap border-b-2 py-3 px-2 sm:px-3 text-center text-xs sm:text-sm font-medium transition-colors"
+          class="tab-btn-standard group relative flex-1 min-w-0 border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 whitespace-nowrap border-b-2 py-3 px-2 sm:px-3 text-center text-xs sm:text-sm font-medium transition-colors"
         >
           <svg class="mx-auto h-5 w-5 mb-0.5 group-hover:text-indigo-500 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
@@ -166,13 +164,13 @@
         </button>
         <button
           type="button"
-          onclick="switchTab('stats')"
-          id="tab-stats"
+          onclick="switchTab('stats', 'standard')"
+          id="tab-standard-stats"
           role="tab"
           aria-controls="content-stats"
           aria-selected="false"
           tabindex="-1"
-          class="tab-btn group relative flex-1 min-w-0 border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 whitespace-nowrap border-b-2 py-3 px-2 sm:px-3 text-center text-xs sm:text-sm font-medium transition-colors"
+          class="tab-btn-standard group relative flex-1 min-w-0 border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 whitespace-nowrap border-b-2 py-3 px-2 sm:px-3 text-center text-xs sm:text-sm font-medium transition-colors"
         >
           <svg class="mx-auto h-4 w-4 sm:h-5 sm:w-5 mb-0.5 group-hover:text-indigo-500 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z"></path>
@@ -181,13 +179,13 @@
         </button>
         <button
           type="button"
-          onclick="switchTab('media')"
-          id="tab-media"
+          onclick="switchTab('media', 'standard')"
+          id="tab-standard-media"
           role="tab"
           aria-controls="content-media"
           aria-selected="false"
           tabindex="-1"
-          class="tab-btn group relative flex-1 min-w-0 border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 whitespace-nowrap border-b-2 py-3 px-2 sm:px-3 text-center text-xs sm:text-sm font-medium transition-colors"
+          class="tab-btn-standard group relative flex-1 min-w-0 border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 whitespace-nowrap border-b-2 py-3 px-2 sm:px-3 text-center text-xs sm:text-sm font-medium transition-colors"
         >
           <svg class="mx-auto h-4 w-4 sm:h-5 sm:w-5 mb-0.5 group-hover:text-indigo-500 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
@@ -196,13 +194,174 @@
         </button>
         <button
           type="button"
-          onclick="switchTab('quickactions')"
-          id="tab-quickactions"
+          onclick="switchTab('quickactions', 'standard')"
+          id="tab-standard-quickactions"
           role="tab"
           aria-controls="content-quickactions"
           aria-selected="false"
           tabindex="-1"
-          class="tab-btn group relative flex-1 min-w-0 border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 whitespace-nowrap border-b-2 py-3 px-2 sm:px-3 text-center text-xs sm:text-sm font-medium transition-colors"
+          class="tab-btn-standard group relative flex-1 min-w-0 border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 whitespace-nowrap border-b-2 py-3 px-2 sm:px-3 text-center text-xs sm:text-sm font-medium transition-colors"
+        >
+          <svg class="mx-auto h-4 w-4 sm:h-5 sm:w-5 mb-0.5 group-hover:text-indigo-500 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+          </svg>
+          Actions
+        </button>
+      </nav>
+      </div>
+
+      <!-- Premium Tabs Navigation -->
+      <div data-tier="premium" class="hidden w-full overflow-x-auto scrollbar-hide">
+      <nav class="-mb-px flex w-full flex-wrap sm:flex-nowrap" aria-label="Premium Tabs" role="tablist">
+        <button
+          type="button"
+          onclick="switchTab('summary', 'premium')"
+          id="tab-premium-summary"
+          role="tab"
+          aria-controls="content-summary"
+          aria-selected="true"
+          tabindex="0"
+          class="tab-btn-premium group relative flex-1 min-w-0 border-indigo-500 text-indigo-600 whitespace-nowrap border-b-2 py-3 px-2 sm:px-3 text-center text-xs sm:text-sm font-medium transition-colors"
+        >
+          <svg class="mx-auto h-4 w-4 sm:h-5 sm:w-5 mb-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path>
+          </svg>
+          Summary
+        </button>
+        <button
+          type="button"
+          onclick="switchTab('topics', 'premium')"
+          id="tab-premium-topics"
+          role="tab"
+          aria-controls="content-topics"
+          aria-selected="false"
+          tabindex="-1"
+          class="tab-btn-premium group relative flex-1 min-w-0 border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 whitespace-nowrap border-b-2 py-3 px-2 sm:px-3 text-center text-xs sm:text-sm font-medium transition-colors"
+        >
+          <svg class="mx-auto h-4 w-4 sm:h-5 sm:w-5 mb-0.5 group-hover:text-indigo-500 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h10"></path>
+          </svg>
+          Topics
+        </button>
+        <button
+          type="button"
+          onclick="switchTab('highlights', 'premium')"
+          id="tab-premium-highlights"
+          role="tab"
+          aria-controls="content-highlights"
+          aria-selected="false"
+          tabindex="-1"
+          class="tab-btn-premium group relative flex-1 min-w-0 border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 whitespace-nowrap border-b-2 py-3 px-2 sm:px-3 text-center text-xs sm:text-sm font-medium transition-colors"
+        >
+          <svg class="mx-auto h-5 w-5 mb-0.5 group-hover:text-indigo-500 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+          </svg>
+          Highlights
+        </button>
+        <button
+          type="button"
+          onclick="switchTab('detailed', 'premium')"
+          id="tab-premium-detailed"
+          role="tab"
+          aria-controls="content-detailed"
+          aria-selected="false"
+          tabindex="-1"
+          class="tab-btn-premium group relative flex-1 min-w-0 border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 whitespace-nowrap border-b-2 py-3 px-2 sm:px-3 text-center text-xs sm:text-sm font-medium transition-colors"
+        >
+          <svg class="mx-auto h-5 w-5 mb-0.5 group-hover:text-indigo-500 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-4 4v-4z"></path>
+          </svg>
+          <span class="hidden sm:inline">Detailed Notes</span>
+          <span class="sm:hidden">Notes</span>
+        </button>
+        <button
+          type="button"
+          onclick="switchTab('actions', 'premium')"
+          id="tab-premium-actions"
+          role="tab"
+          aria-controls="content-actions"
+          aria-selected="false"
+          tabindex="-1"
+          class="tab-btn-premium group relative flex-1 min-w-0 border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 whitespace-nowrap border-b-2 py-3 px-2 sm:px-3 text-center text-xs sm:text-sm font-medium transition-colors"
+        >
+          <svg class="mx-auto h-5 w-5 mb-0.5 group-hover:text-indigo-500 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"></path>
+          </svg>
+          Actions
+          <% if (meeting.superAgentAnalysis?.actionItems && meeting.superAgentAnalysis.actionItems.length > 0) { %>
+            <span class="absolute -top-1 -right-1 inline-flex items-center justify-center h-5 w-5 rounded-full bg-amber-500 text-xs font-bold text-white"><%= meeting.superAgentAnalysis.actionItems.length %></span>
+          <% } %>
+        </button>
+        <button
+          type="button"
+          onclick="switchTab('followups', 'premium')"
+          id="tab-premium-followups"
+          role="tab"
+          aria-controls="content-followups"
+          aria-selected="false"
+          tabindex="-1"
+          class="tab-btn-premium group relative flex-1 min-w-0 border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 whitespace-nowrap border-b-2 py-3 px-2 sm:px-3 text-center text-xs sm:text-sm font-medium transition-colors"
+        >
+          <svg class="mx-auto h-5 w-5 mb-0.5 group-hover:text-indigo-500 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 9l3 3m0 0l-3 3m3-3H8m13 0a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+          </svg>
+          <span class="hidden sm:inline">Follow-ups</span>
+          <span class="sm:hidden">Follow</span>
+        </button>
+        <button
+          type="button"
+          onclick="switchTab('transcript', 'premium')"
+          id="tab-premium-transcript"
+          role="tab"
+          aria-controls="content-transcript"
+          aria-selected="false"
+          tabindex="-1"
+          class="tab-btn-premium group relative flex-1 min-w-0 border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 whitespace-nowrap border-b-2 py-3 px-2 sm:px-3 text-center text-xs sm:text-sm font-medium transition-colors"
+        >
+          <svg class="mx-auto h-5 w-5 mb-0.5 group-hover:text-indigo-500 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+          </svg>
+          Transcript
+        </button>
+        <button
+          type="button"
+          onclick="switchTab('stats', 'premium')"
+          id="tab-premium-stats"
+          role="tab"
+          aria-controls="content-stats"
+          aria-selected="false"
+          tabindex="-1"
+          class="tab-btn-premium group relative flex-1 min-w-0 border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 whitespace-nowrap border-b-2 py-3 px-2 sm:px-3 text-center text-xs sm:text-sm font-medium transition-colors"
+        >
+          <svg class="mx-auto h-4 w-4 sm:h-5 sm:w-5 mb-0.5 group-hover:text-indigo-500 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z"></path>
+          </svg>
+          Stats
+        </button>
+        <button
+          type="button"
+          onclick="switchTab('media', 'premium')"
+          id="tab-premium-media"
+          role="tab"
+          aria-controls="content-media"
+          aria-selected="false"
+          tabindex="-1"
+          class="tab-btn-premium group relative flex-1 min-w-0 border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 whitespace-nowrap border-b-2 py-3 px-2 sm:px-3 text-center text-xs sm:text-sm font-medium transition-colors"
+        >
+          <svg class="mx-auto h-4 w-4 sm:h-5 sm:w-5 mb-0.5 group-hover:text-indigo-500 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
+          </svg>
+          Media
+        </button>
+        <button
+          type="button"
+          onclick="switchTab('quickactions', 'premium')"
+          id="tab-premium-quickactions"
+          role="tab"
+          aria-controls="content-quickactions"
+          aria-selected="false"
+          tabindex="-1"
+          class="tab-btn-premium group relative flex-1 min-w-0 border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 whitespace-nowrap border-b-2 py-3 px-2 sm:px-3 text-center text-xs sm:text-sm font-medium transition-colors"
         >
           <svg class="mx-auto h-4 w-4 sm:h-5 sm:w-5 mb-0.5 group-hover:text-indigo-500 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>

@@ -50,6 +50,51 @@ function extractTitleFromUrl(url) {
 }
 
 /**
+ * Strip HTML tags from text and clean up meaningless content
+ */
+function stripHtml(html) {
+  if (!html || typeof html !== 'string') return html;
+  // Remove HTML tags but preserve text content
+  let text = html.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').trim();
+  // Remove strings that are just repeated characters (like "____" or "----")
+  if (/^[_\-=~.]{3,}$/.test(text)) {
+    return null;
+  }
+  // Remove strings that are mostly whitespace or special chars
+  const alphanumericContent = text.replace(/[^a-zA-Z0-9]/g, '');
+  if (alphanumericContent.length < 3) {
+    return null;
+  }
+  return text;
+}
+
+/**
+ * Extract description from a calendar event
+ */
+function getDescriptionFromEvent(event) {
+  if (!event) return null;
+  const raw = event?.recallData?.raw || {};
+  
+  let description = null;
+  if (event.platform === "google_calendar") {
+    description = raw["description"] || null;
+  } else if (event.platform === "microsoft_outlook") {
+    description = raw["body"]?.content || raw["bodyPreview"] || null;
+  }
+  
+  // Strip HTML tags if present
+  if (description) {
+    description = stripHtml(description);
+    // Return null if description is empty after stripping
+    if (!description || description.length === 0) {
+      return null;
+    }
+  }
+  
+  return description;
+}
+
+/**
  * Derive a human-readable meeting title from various sources.
  */
 function extractMeetingTitle(artifact, calendarEvent) {
@@ -277,6 +322,22 @@ export default async (req, res) => {
   // Heavy data (transcript, stats) will be lazy-loaded
   const extractedTitle = extractMeetingTitle(artifact, calendarEvent);
   
+  // Extract description from calendar event
+  const description = getDescriptionFromEvent(calendarEvent);
+  
+  // Create display title: prefer description, otherwise use extracted title
+  // If extracted title is "Meeting on {date}", remove the date part since we show date separately
+  let displayTitle = description || extractedTitle || 'Meeting';
+  if (!description && extractedTitle && extractedTitle.startsWith('Meeting on ')) {
+    // Remove "Meeting on {date}" pattern - just use "Meeting" or keep the title as-is if it has other content
+    displayTitle = extractedTitle.replace(/^Meeting on \d{1,2}\/\d{1,2}\/\d{4}$/, 'Meeting');
+  }
+  
+  // Truncate description if it's too long for a title (keep first 100 chars)
+  if (displayTitle && displayTitle.length > 100) {
+    displayTitle = displayTitle.substring(0, 100).trim() + '...';
+  }
+  
   // Debug: Log title extraction for troubleshooting
   if (extractedTitle && extractedTitle.startsWith('Meeting on')) {
     console.log(`[TITLE-DEBUG] Artifact ${artifact?.id}: Falling back to date-based title. Available sources:`, {
@@ -286,6 +347,7 @@ export default async (req, res) => {
       artifactPayloadTitle: artifact?.rawPayload?.data?.title,
       botMetaTitle: artifact?.rawPayload?.data?.bot_metadata?.meeting_metadata?.title,
       artifactMeetingTitle: artifact?.rawPayload?.data?.meeting_title,
+      description: description ? 'present' : 'missing',
     });
   }
   
@@ -293,6 +355,8 @@ export default async (req, res) => {
     id: artifact?.id || summary?.id,
     readableId: artifact?.readableId || null,
     title: extractedTitle,
+    displayTitle: displayTitle,
+    description: description,
     startTime: calendarEvent?.startTime || artifact?.rawPayload?.data?.start_time || artifact?.createdAt || summary?.createdAt,
     endTime: calendarEvent?.endTime || artifact?.rawPayload?.data?.end_time || null,
     status: artifact?.status || summary?.status || "completed",

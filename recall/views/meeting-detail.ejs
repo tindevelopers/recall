@@ -1071,7 +1071,7 @@
   let transcriptLoaded = false;
   let transcriptLoading = false;
   let currentTier = 'standard';
-  let currentTab = 'summary';
+  let currentTab = { standard: 'summary', premium: 'summary' };
 
   // Format all datetime elements to user's local timezone
   document.addEventListener('DOMContentLoaded', function() {
@@ -1108,21 +1108,25 @@
     });
 
     switchTier('standard', { focus: false });
-    switchTab('summary', { focus: false });
+    switchTab('summary', 'standard', { focus: false });
 
-    const tabButtons = Array.from(document.querySelectorAll('.tab-btn'));
-    tabButtons.forEach((tab, index) => {
+    // Set up keyboard navigation for tier-specific tabs
+    document.querySelectorAll('.tab-btn-standard, .tab-btn-premium').forEach((tab) => {
       tab.addEventListener('keydown', (event) => {
         const isHorizontal = event.key === 'ArrowRight' || event.key === 'ArrowLeft';
         const isEdge = event.key === 'Home' || event.key === 'End';
         if (!isHorizontal && !isEdge) return;
         event.preventDefault();
 
-        let nextIndex = index;
+        const tier = tab.classList.contains('tab-btn-standard') ? 'standard' : 'premium';
+        const tabButtons = Array.from(document.querySelectorAll(`.tab-btn-${tier}`));
+        const currentIndex = tabButtons.indexOf(tab);
+
+        let nextIndex = currentIndex;
         if (event.key === 'ArrowRight') {
-          nextIndex = (index + 1) % tabButtons.length;
+          nextIndex = (currentIndex + 1) % tabButtons.length;
         } else if (event.key === 'ArrowLeft') {
-          nextIndex = (index - 1 + tabButtons.length) % tabButtons.length;
+          nextIndex = (currentIndex - 1 + tabButtons.length) % tabButtons.length;
         } else if (event.key === 'Home') {
           nextIndex = 0;
         } else if (event.key === 'End') {
@@ -1130,9 +1134,10 @@
         }
 
         const nextTab = tabButtons[nextIndex];
-        const tabName = nextTab?.id?.replace('tab-', '');
-        if (tabName) {
-          switchTab(tabName, { focus: true });
+        const tabId = nextTab?.id;
+        if (tabId) {
+          const tabName = tabId.replace(`tab-${tier}-`, '');
+          switchTab(tabName, tier, { focus: true });
         }
       });
     });
@@ -1155,11 +1160,16 @@
       btn.setAttribute('tabindex', isActive ? '0' : '-1');
     });
 
+    // Show/hide tier-specific tab navigation bars
     document.querySelectorAll('[data-tier]').forEach(el => {
       const elTier = el.getAttribute('data-tier');
       if (!elTier) return;
       el.classList.toggle('hidden', elTier !== tier);
     });
+
+    // Restore the last active tab for this tier
+    const lastTab = currentTab[tier] || 'summary';
+    switchTab(lastTab, tier, { focus: false });
 
     const tierSelect = document.getElementById('tier-select');
     if (tierSelect && tierSelect.value !== tier) {
@@ -1167,34 +1177,55 @@
     }
   }
 
-  function switchTab(tabName, options = {}) {
+  function switchTab(tabName, tierOrOptions = null, options = {}) {
+    // Handle tier switching from tab select
     if (tabName === 'tier-standard' || tabName === 'tier-premium') {
       switchTier(tabName.replace('tier-', ''), { focus: false });
       const tabSelect = document.getElementById('tab-select');
       if (tabSelect) {
-        tabSelect.value = currentTab;
+        tabSelect.value = currentTab[currentTier];
       }
       return;
     }
+
+    // Handle backward compatibility: if second param is an object with 'focus' property, treat it as options
+    let targetTier = currentTier;
+    let actualOptions = options;
+    if (tierOrOptions !== null && typeof tierOrOptions === 'object' && !Array.isArray(tierOrOptions)) {
+      if ('focus' in tierOrOptions || Object.keys(tierOrOptions).length === 0) {
+        // It's an options object, not a tier
+        actualOptions = tierOrOptions;
+      } else if (tierOrOptions === 'standard' || tierOrOptions === 'premium') {
+        targetTier = tierOrOptions;
+      }
+    } else if (tierOrOptions === 'standard' || tierOrOptions === 'premium') {
+      targetTier = tierOrOptions;
+    }
+    
     const targetContent = document.getElementById('content-' + tabName);
-    const activeTab = document.getElementById('tab-' + tabName);
+    const activeTab = document.getElementById('tab-' + targetTier + '-' + tabName);
     if (!targetContent || !activeTab) return;
 
-    currentTab = tabName;
+    // Store the active tab for this tier
+    currentTab[targetTier] = tabName;
 
+    // Hide all tab content
     document.querySelectorAll('.tab-content').forEach(content => {
       content.classList.add('hidden');
     });
     
-    document.querySelectorAll('.tab-btn').forEach(btn => {
+    // Reset all tabs for this tier
+    document.querySelectorAll(`.tab-btn-${targetTier}`).forEach(btn => {
       btn.classList.remove('border-indigo-500', 'text-indigo-600');
       btn.classList.add('border-transparent', 'text-gray-500', 'hover:border-gray-300', 'hover:text-gray-700');
       btn.setAttribute('aria-selected', 'false');
       btn.setAttribute('tabindex', '-1');
     });
     
+    // Show the target content
     targetContent.classList.remove('hidden');
     
+    // Activate the selected tab
     activeTab.classList.remove('border-transparent', 'text-gray-500', 'hover:border-gray-300', 'hover:text-gray-700');
     activeTab.classList.add('border-indigo-500', 'text-indigo-600');
     activeTab.setAttribute('aria-selected', 'true');
@@ -1205,7 +1236,7 @@
       tabSelect.value = tabName;
     }
 
-    if (options.focus) {
+    if (actualOptions.focus) {
       activeTab.focus();
     }
     
@@ -1782,7 +1813,7 @@
 
   function openSuperAgentPanel() {
     switchTier('premium', { focus: false });
-    switchTab('summary', { focus: false });
+    switchTab('summary', 'premium', { focus: false });
     const section = document.getElementById('super-agent-section');
     if (section) {
       section.scrollIntoView({ behavior: 'smooth', block: 'start' });
