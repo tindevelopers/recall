@@ -412,44 +412,7 @@
                 <!-- Actions Tab -->
                 <div id="content-actions" class="tab-content hidden">
                   <% if (meeting.actionItems && meeting.actionItems.length > 0) { %>
-                    <ul class="space-y-3">
-                      <% meeting.actionItems.forEach(function(item, index) { %>
-                        <li class="flex items-start bg-orange-50 rounded-lg p-3">
-                          <span class="flex-shrink-0 h-6 w-6 flex items-center justify-center rounded-full bg-orange-100 text-orange-600 text-xs font-medium">
-                            <%= index + 1 %>
-                          </span>
-                          <div class="ml-3 flex-1">
-                            <p class="text-sm text-gray-900">
-                              <% if (typeof item === 'object') { %>
-                                <%= item.task || item.description || item.text || JSON.stringify(item) %>
-                              <% } else { %>
-                                <%= item %>
-                              <% } %>
-                            </p>
-                            <% if (typeof item === 'object' && (item.assignee || item.due_date)) { %>
-                              <div class="mt-2 flex flex-wrap gap-2">
-                                <% if (item.assignee) { %>
-                                  <span class="inline-flex items-center rounded-full bg-white px-2 py-0.5 text-xs font-medium text-gray-600 ring-1 ring-inset ring-gray-200">
-                                    <svg class="mr-1 h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
-                                    </svg>
-                                    <%= item.assignee %>
-                                  </span>
-                                <% } %>
-                                <% if (item.due_date) { %>
-                                  <span class="inline-flex items-center rounded-full bg-red-50 px-2 py-0.5 text-xs font-medium text-red-600 ring-1 ring-inset ring-red-200">
-                                    <svg class="mr-1 h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
-                                    </svg>
-                                    <%= item.due_date %>
-                                  </span>
-                                <% } %>
-                              </div>
-                            <% } %>
-                          </div>
-                        </li>
-                      <% }); %>
-                    </ul>
+                    <%- include('partials/meeting-detail/action-columns', { actions: meeting.actionItems }) -%>
                   <% } else { %>
                     <div class="text-center py-8">
                       <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
