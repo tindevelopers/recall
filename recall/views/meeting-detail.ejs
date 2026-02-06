@@ -22,973 +22,9 @@
           <div class="lg:col-span-12 w-full">
             <%- include('partials/meeting-detail/tabs', { meeting: meeting, publishDeliveries: publishDeliveries }) -%>
 
-            <% if (false) { %>
-            <!-- Tabbed Content Section -->
-            <div class="overflow-hidden bg-white shadow sm:rounded-lg">
-              <!-- Tab Navigation - Responsive with horizontal scroll -->
-              <div class="border-b border-gray-200">
-                <div class="overflow-x-auto scrollbar-hide">
-                  <nav class="-mb-px flex min-w-max" aria-label="Tabs">
-                    <button
-                      type="button"
-                      onclick="switchTab('summary')"
-                      id="tab-summary"
-                      class="tab-btn group relative border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 whitespace-nowrap border-b-2 py-3 px-3 sm:px-4 text-center text-xs sm:text-sm font-medium transition-colors"
-                    >
-                      <svg class="mx-auto h-5 w-5 mb-0.5 group-hover:text-indigo-500 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path>
-                      </svg>
-                      Summary
-                    </button>
-                    <button
-                      type="button"
-                      onclick="switchTab('topics')"
-                      id="tab-topics"
-                      class="tab-btn group relative border-indigo-500 text-indigo-600 whitespace-nowrap border-b-2 py-3 px-3 sm:px-4 text-center text-xs sm:text-sm font-medium transition-colors"
-                      aria-current="page"
-                    >
-                      <svg class="mx-auto h-5 w-5 mb-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h10"></path>
-                      </svg>
-                      Topics
-                    </button>
-                    <button
-                      type="button"
-                      onclick="switchTab('highlights')"
-                      id="tab-highlights"
-                      class="tab-btn group relative border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 whitespace-nowrap border-b-2 py-3 px-3 sm:px-4 text-center text-xs sm:text-sm font-medium transition-colors"
-                    >
-                      <svg class="mx-auto h-5 w-5 mb-0.5 group-hover:text-indigo-500 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
-                      </svg>
-                      Highlights
-                    </button>
-                    <button
-                      type="button"
-                      onclick="switchTab('detailed')"
-                      id="tab-detailed"
-                      class="tab-btn group relative border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 whitespace-nowrap border-b-2 py-3 px-3 sm:px-4 text-center text-xs sm:text-sm font-medium transition-colors"
-                    >
-                      <svg class="mx-auto h-5 w-5 mb-0.5 group-hover:text-indigo-500 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-4 4v-4z"></path>
-                      </svg>
-                      <span class="hidden sm:inline">Detailed Notes</span>
-                      <span class="sm:hidden">Notes</span>
-                    </button>
-                    <button
-                      type="button"
-                      onclick="switchTab('actions')"
-                      id="tab-actions"
-                      class="tab-btn group relative border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 whitespace-nowrap border-b-2 py-3 px-3 sm:px-4 text-center text-xs sm:text-sm font-medium transition-colors"
-                    >
-                      <svg class="mx-auto h-5 w-5 mb-0.5 group-hover:text-indigo-500 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"></path>
-                      </svg>
-                      Actions
-                      <% if (meeting.actionItems && meeting.actionItems.length > 0) { %>
-                        <span class="absolute -top-1 -right-1 inline-flex items-center justify-center h-5 w-5 rounded-full bg-orange-500 text-xs font-bold text-white"><%= meeting.actionItems.length %></span>
-                      <% } %>
-                    </button>
-                    <button
-                      type="button"
-                      onclick="switchTab('followups')"
-                      id="tab-followups"
-                      class="tab-btn group relative border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 whitespace-nowrap border-b-2 py-3 px-3 sm:px-4 text-center text-xs sm:text-sm font-medium transition-colors"
-                    >
-                      <svg class="mx-auto h-5 w-5 mb-0.5 group-hover:text-indigo-500 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 9l3 3m0 0l-3 3m3-3H8m13 0a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                      </svg>
-                      <span class="hidden sm:inline">Follow-ups</span>
-                      <span class="sm:hidden">Follow</span>
-                      <% if (meeting.followUps && meeting.followUps.length > 0) { %>
-                        <span class="absolute -top-1 -right-1 inline-flex items-center justify-center h-5 w-5 rounded-full bg-blue-500 text-xs font-bold text-white"><%= meeting.followUps.length %></span>
-                      <% } %>
-                    </button>
-                    <button
-                      type="button"
-                      onclick="switchTab('transcript')"
-                      id="tab-transcript"
-                      class="tab-btn group relative border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 whitespace-nowrap border-b-2 py-3 px-3 sm:px-4 text-center text-xs sm:text-sm font-medium transition-colors"
-                    >
-                      <svg class="mx-auto h-5 w-5 mb-0.5 group-hover:text-indigo-500 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
-                      </svg>
-                      Transcript
-                    </button>
-                    <button
-                      type="button"
-                      onclick="switchTab('stats')"
-                      id="tab-stats"
-                      class="tab-btn group relative border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 whitespace-nowrap border-b-2 py-3 px-3 sm:px-4 text-center text-xs sm:text-sm font-medium transition-colors"
-                    >
-                      <svg class="mx-auto h-5 w-5 mb-0.5 group-hover:text-indigo-500 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z"></path>
-                      </svg>
-                      Stats
-                    </button>
-                  </nav>
-                </div>
-              </div>
-
-              <!-- Tab Content -->
-              <div class="px-4 py-5 sm:px-6">
-                <!-- Summary Tab -->
-                <div id="content-summary" class="tab-content hidden">
-                  <% if (meeting.summary) { %>
-                    <div class="prose prose-sm max-w-none text-gray-700">
-                      <%= meeting.summary %>
-                    </div>
-                  <% } else { %>
-                    <div class="text-center py-8">
-                      <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path>
-                      </svg>
-                      <h3 class="mt-2 text-sm font-semibold text-gray-900">No summary available</h3>
-                      <p class="mt-1 text-sm text-gray-500">An AI-generated summary will appear here once the meeting is processed.</p>
-                    </div>
-                  <% } %>
-                </div>
-
-                <!-- Topics Tab -->
-                <div id="content-topics" class="tab-content">
-                  <% if (meeting.topics && meeting.topics.length > 0) { %>
-                    <% 
-                      function topicTitle(topic, idx) {
-                        if (typeof topic === 'string') return topic || `Topic ${idx + 1}`;
-                        if (Array.isArray(topic)) return `Topic ${idx + 1}`;
-                        return topic.title || topic.name || topic.topic || topic.heading || topic.label || `Topic ${idx + 1}`;
-                      }
-                      function topicBullets(topic) {
-                        if (typeof topic === 'string') return [topic];
-                        if (Array.isArray(topic)) return topic.map(item => typeof item === 'string' ? item : (item.text || item.summary || item.description || item.details || JSON.stringify(item)));
-                        // Check for array properties first (items, points, bullets, etc.)
-                        const arrayKeys = ['items', 'points', 'bullets', 'notes', 'entries', 'highlights', 'list'];
-                        for (const key of arrayKeys) {
-                          if (Array.isArray(topic[key]) && topic[key].length > 0) {
-                            return topic[key].map(item => typeof item === 'string' ? item : (item.text || item.summary || item.description || item.details || item.content || item.note || JSON.stringify(item)));
-                          }
-                        }
-                        // Handle AssemblyAI format: {topic: "title", details: "description"}
-                        // Return details as a single bullet if present
-                        if (topic.details && typeof topic.details === 'string') return [topic.details];
-                        if (topic.summary) return [topic.summary];
-                        if (topic.description) return [topic.description];
-                        if (topic.content) return [topic.content];
-                        if (topic.text) return [topic.text];
-                        // Don't return JSON.stringify for objects with only topic/title property
-                        const keys = Object.keys(topic).filter(k => !['topic', 'title', 'name', 'heading', 'label', 'id', 'index'].includes(k));
-                        if (keys.length === 0) return ['No details available'];
-                        return [JSON.stringify(topic)];
-                      }
-                      function parseTimeFromText(txt) {
-                        if (!txt || typeof txt !== 'string') return null;
-                        const match = txt.match(/(\d{1,2}:)?\d{1,2}:\d{2}/);
-                        if (!match) return null;
-                        const parts = match[0].split(':').map(Number);
-                        if (parts.length === 3) {
-                          return parts[0] * 3600 + parts[1] * 60 + parts[2];
-                        }
-                        return parts[0] * 60 + parts[1];
-                      }
-                      function formatTsLabel(sec) {
-                        const hours = Math.floor(sec / 3600);
-                        const minutes = Math.floor((sec % 3600) / 60);
-                        const seconds = Math.floor(sec % 60);
-                        if (hours > 0) return `${hours}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
-                        return `${minutes}:${String(seconds).padStart(2, '0')}`;
-                      }
-                    %>
-                    <div class="flex items-center justify-between mb-4">
-                      <div>
-                        <h3 class="text-base font-semibold text-gray-900">Topics</h3>
-                        <p class="text-sm text-gray-500">Expand chapters, jump to timestamps, or copy.</p>
-                      </div>
-                      <div class="flex items-center gap-2">
-                        <button 
-                          type="button" 
-                          onclick="copyAllTopics()"
-                          class="inline-flex items-center rounded-md bg-indigo-50 px-3 py-2 text-sm font-medium text-indigo-700 ring-1 ring-inset ring-indigo-200 hover:bg-indigo-100"
-                          title="Copy entire recap"
-                        >
-                          <svg class="h-4 w-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
-                          </svg>
-                          Copy recap
-                        </button>
-                      </div>
-                    </div>
-                    <div class="divide-y divide-gray-200 border border-gray-200 rounded-lg">
-                      <% meeting.topics.forEach((topic, idx) => { 
-                        const title = topicTitle(topic, idx);
-                        const bullets = topicBullets(topic);
-                      %>
-                        <div class="topic-accordion">
-                          <button 
-                            type="button" 
-                            class="w-full flex items-center justify-between px-4 py-3 hover:bg-gray-50"
-                            onclick="toggleTopicAccordionFromEvent(event)"
-                            data-topic-idx="<%= idx %>"
-                            aria-expanded="<%= idx === 0 ? 'true' : 'false' %>"
-                            aria-controls="topic-panel-<%= idx %>"
-                          >
-                            <div class="flex items-center gap-2">
-                              <svg id="topic-chevron-<%= idx %>" class="h-4 w-4 text-gray-500 transform transition-transform <%= idx === 0 ? 'rotate-90' : 'rotate-0' %>" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
-                              </svg>
-                              <span class="text-sm font-semibold text-gray-900"><%= title %></span>
-                            </div>
-                            <div class="flex items-center gap-2">
-                              <button 
-                                type="button" 
-                                onclick="copyTopicFromEvent(event)"
-                                data-topic-idx="<%= idx %>"
-                                class="inline-flex items-center rounded-md px-2 py-1 text-xs font-medium text-gray-600 ring-1 ring-inset ring-gray-200 hover:bg-gray-100"
-                                title="Copy chapter"
-                              >
-                                <svg class="h-3.5 w-3.5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
-                                </svg>
-                                Copy
-                              </button>
-                            </div>
-                          </button>
-                          <div id="topic-panel-<%= idx %>" class="<%= idx === 0 ? '' : 'hidden' %> border-t border-gray-100 bg-white" role="region">
-                            <ul class="px-4 py-3 space-y-3">
-                              <% bullets.forEach((bullet, bulletIdx) => { 
-                                const text = typeof bullet === 'object' ? (bullet.text || bullet.summary || bullet.content || bullet.description || bullet.note || JSON.stringify(bullet)) : bullet;
-                                const numericTs = typeof bullet === 'object' ? Number(bullet.timestamp_seconds ?? bullet.timestamp ?? bullet.ts ?? bullet.time ?? bullet.time_seconds ?? (bullet.startTimeMs ? bullet.startTimeMs / 1000 : NaN)) : NaN;
-                                const parsedTs = Number.isNaN(numericTs) ? parseTimeFromText(text) : numericTs;
-                                const tsSeconds = Number.isNaN(parsedTs) ? null : Math.max(0, Math.floor(parsedTs));
-                                const tsLabel = tsSeconds !== null ? formatTsLabel(tsSeconds) : null;
-                              %>
-                                <li class="flex items-start gap-3">
-                                  <span class="mt-1 h-1.5 w-1.5 rounded-full bg-indigo-400 flex-shrink-0"></span>
-                                  <div class="flex-1">
-                                    <p class="text-sm text-gray-800"><%= text %></p>
-                                    <div class="mt-1 flex flex-wrap gap-2 text-xs text-gray-500">
-                                      <% if (tsSeconds !== null) { %>
-                                        <button 
-                                          type="button" 
-                                          class="inline-flex items-center rounded-full bg-indigo-50 px-2 py-0.5 text-indigo-700 ring-1 ring-indigo-200 hover:bg-indigo-100"
-                                          onclick="jumpToTimestampFromEvent(event)"
-                                          data-ts-seconds="<%= tsSeconds %>"
-                                        >
-                                          <svg class="h-3 w-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                                          </svg>
-                                          <%= tsLabel %>
-                                        </button>
-                                      <% } %>
-                                    </div>
-                                  </div>
-                                </li>
-                              <% }); %>
-                            </ul>
-                          </div>
-                        </div>
-                      <% }); %>
-                    </div>
-                  <% } else { %>
-                    <div class="text-center py-8">
-                      <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 00-2 2h-5l-4 4v-4z"></path>
-                      </svg>
-                      <h3 class="mt-2 text-sm font-semibold text-gray-900">No topics yet</h3>
-                      <p class="mt-1 text-sm text-gray-500">AI chapters will appear here once available.</p>
-                    </div>
-                  <% } %>
-                </div>
-
-                <!-- Highlights Tab -->
-                <div id="content-highlights" class="tab-content hidden">
-                  <% if (meeting.highlights && meeting.highlights.length > 0) { %>
-                    <ul class="space-y-3">
-                      <% meeting.highlights.forEach(function(item, idx) { %>
-                        <li class="p-3 rounded-lg border border-gray-100 bg-gray-50">
-                          <div class="flex items-start justify-between">
-                            <div>
-                              <p class="text-sm font-semibold text-gray-900"><%= item.title || 'Highlight ' + (idx + 1) %></p>
-                              <p class="mt-1 text-sm text-gray-700"><%= item.summary || item.text || '' %></p>
-                              <div class="mt-2 flex flex-wrap gap-2 text-xs text-gray-500">
-                                <% if (item.speaker) { %>
-                                  <span class="inline-flex items-center rounded-full bg-white px-2 py-0.5 ring-1 ring-gray-200">
-                                    <svg class="h-3 w-3 mr-1 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
-                                    </svg>
-                                    <%= item.speaker %>
-                                  </span>
-                                <% } %>
-                                <% const highlightTs = Number(item.timestamp_seconds); if (!Number.isNaN(highlightTs)) { %>
-                                  <button 
-                                    type="button" 
-                                    class="inline-flex items-center rounded-full bg-indigo-50 px-2 py-0.5 text-indigo-700 ring-1 ring-indigo-200 hover:bg-indigo-100 cursor-pointer transition-colors"
-                                    onclick="jumpToTimestampFromEvent(event)"
-                                    data-ts-seconds="<%= Math.floor(highlightTs) %>"
-                                  >
-                                    <svg class="h-3 w-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                                    </svg>
-                                    <%= Math.floor(highlightTs / 60) %>:<%= String(Math.floor(highlightTs % 60)).padStart(2, '0') %>
-                                  </button>
-                                <% } %>
-                                <% if (item.category) { %>
-                                  <span class="inline-flex items-center rounded-full bg-purple-50 px-2 py-0.5 text-purple-700 ring-1 ring-purple-200 capitalize"><%= item.category %></span>
-                                <% } %>
-                                <% if (item.impact) { %>
-                                  <span class="inline-flex items-center rounded-full bg-amber-50 px-2 py-0.5 text-amber-700 ring-1 ring-amber-200 capitalize">Impact: <%= item.impact %></span>
-                                <% } %>
-                              </div>
-                            </div>
-                            <span class="text-xs text-gray-400 ml-2">#<%= idx + 1 %></span>
-                          </div>
-                        </li>
-                      <% }); %>
-                    </ul>
-                  <% } else { %>
-                    <div class="text-center py-8">
-                      <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
-                      </svg>
-                      <h3 class="mt-2 text-sm font-semibold text-gray-900">No highlights yet</h3>
-                      <p class="mt-1 text-sm text-gray-500">Key decisions and outcomes will appear here after processing.</p>
-                    </div>
-                  <% } %>
-                </div>
-
-                <!-- Detailed Notes Tab -->
-                <div id="content-detailed" class="tab-content hidden">
-                  <% if (meeting.detailedNotes && meeting.detailedNotes.length > 0) { %>
-                    <div class="space-y-3">
-                      <% meeting.detailedNotes.forEach(function(item, idx) { %>
-                        <div class="p-3 rounded-lg border border-gray-100 bg-white shadow-sm">
-                          <div class="flex items-start justify-between">
-                            <div class="flex items-center gap-2 text-xs text-gray-500">
-                              <span class="inline-flex items-center rounded-full bg-gray-100 px-2 py-0.5 text-gray-700">
-                                <svg class="h-3 w-3 mr-1 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
-                                </svg>
-                                <%= item.speaker || 'Speaker' %>
-                              </span>
-                              <% const detailTs = Number(item.timestamp_seconds); if (!Number.isNaN(detailTs)) { %>
-                                <button 
-                                  type="button" 
-                                  class="inline-flex items-center rounded-full bg-indigo-50 px-2 py-0.5 text-indigo-700 ring-1 ring-indigo-200 hover:bg-indigo-100 cursor-pointer transition-colors"
-                                  onclick="jumpToTimestampFromEvent(event)"
-                                  data-ts-seconds="<%= Math.floor(detailTs) %>"
-                                >
-                                  <svg class="h-3 w-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                                  </svg>
-                                  <%= Math.floor(detailTs / 60) %>:<%= String(Math.floor(detailTs % 60)).padStart(2, '0') %>
-                                </button>
-                              <% } %>
-                              <% if (item.topic) { %>
-                                <span class="inline-flex items-center rounded-full bg-blue-50 px-2 py-0.5 text-blue-700 ring-1 ring-blue-200"><%= item.topic %></span>
-                              <% } %>
-                              <% if (item.importance) { %>
-                                <span class="inline-flex items-center rounded-full bg-amber-50 px-2 py-0.5 text-amber-700 ring-1 ring-amber-200 capitalize">Priority: <%= item.importance %></span>
-                              <% } %>
-                            </div>
-                            <span class="text-xs text-gray-400 ml-2">#<%= idx + 1 %></span>
-                          </div>
-                          <p class="mt-2 text-sm text-gray-800 font-medium"><%= item.paraphrase || item.summary || item.text || '' %></p>
-                          <% if (item.quote) { %>
-                            <p class="mt-1 text-sm text-gray-500 italic">&ldquo;<%= item.quote %>&rdquo;</p>
-                          <% } %>
-                        </div>
-                      <% }); %>
-                    </div>
-                  <% } else { %>
-                    <div class="text-center py-8">
-                      <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 00-2 2h-5l-4 4v-4z"></path>
-                      </svg>
-                      <h3 class="mt-2 text-sm font-semibold text-gray-900">No detailed notes yet</h3>
-                      <p class="mt-1 text-sm text-gray-500">Paraphrased key phrases will appear here for richer context.</p>
-                    </div>
-                  <% } %>
-                </div>
-
-                <!-- Actions Tab -->
-                <div id="content-actions" class="tab-content hidden">
-                  <% if (meeting.actionItems && meeting.actionItems.length > 0) { %>
-                    <%- include('partials/meeting-detail/action-columns', { actions: meeting.actionItems }) -%>
-                  <% } else { %>
-                    <div class="text-center py-8">
-                      <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"></path>
-                      </svg>
-                      <h3 class="mt-2 text-sm font-semibold text-gray-900">No action items</h3>
-                      <p class="mt-1 text-sm text-gray-500">Action items extracted from the meeting will appear here.</p>
-                    </div>
-                  <% } %>
-                </div>
-
-                <!-- Follow-ups Tab -->
-                <div id="content-followups" class="tab-content hidden">
-                  <% if (meeting.followUps && meeting.followUps.length > 0) { %>
-                    <ul class="space-y-2">
-                      <% meeting.followUps.forEach(function(item) { %>
-                        <li class="flex items-start bg-blue-50 rounded-lg p-3">
-                          <svg class="h-5 w-5 text-blue-500 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-8.707l-3-3a1 1 0 00-1.414 1.414L10.586 9H7a1 1 0 100 2h3.586l-1.293 1.293a1 1 0 101.414 1.414l3-3a1 1 0 000-1.414z" clip-rule="evenodd"></path>
-                          </svg>
-                          <span class="ml-3 text-sm text-gray-700">
-                            <% if (typeof item === 'object') { %>
-                              <%= item.description || item.text || item.task || JSON.stringify(item) %>
-                            <% } else { %>
-                              <%= item %>
-                            <% } %>
-                          </span>
-                        </li>
-                      <% }); %>
-                    </ul>
-                  <% } else { %>
-                    <div class="text-center py-8">
-                      <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 9l3 3m0 0l-3 3m3-3H8m13 0a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                      </svg>
-                      <h3 class="mt-2 text-sm font-semibold text-gray-900">No follow-ups</h3>
-                      <p class="mt-1 text-sm text-gray-500">Suggested follow-ups from the meeting will appear here.</p>
-                    </div>
-                  <% } %>
-                </div>
-
-                <!-- Transcript Tab -->
-                <div id="content-transcript" class="tab-content hidden">
-                  <% 
-                    const speakerPalette = ['indigo','blue','purple','emerald','amber','rose'];
-                    const speakerClass = (name) => {
-                      const str = name || 'Speaker';
-                      let hash = 0;
-                      for (let i = 0; i < str.length; i++) { hash = (hash << 5) - hash + str.charCodeAt(i); hash |= 0; }
-                      const idx = Math.abs(hash) % speakerPalette.length;
-                      return speakerPalette[idx];
-                    };
-                  %>
-                  <% if (meeting.transcript && meeting.transcript.length > 0) { %>
-            <div class="max-h-[calc(100vh-300px)] min-h-[400px] overflow-y-auto w-full">
-              <div class="space-y-4 pb-4 px-4 sm:px-6 lg:px-8">
-                <% 
-                  let currentSpeaker = null;
-                  meeting.transcript.forEach(function(chunk) { 
-                    const showSpeaker = chunk.speaker !== currentSpeaker;
-                    currentSpeaker = chunk.speaker;
-                %>
-                  <div class="<%= showSpeaker ? 'pt-3 border-t border-gray-100' : '' %>">
-                    <% if (showSpeaker) { %>
-                      <div class="flex items-center mb-1">
-                        <% const color = speakerClass(chunk.speaker); %>
-                        <span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium bg-<%= color %>-100 text-<%= color %>-800">
-                          <svg class="mr-1 h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
-                          </svg>
-                          <%= chunk.speaker %>
-                        </span>
-                        <% if (chunk.startTimeMs) { %>
-                          <span class="ml-2 text-xs text-gray-400">
-                            <%= Math.floor(chunk.startTimeMs / 60000) %>:<%= String(Math.floor((chunk.startTimeMs % 60000) / 1000)).padStart(2, '0') %>
-                          </span>
-                        <% } %>
-                      </div>
-                    <% } %>
-                    <p class="text-sm text-gray-700 text-left max-w-none">
-                      <%= chunk.text %>
-                    </p>
-                  </div>
-                <% }); %>
-                <div class="pt-4 border-t border-gray-100 text-center">
-                  <p class="text-xs text-gray-400"><%= meeting.transcript.length.toLocaleString() %> transcript segments loaded</p>
-                </div>
-              </div>
-            </div>
-                  <% } else { %>
-                    <div class="text-center py-8">
-                      <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
-                      </svg>
-                      <h3 class="mt-2 text-sm font-semibold text-gray-900">No transcript available</h3>
-                      <p class="mt-1 text-sm text-gray-500">The meeting transcript will appear here once it's processed.</p>
-                    </div>
-                  <% } %>
-                </div>
-
-                <!-- Stats Tab -->
-                <div id="content-stats" class="tab-content hidden">
-                  <% const stats = meeting.stats; %>
-                  <% if (stats && ((stats.speakers && stats.speakers.length) || stats.durationSeconds)) { %>
-                    <div class="space-y-4">
-                      <% if (stats.durationSeconds) { %>
-                        <div class="rounded-lg border border-gray-100 bg-gray-50 p-4 flex items-center justify-between">
-                          <div class="flex items-center gap-3">
-                            <div class="h-10 w-10 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center font-semibold">
-                              <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                              </svg>
-                            </div>
-                            <div>
-                              <p class="text-sm font-semibold text-gray-900">Estimated duration</p>
-                              <p class="text-sm text-gray-600">
-                                <% const totalMins = Math.round(stats.durationSeconds / 60); const hours = Math.floor(totalMins / 60); const mins = totalMins % 60; %>
-                                <%= hours > 0 ? `${hours}h ${mins}m` : `${mins} min` %> (<%= Math.round(stats.durationSeconds) %>s)
-                              </p>
-                            </div>
-                          </div>
-                          <% if (stats.note) { %>
-                            <span class="text-xs text-gray-400"><%= stats.note %></span>
-                          <% } %>
-                        </div>
-                      <% } %>
-
-                      <% if (stats.speakers && stats.speakers.length > 0) { %>
-                        <div>
-                          <h4 class="text-sm font-semibold text-gray-900 mb-3">Talk time by speaker</h4>
-                          <div class="space-y-2">
-                            <% stats.speakers.forEach(function(speaker) { %>
-                              <div class="flex items-center justify-between rounded-lg border border-gray-100 p-3">
-                                <div>
-                                  <p class="text-sm font-medium text-gray-900"><%= speaker.name || 'Speaker' %></p>
-                                  <p class="text-xs text-gray-500">
-                                    <% const secs = Math.round(speaker.talkTimeSeconds || 0); const mins = Math.floor(secs / 60); const rem = secs % 60; %>
-                                    <%= mins > 0 ? `${mins}m ${rem}s` : `${secs}s` %>
-                                    <% if (speaker.turns) { %>
-                                      · <%= speaker.turns %> turns
-                                    <% } %>
-                                    <% if (speaker.wordCount) { %>
-                                      · <%= speaker.wordCount %> words
-                                    <% } %>
-                                  </p>
-                                </div>
-                                <div class="flex items-center gap-3">
-                                  <% if (speaker.talkTimePercent !== null && speaker.talkTimePercent !== undefined) { %>
-                                    <span class="text-sm font-semibold text-indigo-700"><%= speaker.talkTimePercent.toFixed(1) %>%</span>
-                                  <% } %>
-                                  <div class="w-32 bg-gray-100 rounded-full h-2 overflow-hidden">
-                                    <% const pct = Math.max(0, Math.min(100, speaker.talkTimePercent || 0)); %>
-                                    <div class="h-2 bg-indigo-500" data-width-pct="<%= pct %>"></div>
-                                  </div>
-                                </div>
-                              </div>
-                            <% }); %>
-                          </div>
-                        </div>
-                      <% } %>
-                    </div>
-                  <% } else { %>
-                    <div class="text-center py-8">
-                      <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z"></path>
-                      </svg>
-                      <h3 class="mt-2 text-sm font-semibold text-gray-900">Stats unavailable</h3>
-                      <p class="mt-1 text-sm text-gray-500">Talk-time stats will appear here once transcript timing is processed.</p>
-                    </div>
-                  <% } %>
-                </div>
-              </div>
-            </div>
-            <% } %>
 
           </div>
 
-          <% if (false) { %>
-          <!-- Sidebar -->
-          <div class="sm:col-span-1 space-y-6">
-            
-            <!-- Meeting Sentiment & Outcome -->
-            <% if (meeting.sentiment || meeting.outcome) { %>
-              <div class="overflow-hidden bg-white shadow sm:rounded-lg">
-                <div class="px-4 py-5 sm:px-6 border-b border-gray-200">
-                  <h2 class="text-base font-semibold text-gray-900 flex items-center">
-                    <svg class="w-4 h-4 mr-2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
-                    </svg>
-                    Meeting Pulse
-                  </h2>
-                </div>
-                <div class="px-4 py-5 sm:px-6 space-y-4">
-                  <% if (meeting.sentiment) { %>
-                    <div>
-                      <p class="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">Sentiment</p>
-                      <% 
-                        const sentimentLabel = meeting.sentiment || 'neutral';
-                        const sentimentLower = sentimentLabel.toLowerCase();
-                        let sentimentType = 'neutral';
-                        let sentimentIcon = '😐';
-                        if (sentimentLower.includes('positive') || sentimentLower.includes('good') || sentimentLower.includes('great')) {
-                          sentimentType = 'positive';
-                          sentimentIcon = '😊';
-                        } else if (sentimentLower.includes('negative') || sentimentLower.includes('bad') || sentimentLower.includes('poor')) {
-                          sentimentType = 'negative';
-                          sentimentIcon = '😟';
-                        }
-                        const sentimentScore = meeting.sentimentData?.score;
-                        const sentimentConfidence = meeting.sentimentData?.confidence;
-                      %>
-                      <div class="inline-flex items-center rounded-full px-3 py-1.5 text-sm font-medium <%= sentimentType === 'positive' ? 'bg-green-100 text-green-800' : sentimentType === 'negative' ? 'bg-red-100 text-red-800' : 'bg-yellow-100 text-yellow-800' %>">
-                        <span class="mr-2"><%= sentimentIcon %></span>
-                        <%= sentimentLabel.charAt(0).toUpperCase() + sentimentLabel.slice(1) %>
-                        <% if (sentimentScore !== undefined) { %>
-                          <span class="ml-2 text-xs opacity-75">(<%= (sentimentScore * 100).toFixed(0) %>%<%= sentimentConfidence ? `, ${(sentimentConfidence * 100).toFixed(0)}% confidence` : '' %>)</span>
-                        <% } %>
-                      </div>
-                    </div>
-                  <% } %>
-                  <% if (meeting.outcome) { %>
-                    <div>
-                      <p class="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">Outcome</p>
-                      <% 
-                        const outcomeLower = meeting.outcome.toLowerCase();
-                        let outcomeLabel = meeting.outcome.replace(/_/g, ' ');
-                        outcomeLabel = outcomeLabel.charAt(0).toUpperCase() + outcomeLabel.slice(1);
-                        let outcomeClass = 'bg-gray-100 text-gray-700';
-                        let outcomeIcon = '📋';
-                        if (outcomeLower === 'productive') {
-                          outcomeClass = 'bg-green-100 text-green-800';
-                          outcomeIcon = '✅';
-                        } else if (outcomeLower === 'inconclusive') {
-                          outcomeClass = 'bg-yellow-100 text-yellow-800';
-                          outcomeIcon = '❓';
-                        } else if (outcomeLower === 'needs_followup') {
-                          outcomeClass = 'bg-blue-100 text-blue-800';
-                          outcomeIcon = '📌';
-                        } else if (outcomeLower === 'blocked') {
-                          outcomeClass = 'bg-red-100 text-red-800';
-                          outcomeIcon = '🚫';
-                        } else if (outcomeLower === 'informational') {
-                          outcomeClass = 'bg-purple-100 text-purple-800';
-                          outcomeIcon = 'ℹ️';
-                        }
-                      %>
-                      <div class="inline-flex items-center rounded-full px-3 py-1.5 text-sm font-medium <%= outcomeClass %>">
-                        <span class="mr-2"><%= outcomeIcon %></span>
-                        <%= outcomeLabel %>
-                      </div>
-                    </div>
-                  <% } %>
-                </div>
-              </div>
-            <% } %>
-
-            <!-- Key Insights Section -->
-            <% if (meeting.keyInsights && meeting.keyInsights.length > 0) { %>
-              <div class="overflow-hidden bg-white shadow sm:rounded-lg">
-                <div class="px-4 py-5 sm:px-6 border-b border-gray-200">
-                  <h2 class="text-base font-semibold text-gray-900 flex items-center">
-                    <svg class="w-4 h-4 mr-2 text-yellow-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path>
-                    </svg>
-                    Key Insights
-                  </h2>
-                </div>
-                <div class="px-4 py-5 sm:px-6">
-                  <ul class="space-y-3">
-                    <% meeting.keyInsights.forEach(function(insight, index) { %>
-                      <li class="flex items-start">
-                        <span class="flex-shrink-0 h-5 w-5 flex items-center justify-center rounded-full bg-yellow-100 text-yellow-600 text-xs font-bold mt-0.5">
-                          💡
-                        </span>
-                        <span class="ml-2 text-sm text-gray-700">
-                          <% if (typeof insight === 'object') { %>
-                            <%= insight.text || insight.insight || insight.description || JSON.stringify(insight) %>
-                          <% } else { %>
-                            <%= insight %>
-                          <% } %>
-                        </span>
-                      </li>
-                    <% }); %>
-                  </ul>
-                </div>
-              </div>
-            <% } %>
-
-            <!-- Decisions Section -->
-            <% if (meeting.decisions && meeting.decisions.length > 0) { %>
-              <div class="overflow-hidden bg-white shadow sm:rounded-lg">
-                <div class="px-4 py-5 sm:px-6 border-b border-gray-200">
-                  <h2 class="text-base font-semibold text-gray-900 flex items-center">
-                    <svg class="w-4 h-4 mr-2 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                    </svg>
-                    Decisions Made
-                  </h2>
-                </div>
-                <div class="px-4 py-5 sm:px-6">
-                  <ul class="space-y-2">
-                    <% meeting.decisions.forEach(function(decision) { %>
-                      <li class="flex items-start bg-purple-50 rounded-lg p-2">
-                        <svg class="h-4 w-4 text-purple-500 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                          <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path>
-                        </svg>
-                        <span class="ml-2 text-sm text-gray-700">
-                          <% if (typeof decision === 'object') { %>
-                            <%= decision.text || decision.decision || decision.description || JSON.stringify(decision) %>
-                          <% } else { %>
-                            <%= decision %>
-                          <% } %>
-                        </span>
-                      </li>
-                    <% }); %>
-                  </ul>
-                </div>
-              </div>
-            <% } %>
-
-            <!-- Participants Section -->
-            <% if (meeting.participants && meeting.participants.length > 0) { %>
-              <div class="overflow-hidden bg-white shadow sm:rounded-lg">
-                <div class="px-4 py-5 sm:px-6 border-b border-gray-200">
-                  <h2 class="text-base font-semibold text-gray-900 flex items-center">
-                    <svg class="w-4 h-4 mr-2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
-                    </svg>
-                    Participants
-                  </h2>
-                </div>
-                <div class="px-4 py-5 sm:px-6">
-                  <ul class="space-y-2">
-                    <% meeting.participants.forEach(function(participant) { %>
-                      <li class="flex items-center">
-                        <div class="h-8 w-8 rounded-full bg-gray-200 flex items-center justify-center">
-                          <svg class="h-4 w-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
-                          </svg>
-                        </div>
-                        <span class="ml-3 text-sm text-gray-700">
-                          <% if (typeof participant === 'object') { %>
-                            <%= participant.name || participant.email || participant.displayName || JSON.stringify(participant) %>
-                          <% } else { %>
-                            <%= participant %>
-                          <% } %>
-                        </span>
-                      </li>
-                    <% }); %>
-                  </ul>
-                </div>
-              </div>
-            <% } %>
-
-            <!-- Sharing Section -->
-            <% if (meeting.isOwner) { %>
-              <div class="overflow-hidden bg-white shadow sm:rounded-lg">
-                <div class="px-4 py-5 sm:px-6 border-b border-gray-200">
-                  <h2 class="text-base font-semibold text-gray-900 flex items-center">
-                    <svg class="w-4 h-4 mr-2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"></path>
-                    </svg>
-                    Share Meeting
-                  </h2>
-                </div>
-                <div class="px-4 py-5 sm:px-6">
-                  <p class="text-sm text-gray-500 mb-4">Share this meeting's transcript and summary with attendees.</p>
-                  
-                  <!-- Share with attendees form -->
-                  <div id="share-attendees-container">
-                    <div class="mb-4">
-                      <label for="share-email" class="block text-sm font-medium text-gray-700 mb-1">Share with email</label>
-                      <div class="flex gap-2">
-                        <input 
-                          type="email" 
-                          id="share-email" 
-                          placeholder="email@example.com"
-                          class="flex-1 rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm"
-                        >
-                        <button 
-                          type="button" 
-                          onclick="shareMeeting()"
-                          class="inline-flex items-center rounded-md bg-indigo-600 px-3 py-2 text-sm font-medium text-white shadow-sm hover:bg-indigo-500"
-                        >
-                          Share
-                        </button>
-                      </div>
-                    </div>
-                    
-                    <!-- Quick share with attendees -->
-                    <div id="attendees-to-share" class="space-y-2">
-                      <p class="text-xs text-gray-500">Loading attendees...</p>
-                    </div>
-                  </div>
-                  
-                  <!-- Current shares -->
-                  <div id="current-shares" class="mt-4 pt-4 border-t border-gray-200">
-                    <h3 class="text-sm font-medium text-gray-700 mb-2">Shared with</h3>
-                    <div id="shares-list" class="space-y-2">
-                      <p class="text-xs text-gray-500">Loading...</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            <% } else if (meeting.isShared) { %>
-              <div class="overflow-hidden bg-white shadow sm:rounded-lg">
-                <div class="px-4 py-5 sm:px-6 border-b border-gray-200">
-                  <h2 class="text-base font-semibold text-gray-900 flex items-center">
-                    <svg class="w-4 h-4 mr-2 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"></path>
-                    </svg>
-                    Shared Meeting
-                  </h2>
-                </div>
-                <div class="px-4 py-5 sm:px-6">
-                  <div class="flex items-center text-sm text-gray-600">
-                    <svg class="w-4 h-4 mr-2 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                    </svg>
-                    <span>
-                      Shared by <strong><%= meeting.shareInfo?.sharedBy?.name || meeting.shareInfo?.sharedBy?.email || 'Unknown' %></strong>
-                    </span>
-                  </div>
-                  <p class="mt-2 text-xs text-gray-500">
-                    Access level: <span class="capitalize"><%= meeting.shareInfo?.accessLevel || 'view' %></span>
-                  </p>
-                </div>
-              </div>
-            <% } %>
-
-            <!-- Publish Status Section -->
-            <% if (publishDeliveries && publishDeliveries.length > 0) { %>
-              <div class="overflow-hidden bg-white shadow sm:rounded-lg">
-                <div class="px-4 py-5 sm:px-6 border-b border-gray-200">
-                  <h2 class="text-base font-semibold text-gray-900 flex items-center">
-                    <svg class="w-4 h-4 mr-2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
-                    </svg>
-                    Published To
-                  </h2>
-                </div>
-                <div class="px-4 py-5 sm:px-6">
-                  <ul class="space-y-3">
-                    <% publishDeliveries.forEach(function(delivery) { %>
-                      <li class="flex items-center justify-between">
-                        <div class="flex items-center">
-                          <% if (delivery.PublishTarget?.type === 'notion') { %>
-                            <svg class="h-5 w-5 text-gray-600" viewBox="0 0 24 24" fill="currentColor">
-                              <path d="M4.459 4.208c.746.606 1.026.56 2.428.466l13.215-.793c.28 0 .047-.28-.046-.326L17.86 1.968c-.42-.326-.98-.7-2.055-.607L3.01 2.295c-.466.046-.56.28-.374.466zm.793 3.08v13.904c0 .747.373 1.027 1.214.98l14.523-.84c.841-.046.935-.56.935-1.167V6.354c0-.606-.233-.933-.748-.886l-15.177.887c-.56.047-.747.327-.747.933zm14.337.745c.093.42 0 .84-.42.888l-.7.14v10.264c-.608.327-1.168.514-1.635.514-.748 0-.935-.234-1.495-.933l-4.577-7.186v6.952l1.448.327s0 .84-1.168.84l-3.22.186c-.094-.186 0-.653.327-.746l.84-.233V9.854L7.822 9.76c-.094-.42.14-1.026.793-1.073l3.456-.233 4.764 7.279v-6.44l-1.215-.14c-.093-.514.28-.886.747-.933zM1.936 1.035l13.31-.98c1.634-.14 2.055-.047 3.082.7l4.249 2.986c.7.513.934.653.934 1.213v16.378c0 1.026-.373 1.634-1.68 1.726l-15.458.934c-.98.047-1.448-.093-1.962-.747l-3.129-4.06c-.56-.747-.793-1.306-.793-1.96V2.667c0-.839.374-1.54 1.447-1.632z"/>
-                            </svg>
-                          <% } else { %>
-                            <svg class="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"></path>
-                            </svg>
-                          <% } %>
-                          <span class="ml-2 text-sm text-gray-700 capitalize"><%= delivery.PublishTarget?.type || 'Unknown' %></span>
-                        </div>
-                        <% if (delivery.status === 'delivered' || delivery.status === 'success') { %>
-                          <span class="inline-flex items-center rounded-full bg-green-50 px-2 py-1 text-xs font-medium text-green-700">
-                            <svg class="mr-1 h-3 w-3" fill="currentColor" viewBox="0 0 20 20">
-                              <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
-                            </svg>
-                            Sent
-                          </span>
-                        <% } else if (delivery.status === 'failed') { %>
-                          <span class="inline-flex items-center rounded-full bg-red-50 px-2 py-1 text-xs font-medium text-red-700">
-                            <svg class="mr-1 h-3 w-3" fill="currentColor" viewBox="0 0 20 20">
-                              <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"></path>
-                            </svg>
-                            Failed
-                          </span>
-                        <% } else { %>
-                          <span class="inline-flex items-center rounded-full bg-yellow-50 px-2 py-1 text-xs font-medium text-yellow-700">
-                            <svg class="mr-1 h-3 w-3 animate-spin" fill="none" viewBox="0 0 24 24">
-                              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                            </svg>
-                            Pending
-                          </span>
-                        <% } %>
-                        <% if (delivery.url) { %>
-                          <a href="<%= delivery.url %>" target="_blank" rel="noopener" class="ml-3 text-xs text-indigo-600 hover:text-indigo-800 underline">
-                            Open
-                          </a>
-                        <% } %>
-                      </li>
-                    <% }); %>
-                  </ul>
-                </div>
-              </div>
-            <% } %>
-
-            <!-- Quick Actions -->
-            <div class="overflow-hidden bg-white shadow sm:rounded-lg">
-              <div class="px-4 py-5 sm:px-6 border-b border-gray-200">
-                <h2 class="text-base font-semibold text-gray-900">Quick Actions</h2>
-              </div>
-              <div class="px-4 py-5 sm:px-6 space-y-3">
-                <% if (meeting.artifactId && !meeting.hasBeenEnriched) { %>
-                  <button
-                    type="button"
-                    onclick="triggerEnrichment('<%= meeting.artifactId %>')"
-                    id="enrich-btn"
-                    class="w-full inline-flex items-center justify-center rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
-                  >
-                    <svg class="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
-                    </svg>
-                    <span id="enrich-btn-text">Generate AI Summary</span>
-                  </button>
-                <% } else if (meeting.artifactId && meeting.hasBeenEnriched) { %>
-                  <button
-                    type="button"
-                    onclick="triggerEnrichment('<%= meeting.artifactId %>')"
-                    id="enrich-btn"
-                    class="w-full inline-flex items-center justify-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50"
-                  >
-                    <svg class="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
-                    </svg>
-                    <span id="enrich-btn-text">Re-generate Summary</span>
-                  </button>
-                <% } %>
-                <% if (meeting.artifactId) { %>
-                  <button
-                    type="button"
-                    onclick="openNotionDestinationPicker('<%= meeting.artifactId %>')"
-                    id="publish-notion-btn"
-                    class="w-full inline-flex items-center justify-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-indigo-600 shadow-sm ring-1 ring-inset ring-indigo-200 hover:bg-indigo-50"
-                  >
-                    <svg class="mr-2 h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
-                      <path d="M4.459 4.208c.746.606 1.026.56 2.428.466l13.215-.793c.28 0 .047-.28-.046-.326L17.86 2.02c-.42-.326-.98-.7-2.055-.607L3.01 2.72c-.466.046-.56.28-.374.466l1.823 1.022zm.793 3.08v13.904c0 .747.373 1.027 1.214.98l14.523-.84c.841-.046.935-.56.935-1.166V6.354c0-.606-.233-.933-.748-.886l-15.177.887c-.56.047-.747.327-.747.933zm14.337.745c.093.42 0 .84-.42.888l-.7.14v10.264c-.608.327-1.168.514-1.635.514-.748 0-.935-.234-1.495-.933l-4.577-7.186v6.952l1.448.327s0 .84-1.168.84l-3.22.186c-.094-.186 0-.653.327-.746l.84-.233V9.854L7.822 9.76c-.094-.42.14-1.026.793-1.073l3.456-.233 4.764 7.279v-6.44l-1.215-.14c-.093-.514.28-.886.747-.933l3.222-.186zM2.877 1.16l13.681-.933c1.682-.14 2.101.093 2.801.606l3.876 2.754c.466.326.606.7.606 1.213v15.06c0 .933-.373 1.493-1.682 1.586l-15.457.933c-.98.047-1.448-.093-1.962-.7l-3.129-4.06c-.56-.747-.793-1.306-.793-1.96V2.667c0-.839.374-1.54 1.682-1.633l.377.126z"/>
-                    </svg>
-                    <span id="publish-notion-btn-text">Publish to Notion</span>
-                  </button>
-                  <button
-                    type="button"
-                    onclick="openSlackDestinationPicker('<%= meeting.artifactId %>')"
-                    id="publish-slack-btn"
-                    class="w-full inline-flex items-center justify-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-sky-600 shadow-sm ring-1 ring-inset ring-sky-200 hover:bg-sky-50"
-                  >
-                    <svg class="mr-2 h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
-                      <path d="M5.1 15.9c0 1.05-.86 1.9-1.9 1.9S1.3 16.95 1.3 15.9s.86-1.9 1.9-1.9h1.9v1.9zm.95 0c0-1.05.86-1.9 1.9-1.9s1.9.85 1.9 1.9v4.75c0 1.05-.86 1.9-1.9 1.9s-1.9-.85-1.9-1.9V15.9zm1.9-10.85c-1.05 0-1.9-.86-1.9-1.9S6 1.25 7.05 1.25 8.95 2.1 8.95 3.15v1.9H7.05zm0 .95c1.05 0 1.9.86 1.9 1.9s-.86 1.9-1.9 1.9H2.3c-1.05 0-1.9-.86-1.9-1.9S1.25 6 2.3 6h4.75zM18.9 8.05c0-1.05.86-1.9 1.9-1.9s1.9.86 1.9 1.9-.86 1.9-1.9 1.9h-1.9v-1.9zm-.95 0c0 1.05-.86 1.9-1.9 1.9s-1.9-.86-1.9-1.9V3.3c0-1.05.86-1.9 1.9-1.9s1.9.86 1.9 1.9v4.75zm-1.9 10.85c1.05 0 1.9.86 1.9 1.9s-.86 1.9-1.9 1.9-1.9-.86-1.9-1.9v-1.9h1.9zm0-.95c-1.05 0-1.9-.86-1.9-1.9s.86-1.9 1.9-1.9h4.75c1.05 0 1.9.86 1.9 1.9s-.86 1.9-1.9 1.9H16.05z"/>
-                    </svg>
-                    <span id="publish-slack-btn-text">Publish to Slack</span>
-                  </button>
-                  <button
-                    type="button"
-                    onclick="publishToNotion('<%= meeting.artifactId %>')"
-                    id="publish-btn"
-                    class="w-full inline-flex items-center justify-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-700 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50"
-                  >
-                    <svg class="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 8h10M7 12h4m-9 7h18a2 2 0 002-2V7a2 2 0 00-2-2H2a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
-                    </svg>
-                    <span id="publish-btn-text">Publish to All Destinations</span>
-                  </button>
-                  <p class="text-xs text-gray-500">Publish to Notion (with destination picker) or all enabled targets.</p>
-                <% } %>
-                <a href="/meetings" class="w-full inline-flex items-center justify-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50">
-                  <svg class="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
-                  </svg>
-                  Back to Meetings
-                </a>
-                <a href="/" class="w-full inline-flex items-center justify-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50">
-                  <svg class="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path>
-                  </svg>
-                  Dashboard
-                </a>
-              </div>
-            </div>
-          <% } %>
-
-          </div>
         </div>
       </div>
     </main>
@@ -1262,10 +298,6 @@
   function renderTranscript(transcript) {
     const contentEl = document.getElementById('transcript-content');
     if (!contentEl) return;
-    
-    // #region agent log
-    fetch('http://127.0.0.1:7250/ingest/bf0206c3-6e13-4499-92a3-7fb2b7527fcf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'meeting-detail.ejs:renderTranscript',message:'Frontend received transcript',data:{segmentCount:transcript?.length||0,sampleSegments:transcript?.slice(0,3).map(s=>({speaker:s.speaker,textLength:s.text?.length,textPreview:s.text?.substring(0,100)})),avgTextLength:transcript?.length>0?Math.round(transcript.reduce((sum,s)=>sum+(s.text?.length||0),0)/transcript.length):0},timestamp:Date.now(),sessionId:'debug-session',runId:'transcript-debug',hypothesisId:'H2H4'})}).catch(()=>{});
-    // #endregion
     
     if (!transcript || transcript.length === 0) {
       contentEl.innerHTML = `
@@ -1815,21 +847,36 @@
   }
 
   function renderSuperAgentAnalysis(analysis) {
-    // #region agent log - H1: Super Agent render inputs/status
     try {
-      window.__saDbg = window.__saDbg || { renderCount: 0, fetchCount: 0 };
-      if ((window.__saDbg.renderCount || 0) < 3) {
-        const analysisKeys = analysis && typeof analysis === 'object' ? Object.keys(analysis) : [];
-        const computedStatus = !analysis ? null : (analysis.status || 'processing');
-        fetch('http://127.0.0.1:7250/ingest/bf0206c3-6e13-4499-92a3-7fb2b7527fcf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'meeting-detail.ejs:renderSuperAgentAnalysis',message:'sa_render',data:{meetingId,artifactId,superAgentEnabled,analysisType:analysis===null?'null':typeof analysis,analysisKeys,analysisStatus:analysis?.status||null,computedStatus},timestamp:Date.now(),sessionId:'debug-session',runId:'pre-fix',hypothesisId:'H1'})}).catch(()=>{});
-        window.__saDbg.renderCount = (window.__saDbg.renderCount || 0) + 1;
-      }
-    } catch (_) {}
-    // #endregion
+      // Debug: Log what we're rendering
+      console.log('[Super Agent] renderSuperAgentAnalysis called with:', {
+        hasAnalysis: !!analysis,
+        status: analysis?.status,
+        hasDetailedSummary: !!analysis?.detailedSummary,
+        detailedSummaryLength: analysis?.detailedSummary?.length,
+        hasChapters: !!analysis?.chapters?.length,
+        chaptersCount: analysis?.chapters?.length,
+        hasActionItems: !!analysis?.actionItems?.length,
+        actionItemsCount: analysis?.actionItems?.length,
+        hasDecisions: !!analysis?.decisions?.length,
+        decisionsCount: analysis?.decisions?.length,
+        hasHighlights: !!analysis?.highlights?.length,
+        highlightsCount: analysis?.highlights?.length
+      });
+    
     const progress = document.getElementById('super-agent-progress');
     const results = document.getElementById('super-agent-results');
     const errorEl = document.getElementById('super-agent-error');
     const triggerBtn = document.getElementById('super-agent-trigger');
+    
+    // Debug: Check if elements exist
+    console.log('[Super Agent] DOM elements:', {
+      hasProgress: !!progress,
+      hasResults: !!results,
+      hasError: !!errorEl,
+      hasTriggerBtn: !!triggerBtn,
+      resultsHidden: results?.classList.contains('hidden')
+    });
 
     if (!analysis) {
       setSuperAgentStatus('idle', 'Not started');
@@ -1867,13 +914,25 @@
 
     if (results) {
       if (status === 'completed') {
+        console.log('[Super Agent] Status is completed, showing results');
         results.classList.remove('hidden');
+        console.log('[Super Agent] Results hidden class removed, now hidden?', results.classList.contains('hidden'));
+        
         const summaryEl = document.getElementById('super-agent-summary');
+        console.log('[Super Agent] Summary element:', {
+          exists: !!summaryEl,
+          summaryLength: analysis.detailedSummary?.length
+        });
         if (summaryEl) summaryEl.textContent = analysis.detailedSummary || '';
 
         const chaptersEl = document.getElementById('super-agent-chapters');
+        console.log('[Super Agent] Chapters element:', {
+          exists: !!chaptersEl,
+          chaptersCount: analysis.chapters?.length
+        });
         if (chaptersEl) {
           const chapters = Array.isArray(analysis.chapters) ? analysis.chapters : [];
+          console.log('[Super Agent] Rendering chapters:', chapters.length);
           chaptersEl.innerHTML = chapters.length
             ? chapters.map((chapter) => {
                 const start = typeof chapter.start === 'number' ? Math.floor(chapter.start / 1000) : null;
@@ -1931,41 +990,17 @@
         results.classList.add('hidden');
       }
     }
+    } catch (error) {
+      console.error('[Super Agent] Error in renderSuperAgentAnalysis:', error);
+    }
   }
 
   async function fetchSuperAgentAnalysis() {
     if (!meetingId || !artifactId) return null;
     try {
-      // #region agent log - H2: Super Agent poll request/response shape
-      try {
-        window.__saDbg = window.__saDbg || { renderCount: 0, fetchCount: 0 };
-        if ((window.__saDbg.fetchCount || 0) < 5) {
-          fetch('http://127.0.0.1:7250/ingest/bf0206c3-6e13-4499-92a3-7fb2b7527fcf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'meeting-detail.ejs:fetchSuperAgentAnalysis',message:'sa_fetch_start',data:{meetingId,artifactId},timestamp:Date.now(),sessionId:'debug-session',runId:'pre-fix',hypothesisId:'H2'})}).catch(()=>{});
-        }
-      } catch (_) {}
-      // #endregion
       const response = await fetch(`/api/meetings/${meetingId}/super-agent`);
-      // #region agent log - H2b: Super Agent poll response details
-      try {
-        window.__saDbg = window.__saDbg || { renderCount: 0, fetchCount: 0 };
-        if ((window.__saDbg.fetchCount || 0) < 5) {
-          fetch('http://127.0.0.1:7250/ingest/bf0206c3-6e13-4499-92a3-7fb2b7527fcf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'meeting-detail.ejs:fetchSuperAgentAnalysis',message:'sa_fetch_http',data:{meetingId,artifactId,ok:response.ok,status:response.status},timestamp:Date.now(),sessionId:'debug-session',runId:'pre-fix',hypothesisId:'H2b'})}).catch(()=>{});
-        }
-      } catch (_) {}
-      // #endregion
       if (!response.ok) return null;
       const data = await response.json();
-      // #region agent log - H2c: Super Agent poll parsed payload
-      try {
-        window.__saDbg = window.__saDbg || { renderCount: 0, fetchCount: 0 };
-        if ((window.__saDbg.fetchCount || 0) < 5) {
-          const analysis = data?.analysis;
-          const analysisKeys = analysis && typeof analysis === 'object' ? Object.keys(analysis) : [];
-          fetch('http://127.0.0.1:7250/ingest/bf0206c3-6e13-4499-92a3-7fb2b7527fcf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'meeting-detail.ejs:fetchSuperAgentAnalysis',message:'sa_fetch_json',data:{meetingId,artifactId,hasAnalysis:!!analysis,analysisType:analysis===null?'null':typeof analysis,analysisKeys,analysisStatus:analysis?.status||null},timestamp:Date.now(),sessionId:'debug-session',runId:'pre-fix',hypothesisId:'H2c'})}).catch(()=>{});
-          window.__saDbg.fetchCount = (window.__saDbg.fetchCount || 0) + 1;
-        }
-      } catch (_) {}
-      // #endregion
       return data.analysis || null;
     } catch (error) {
       console.error('Failed to fetch Super Agent analysis:', error);
@@ -2064,26 +1099,25 @@
   }
 
   function initializeSuperAgent() {
+    console.log('[Super Agent] initializeSuperAgent called', {
+      hasArtifactId: !!artifactId,
+      superAgentEnabled,
+      hasInitialAnalysis: !!initialSuperAgentAnalysis,
+      initialAnalysisStatus: initialSuperAgentAnalysis?.status
+    });
+    
     if (!artifactId) return;
-    // #region agent log - H4: Super Agent initialization auto-poll decision
-    try {
-      const initKeys = initialSuperAgentAnalysis && typeof initialSuperAgentAnalysis === 'object'
-        ? Object.keys(initialSuperAgentAnalysis)
-        : [];
-      const initStatus = initialSuperAgentAnalysis?.status || null;
-      const inProgressInit = !!(initialSuperAgentAnalysis && (initStatus === 'processing' || initStatus === 'queued'));
-      const willPoll = !!(!initialSuperAgentAnalysis || inProgressInit);
-      fetch('http://127.0.0.1:7250/ingest/bf0206c3-6e13-4499-92a3-7fb2b7527fcf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'meeting-detail.ejs:initializeSuperAgent',message:'sa_init',data:{meetingId,artifactId,superAgentEnabled,initialType:initialSuperAgentAnalysis===null?'null':typeof initialSuperAgentAnalysis,initialKeys:initKeys,initialStatus:initStatus,inProgressInit,willPoll},timestamp:Date.now(),sessionId:'debug-session',runId:'pre-fix',hypothesisId:'H4'})}).catch(()=>{});
-    } catch (_) {}
-    // #endregion
     if (!superAgentEnabled) {
+      console.log('[Super Agent] Super Agent not enabled');
       renderSuperAgentAnalysis(null);
       return;
     }
+    console.log('[Super Agent] Rendering initial analysis');
     renderSuperAgentAnalysis(initialSuperAgentAnalysis);
     // Poll when there's no analysis yet, or when one is queued/processing (so we update when worker finishes)
     const inProgress = initialSuperAgentAnalysis && (initialSuperAgentAnalysis.status === 'processing' || initialSuperAgentAnalysis.status === 'queued');
     if (!initialSuperAgentAnalysis || inProgress) {
+      console.log('[Super Agent] Scheduling poll');
       scheduleSuperAgentPoll();
     }
   }

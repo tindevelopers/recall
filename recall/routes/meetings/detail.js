@@ -95,9 +95,42 @@ function getDescriptionFromEvent(event) {
 }
 
 /**
+ * Extract description from an artifact
+ */
+function getDescriptionFromArtifact(artifact) {
+  if (!artifact) return null;
+  const data = artifact?.rawPayload?.data || {};
+  
+  let description = null;
+  // Check artifact data for description
+  if (data.description) {
+    description = data.description;
+  } else if (data.bot_metadata?.meeting_metadata?.description) {
+    // Check bot metadata
+    description = data.bot_metadata.meeting_metadata.description;
+  }
+  
+  // Strip HTML tags if present
+  if (description) {
+    description = stripHtml(description);
+    // Return null if description is empty after stripping
+    if (!description || description.length === 0) {
+      return null;
+    }
+  }
+  
+  return description;
+}
+
+/**
  * Derive a human-readable meeting title from various sources.
  */
 function extractMeetingTitle(artifact, calendarEvent) {
+  // 0) Artifact's pre-computed title field (if available)
+  if (artifact?.title && !isGenericMeetingTitle(artifact.title)) {
+    return artifact.title;
+  }
+  
   // 1) Calendar event title (virtual field that gets summary/subject from raw data)
   if (calendarEvent?.title && !isGenericMeetingTitle(calendarEvent.title)) {
     return calendarEvent.title;
@@ -172,7 +205,7 @@ function extractMeetingTitle(artifact, calendarEvent) {
   const startTime = calendarEvent?.startTime || artifact?.rawPayload?.data?.start_time || artifact?.createdAt;
   if (startTime) {
     const date = new Date(startTime);
-    return `Meeting on ${date.toLocaleDateString("en-US", { month: "numeric", day: "numeric", year: "numeric" })}`;
+    return `Meeting on ${date.toLocaleDateString()}`; // Match list.js format exactly
   }
 
   return "Untitled Meeting";
@@ -201,6 +234,9 @@ export default async (req, res) => {
         { readableId: meetingId },
       ],
     },
+    attributes: {
+      include: ['title'], // Explicitly include title field
+    },
     include: [
       {
         model: db.CalendarEvent,
@@ -211,6 +247,7 @@ export default async (req, res) => {
       },
       // NO MeetingTranscriptChunk - this is what makes it slow!
     ],
+    // rawPayload should be loaded by default (it's a required field in the model)
   });
   
   if (artifact) {
@@ -318,39 +355,87 @@ export default async (req, res) => {
     }
   }
 
+  // Try to merge with upcoming event data if available (same pattern as past meetings page)
+  // This can provide better title/description from the calendar event
+  let matchingUpcomingEvent = null;
+  const recallEventIdForMerge =
+    calendarEvent?.recallId ||
+    artifact?.recallEventId ||
+    artifact?.rawPayload?.data?.recall_event_id ||
+    artifact?.rawPayload?.data?.calendar_event_id ||
+    null;
+  
+  if (recallEventIdForMerge) {
+    // Find matching upcoming calendar event by recallId
+    try {
+      const now = new Date();
+      matchingUpcomingEvent = await db.CalendarEvent.findOne({
+        where: {
+          recallId: recallEventIdForMerge,
+          startTime: { [Op.gte]: now }, // Only future events
+        },
+        include: [{ model: db.Calendar }],
+      });
+      
+      // Extract description from upcoming event if found
+      if (matchingUpcomingEvent) {
+        matchingUpcomingEvent.description = getDescriptionFromEvent(matchingUpcomingEvent);
+      }
+    } catch (err) {
+      console.warn("[meetings/detail] Error fetching matching upcoming event:", err?.message || err);
+    }
+  }
+
   // Build meeting data - MINIMAL for fast initial render
   // Heavy data (transcript, stats) will be lazy-loaded
-  const extractedTitle = extractMeetingTitle(artifact, calendarEvent);
+
+  // Use database title field directly (source of truth)
+  // If it's generic or missing, compute and update it
+  let extractedTitle = artifact?.title && !isGenericMeetingTitle(artifact.title) 
+    ? artifact.title 
+    : null;
   
-  // Extract description from calendar event
-  const description = getDescriptionFromEvent(calendarEvent);
+  // If database title is generic/missing, compute it from rawPayload and update database
+  if (!extractedTitle) {
+    extractedTitle = extractMeetingTitle(artifact, calendarEvent);
+    
+    // Use upcoming event title if available and better (same pattern as past meetings page)
+    if (matchingUpcomingEvent?.title && !isGenericMeetingTitle(matchingUpcomingEvent.title)) {
+      extractedTitle = matchingUpcomingEvent.title;
+    }
+    
+    // Update the database with the computed title so we don't have to compute it again
+    // This ensures the database is the source of truth going forward
+    // Do this asynchronously (fire and forget) to avoid blocking the request
+    if (extractedTitle && !isGenericMeetingTitle(extractedTitle) && artifact.id) {
+      const oldTitle = artifact.title;
+      const artifactId = artifact.id;
+      // Update database asynchronously without blocking the request
+      // Don't modify the artifact instance to avoid Sequelize issues
+      artifact.update({ title: extractedTitle }, { silent: true }).then(() => {
+      }).catch((err) => {
+        console.warn(`[meetings/detail] Failed to update artifact title:`, err?.message || err);
+      });
+    }
+  }
   
-  // Create display title: prefer description, otherwise use extracted title
+  // Extract description from calendar event and artifact (same way as past meetings page)
+  const descriptionFromEvent = getDescriptionFromEvent(calendarEvent);
+  const descriptionFromArtifact = getDescriptionFromArtifact(artifact);
+  // Prefer upcoming event description, then artifact description, fallback to event description
+  let description = descriptionFromArtifact || descriptionFromEvent;
+  if (matchingUpcomingEvent?.description) {
+    description = matchingUpcomingEvent.description;
+  }
+
+  // Create display title: use extracted title (NOT description)
   // If extracted title is "Meeting on {date}", remove the date part since we show date separately
-  let displayTitle = description || extractedTitle || 'Meeting';
-  if (!description && extractedTitle && extractedTitle.startsWith('Meeting on ')) {
+  let displayTitle = extractedTitle || 'Meeting';
+  if (extractedTitle && extractedTitle.startsWith('Meeting on ')) {
     // Remove "Meeting on {date}" pattern - just use "Meeting" or keep the title as-is if it has other content
     displayTitle = extractedTitle.replace(/^Meeting on \d{1,2}\/\d{1,2}\/\d{4}$/, 'Meeting');
   }
-  
-  // Truncate description if it's too long for a title (keep first 100 chars)
-  if (displayTitle && displayTitle.length > 100) {
-    displayTitle = displayTitle.substring(0, 100).trim() + '...';
-  }
-  
-  // Debug: Log title extraction for troubleshooting
-  if (extractedTitle && extractedTitle.startsWith('Meeting on')) {
-    console.log(`[TITLE-DEBUG] Artifact ${artifact?.id}: Falling back to date-based title. Available sources:`, {
-      calendarEventTitle: calendarEvent?.title,
-      calendarEventRawSummary: calendarEvent?.recallData?.raw?.summary,
-      calendarEventRawSubject: calendarEvent?.recallData?.raw?.subject,
-      artifactPayloadTitle: artifact?.rawPayload?.data?.title,
-      botMetaTitle: artifact?.rawPayload?.data?.bot_metadata?.meeting_metadata?.title,
-      artifactMeetingTitle: artifact?.rawPayload?.data?.meeting_title,
-      description: description ? 'present' : 'missing',
-    });
-  }
-  
+
   const meeting = {
     id: artifact?.id || summary?.id,
     readableId: artifact?.readableId || null,
@@ -417,7 +502,7 @@ export default async (req, res) => {
           highlights: superAgentAnalysis.highlights || [],
           chapters: superAgentAnalysis.chapters || [],
           sentiment: superAgentAnalysis.sentiment || null,
-          topics: superAgentAnalysis.topics || null,
+          topics: superAgentAnalysis.topics || [],
           contentSafety: superAgentAnalysis.contentSafety || null,
           translation: superAgentAnalysis.translation || null,
           errorMessage: superAgentAnalysis.errorMessage || null,

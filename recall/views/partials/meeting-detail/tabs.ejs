@@ -450,33 +450,31 @@
             const bullets = topicBullets(topic);
           %>
             <div class="topic-accordion">
-              <button 
-                type="button" 
-                class="w-full flex items-center justify-between px-4 py-3 hover:bg-gray-50"
-                onclick="toggleTopicAccordion(<%= idx %>)"
-                aria-expanded="<%= idx === 0 ? 'true' : 'false' %>"
-                aria-controls="topic-panel-<%= idx %>"
-              >
-                <div class="flex items-center gap-2">
+              <div class="w-full flex items-center justify-between px-4 py-3 hover:bg-gray-50">
+                <button 
+                  type="button" 
+                  class="flex-1 flex items-center gap-2 text-left"
+                  onclick="toggleTopicAccordion(<%= idx %>)"
+                  aria-expanded="<%= idx === 0 ? 'true' : 'false' %>"
+                  aria-controls="topic-panel-<%= idx %>"
+                >
                   <svg id="topic-chevron-<%= idx %>" class="h-4 w-4 text-gray-500 transform transition-transform <%= idx === 0 ? 'rotate-90' : 'rotate-0' %>" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
                   </svg>
                   <span class="text-sm font-semibold text-gray-900"><%= title %></span>
-                </div>
-                <div class="flex items-center gap-2">
-                  <button 
-                    type="button" 
-                    onclick="copyTopic(<%= idx %>, event)"
-                    class="inline-flex items-center rounded-md px-2 py-1 text-xs font-medium text-gray-600 ring-1 ring-inset ring-gray-200 hover:bg-gray-100"
-                    title="Copy topic"
-                  >
-                    <svg class="h-3.5 w-3.5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
-                    </svg>
-                    Copy
-                  </button>
-                </div>
-              </button>
+                </button>
+                <button 
+                  type="button" 
+                  onclick="copyTopic(<%= idx %>, event)"
+                  class="inline-flex items-center rounded-md px-2 py-1 text-xs font-medium text-gray-600 ring-1 ring-inset ring-gray-200 hover:bg-gray-100"
+                  title="Copy topic"
+                >
+                  <svg class="h-3.5 w-3.5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
+                  </svg>
+                  Copy
+                </button>
+              </div>
               <div id="topic-panel-<%= idx %>" class="<%= idx === 0 ? '' : 'hidden' %> border-t border-gray-100 bg-white" role="region">
                 <ul class="px-4 py-3 space-y-3">
                   <% bullets.forEach((bullet) => { 

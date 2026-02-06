@@ -20,6 +20,34 @@
         <h1 class="text-2xl font-bold leading-tight tracking-tight text-gray-900">
           <%= meeting.displayTitle || meeting.title %>
         </h1>
+        <%# Description - only show if it contains actual meeting content (not just Teams metadata) %>
+        <% if (meeting.description) { 
+             // Check if description is mostly Teams meeting metadata
+             const desc = meeting.description.toLowerCase();
+             const isTeamsMetadata = desc.includes('microsoft teams meeting') || 
+                                     desc.includes('dial in by phone') ||
+                                     desc.includes('phone conference id') ||
+                                     desc.includes('for organizers') ||
+                                     desc.includes('meeting options') ||
+                                     desc.includes('need help') ||
+                                     desc.includes('system reference') ||
+                                     (desc.match(/https?:\/\//g) && desc.match(/https?:\/\//g).length > 0);
+             
+             // Only show description if it's NOT Teams metadata
+             if (!isTeamsMetadata) {
+               // Remove any URLs that might still be present
+               let cleanedDesc = meeting.description;
+               const urlPattern = new RegExp('https?://[^\\s]+', 'g');
+               cleanedDesc = cleanedDesc.replace(urlPattern, '').trim();
+               
+               if (cleanedDesc.length > 0) {
+         %>
+          <div class="mt-3 text-sm text-gray-600">
+            <%= cleanedDesc %>
+          </div>
+        <%   }
+             }
+           } %>
         <div class="mt-2 flex flex-col sm:flex-row sm:flex-wrap sm:space-x-6">
           <div class="mt-2 flex items-center text-sm text-gray-500">
             <svg class="mr-1.5 h-5 w-5 flex-shrink-0 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
